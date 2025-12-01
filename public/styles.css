@@ -1478,6 +1478,15 @@ tr.incompatible td {
     gap: 12px;
 }
 
+.wizard-question-counter {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
 .budget-modal-close {
     background: rgba(255, 255, 255, 0.2);
     border: none;
