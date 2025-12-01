@@ -1646,11 +1646,14 @@ app.post('/api/ai-build', async (req, res) => {
             ramDebug.candidatesFound = rams.length;
         }
 
-        // Fallback 2: Remove memory type but filter out laptop RAM
+        // Fallback 2: Try ANY compatible memory type, but prioritize DDR5 then DDR4
         if (rams.length === 0) {
-            ramDebug.fallbackSearch = 'Removed memory type filter, desktop RAM only';
+            ramDebug.fallbackSearch = 'Trying all memory types, prioritizing DDR5';
+
+            // First try DDR5
             let allRams = await db.collection('rams').find({
-                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 }
+                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
+                memoryType: { $regex: 'DDR5', $options: 'i' }
             }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
 
             // Filter out laptop RAM
@@ -1661,6 +1664,24 @@ app.post('/api/ai-build', async (req, res) => {
                 const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
                 return !laptopKeywords.some(kw => name.includes(kw));
             });
+
+            // If DDR5 not found, try DDR4 ONLY if motherboard supports it
+            if (rams.length === 0 && (!motherboardMemoryType || motherboardMemoryType.includes('DDR4'))) {
+                ramDebug.fallbackSearch = 'No DDR5 found, trying DDR4';
+                allRams = await db.collection('rams').find({
+                    currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
+                    memoryType: { $regex: 'DDR4', $options: 'i' }
+                }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
+
+                rams = allRams.filter(ram => {
+                    const name = (ram.name || ram.title || '').toLowerCase();
+                    const formFactor = (ram.formFactor || '').toLowerCase();
+                    if (formFactor && formFactor.includes('sodimm')) return false;
+                    const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
+                    return !laptopKeywords.some(kw => name.includes(kw));
+                });
+            }
+
             ramDebug.candidatesFound = rams.length;
         }
 
