@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.env.local.backup
+.env.atlas
+.git
+.gitignore
+*.md
+debug_screenshots
+*.log
+.DS_Store
+Thumbs.db
+.vscode
+.idea

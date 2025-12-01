@@ -1,0 +1,48 @@
+# Railway Nixpacks Configuration
+# This tells Railway how to build and run the app
+
+[phases.setup]
+nixPkgs = [
+  'nodejs_20',
+  'chromium',
+  'nss',
+  'freetype',
+  'harfbuzz',
+  'ca-certificates',
+  'fontconfig',
+  'glib',
+  'libxcb',
+  'libxkbcommon',
+  'libx11',
+  'libxcomposite',
+  'libxdamage',
+  'libxext',
+  'libxfixes',
+  'libxrandr',
+  'libxrender',
+  'libxtst',
+  'nspr',
+  'pango',
+  'cairo',
+  'cups',
+  'dbus',
+  'expat',
+  'gdk-pixbuf',
+  'glib',
+  'gtk3',
+  'alsa-lib',
+  'atk',
+  'at-spi2-atk',
+  'libdrm',
+  'libxshmfence',
+  'mesa'
+]
+
+[phases.install]
+cmds = ['npm ci --production=false']
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = 'npm start'
