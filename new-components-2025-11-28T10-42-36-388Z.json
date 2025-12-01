@@ -1,0 +1,126 @@
+{
+  "timestamp": "2025-11-28T10:40:25.130Z",
+  "totalFound": 8,
+  "components": {
+    "gpus": [
+      {
+        "name": "GIGABYTE GeForce RTX 5080 Gaming OC 16G Graphics Card, WINDFORCE Cooling System, 16GB 256-bit GDDR7, GV-N5080GAMING OC-16GD Video Card",
+        "basePrice": 1189.99,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0DS2R6948?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/71lZess7M8L._AC_SY355_.jpg",
+        "gpuModel": "RTX 5080",
+        "manufacturer": "NVIDIA",
+        "memory": {
+          "size": 16,
+          "type": "GDDR7"
+        },
+        "wattage": 320
+      }
+    ],
+    "cpus": [
+      {
+        "name": "Intel Core i9-12900KF Gaming Desktop Processor 16 (8P+8E) Cores up to 5.2 GHz Unlocked LGA1700 600 Series Chipset 125W",
+        "basePrice": 234,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B09FWYK5M9?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/51CUAct4KVL._AC_SY355_.jpg",
+        "model": "i9-12900kf",
+        "manufacturer": "Intel",
+        "cores": null,
+        "speed": 5.2,
+        "socket": "LGA1700",
+        "_socketOptions": "Available sockets in DB: AM4, AM5, LGA1700, LGA1851, sTRX5"
+      }
+    ],
+    "motherboards": [
+      {
+        "name": "ASUS ROG Strix Z790-A Gaming WiFi II (WiFI 7) LGA 1700(Intel 14th & 13th & 12th Gen) ATX gaming motherboard(DDR5,5X M.2 slots,PCIe 5.0 x16,front-panel USB connector with PD 3.0 up to 30W)",
+        "basePrice": 159.99,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0CJMR6652?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/819AN0kVmJL._AC_SY355_.jpg",
+        "chipset": "Z790",
+        "socket": "LGA1700",
+        "formFactor": "ATX",
+        "manufacturer": "ASUS",
+        "ddr": "DDR5",
+        "ramSlots": null,
+        "m2Slots": 5,
+        "pcieSlots": null
+      }
+    ],
+    "rams": [
+      {
+        "name": "CORSAIR Vengeance DDR5 RAM 32GB (1x32GB) 5200MHz CL40-40-40-77 1.25V AMD Expo Intel XMP 3.0 Desktop Computer Memory – Gray (CMK32GX5M1B5200Z40)",
+        "basePrice": 343.69,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0DM2PGP4N?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/61yNsuivQML._AC_SX355_.jpg",
+        "capacity": 32,
+        "type": "DDR5",
+        "speed": 5200,
+        "manufacturer": "Corsair"
+      }
+    ],
+    "psus": [
+      {
+        "name": "CORSAIR RM1000x ATX 3.1 PCIe 5.1 Ready Fully Modular 1000W Power Supply – Low-Noise, Cybenetics Gold Efficiency, Native 12V-2x6 Connector – Black",
+        "basePrice": 159.99,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0FLGMTSRQ?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/71Xai-xG7wL._AC_SX355_.jpg",
+        "wattage": 1000,
+        "efficiency": "Unknown",
+        "modular": "Fully Modular",
+        "manufacturer": "Corsair"
+      }
+    ],
+    "cases": [
+      {
+        "name": "NZXT H7 Flow 2024 - Mid-Tower ATX Airflow Case - Includes Pre-Installed 3 x 120mm Fans - Supports Bottom Fans for Dedicated GPU Cooling - Cable Management - Black",
+        "basePrice": 94.99,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0CV4R1TWS?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/819ZQMMOfAL._AC_SY355_.jpg",
+        "formFactor": "ATX",
+        "manufacturer": "NZXT",
+        "rgb": false
+      }
+    ],
+    "coolers": [
+      {
+        "name": "Noctua NH-D15 G2, Dual Tower CPU Cooler, Standard All-Round Version Recommended for AMD AM5 and Intel LGA1851 / LGA1700 (Brown)",
+        "basePrice": 179.95,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B0D5B6MXJF?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/81i9YOlnPEL._SX342_.jpg",
+        "type": "Air",
+        "manufacturer": "Noctua"
+      }
+    ],
+    "storages": [
+      {
+        "name": "Samsung 980 PRO SSD 2TB PCIe NVMe Gen 4 Gaming M.2 Internal Solid State Drive Memory Card, Maximum Speed, Thermal Control MZ-V8P2T0B/AM",
+        "basePrice": 189,
+        "salePrice": null,
+        "isOnSale": false,
+        "sourceUrl": "https://www.amazon.com/dp/B08RK2SR23?tag=qhezpc-20",
+        "imageUrl": "https://m.media-amazon.com/images/I/71KeDAkw+0L._AC_SX355_.jpg",
+        "capacity": 2000,
+        "type": "M.2 SSD",
+        "interface": "M.2",
+        "manufacturer": "Samsung",
+        "_typeOptions": "Available types in DB: HDD, M.2 SSD, SATA SSD, SSHD",
+        "_interfaceOptions": "Common interfaces: NVMe, SATA, M.2"
+      }
+    ]
+  }
+}

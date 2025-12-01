@@ -1,0 +1,348 @@
+{
+  "summary": {
+    "total": 196,
+    "withCurrentPrice": 140,
+    "withPrice": 0,
+    "priceZero": 0,
+    "withoutPrice": 56
+  },
+  "gpusWithZeroPrice": [],
+  "gpusWithoutPrice": [
+    {
+      "collection": "gpus_rtx_4070_super",
+      "name": "MSI Gaming RTX 4070 Super 12G Ventus 2X OC Graphics Card (NVIDIA RTX 4070 Super, 192-Bit, Extreme Clock: 2520 MHz, 12GB GDRR6X 21 Gbps, HDMI/DP, Ada Lovelace Architecture)",
+      "link": "https://www.amazon.com/dp/B0CS718XC3?tag=qhezpc-20",
+      "id": "68bd04262b16d7dcff92287b"
+    },
+    {
+      "collection": "gpus_rtx_4070_super",
+      "name": "MSI Gaming RTX 4070 Super 12G Ventus 2X OC Graphics Card (NVIDIA RTX 4070 Super, 192-Bit, Boost Clock: 2520 MHz, 12GB GDRR6X 21 Gbps, HDMI/DP, Ada Lovelace Architecture) (Renewed), Black",
+      "link": "https://www.amazon.com/dp/B0D3J8QL5G?tag=qhezpc-20",
+      "id": "68bd04262b16d7dcff92287c"
+    },
+    {
+      "collection": "gpus_arc_a770",
+      "name": "ASRock Intel Arc A770 Graphics Phantom Gaming 16G OC 2200 MHz 17.5 Gbps 256-bit GDDR6 7680x4320 DisplayPort HDMI 0dB Silent Cooling Video Card (Renewed)",
+      "link": "https://www.amazon.com/dp/B0DTJF34ZF?tag=qhezpc-20",
+      "id": "68bd29c62b16d7dcff922903"
+    },
+    {
+      "collection": "gpus_rtx_4070",
+      "name": "ASUS Dual GeForce RTX™ 4070 EVO OC Edition 12GB GDDR6X is Designed for Broad Compatibility, with a 2.5-Slot Design, Axial-tech Fan Design, 0dB Technology, Auto-Extreme Technology, and More",
+      "link": "https://www.amazon.com/dp/B0CQRX9HPK?tag=qhezpc-20",
+      "id": "68bd05662b16d7dcff92287d"
+    },
+    {
+      "collection": "gpus_rtx_4070",
+      "name": "MSI Gaming GeForce RTX 4070 12GB GDRR6X 192-Bit HDMI/DP Nvlink TORX Fan 4.0 Ada Lovelace Architecture Graphics Card (RTX 4070 Ventus 2X 12G OC) (Renewed)",
+      "link": "https://www.amazon.com/dp/B0CBQV398S?tag=qhezpc-20",
+      "id": "68bd05662b16d7dcff92287e"
+    },
+    {
+      "collection": "gpus_rtx_4070",
+      "name": "ASUS Dual GeForce RTX™ 4070 EVO OC Edition 12GB GDDR6X is Designed for Broad Compatibility, with a 2.5-Slot Design, Axial-tech Fan Design, 0dB Technology, Auto-Extreme Technology, and More (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D3JBCBKC?tag=qhezpc-20",
+      "id": "68bd05662b16d7dcff92287f"
+    },
+    {
+      "collection": "gpus_rtx_3080",
+      "name": "EVGA GeForce RTX 3080 XC3 Black Gaming Video Card, 10G-P5-3881-KL, 10GB GDDR6X, iCX3 Cooling, ARGB LED, LHR (Renewed)",
+      "link": "https://www.amazon.com/dp/B09PQFX3LM?tag=qhezpc-20",
+      "id": "68bd0d702b16d7dcff92289f"
+    },
+    {
+      "collection": "gpus_rx_6500_xt",
+      "name": "Sapphire 11314-01-20G Pulse AMD Radeon RX 6500 XT Gaming OC Graphics Card with 4GB GDDR6, AMD RDNA 2",
+      "link": "https://www.amazon.com/dp/B09PZJ2JNZ?tag=qhezpc-20",
+      "id": "68bd27872b16d7dcff9228fa"
+    },
+    {
+      "collection": "gpus_rx_6900_xt",
+      "name": "GIGABYTE AORUS Radeon RX 6900 XT Master 16G Graphics Card, MAX-Covered Cooling, 16GB 256-bit GDDR6, GV-R69XTAORUS M-16GD REV2.0 Video Card",
+      "link": "https://www.amazon.com/dp/B09QHW1BZV?tag=qhezpc-20",
+      "id": "68bd1e002b16d7dcff9228e2"
+    },
+    {
+      "collection": "gpus_rx_6900_xt",
+      "name": "AMD Radeon RX 6900 XT",
+      "link": "https://www.amazon.com/dp/B08R6M3JPS?tag=qhezpc-20",
+      "id": "68bd1e002b16d7dcff9228e5"
+    },
+    {
+      "collection": "gpus_rtx_3080_ti",
+      "name": "EVGA GeForce RTX 3080 Ti XC3 Ultra Gaming, 12G-P5-3955-KR, 12GB GDDR6X, iCX3 Cooling, ARGB LED, Metal Backplate (Renewed)",
+      "link": "https://www.amazon.com/dp/B09MVDRCLH?tag=qhezpc-20",
+      "id": "68bd0c542b16d7dcff922899"
+    },
+    {
+      "collection": "gpus_rtx_5070",
+      "name": "MSI Gaming RTX 5070 12G Vanguard SOC Graphics Card (12GB GDDR7, 192-bit, Extreme Performance: 2655 MHz, DisplayPort x3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0DYG483V1?tag=qhezpc-20",
+      "id": "68bcfa922b16d7dcff92285e"
+    },
+    {
+      "collection": "gpus_rtx_4080_super",
+      "name": "GIGABYTE GeForce RTX 4080 Super WINDFORCE V2 16G Graphics Card, 3X WINDFORCE Fans, 16GB 256-bit GDDR6X, GV-N408SWF3V2-16GD Video Card",
+      "link": "https://www.amazon.com/dp/B0CSK2GHR8?tag=qhezpc-20",
+      "id": "68bcff202b16d7dcff92286d"
+    },
+    {
+      "collection": "gpus_rtx_4080_super",
+      "name": "PNY GeForce RTX™ 4080 Super 16GB XLR8 Gaming Verto™ Epic-X RGB™ Overclocked Triple Fan Graphics Card DLSS 3 (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D36QHQBX?tag=qhezpc-20",
+      "id": "68bcff202b16d7dcff92286f"
+    },
+    {
+      "collection": "gpus_rtx_3090_ti",
+      "name": "Nvidia RTX 3090 TI Founders Edition (Renewed) Founder Video Graphics Card",
+      "link": "https://www.amazon.com/dp/B0BKH8HDWK?tag=qhezpc-20",
+      "id": "68bd0a3c2b16d7dcff922889"
+    },
+    {
+      "collection": "gpus_rx_7900_gre",
+      "name": "PowerColor Hellhound AMD Radeon RX 7900 GRE Graphics Card 16GB GDDR6",
+      "link": "https://www.amazon.com/dp/B0CTJ9QBGV?tag=qhezpc-20",
+      "id": "68bd16d52b16d7dcff9228c8"
+    },
+    {
+      "collection": "gpus_rx_6800",
+      "name": "AMD Radeon RX 6800, 16GB GDDR6 Graphics Card, Reference Design (Renewed)",
+      "link": "https://www.amazon.com/dp/B0FB5NZC4S?tag=qhezpc-20",
+      "id": "68bd20762b16d7dcff9228e9"
+    },
+    {
+      "collection": "gpus_rx_6800",
+      "name": "XFX Speedster SWFT319 ,Radeon™ RX 6800 Core Gaming Graphics Card with 16GB GDDR6, AMD RDNA™ 2 (RX-68XLAQFD9)",
+      "link": "https://www.amazon.com/dp/B09KW68M2G?tag=qhezpc-20",
+      "id": "68bd20762b16d7dcff9228eb"
+    },
+    {
+      "collection": "gpus_rx_6800",
+      "name": "ASRock VCX RX6800 PGD 16GO RX 6800 Graphics GDDR6 16GB 256Bit HDMI DP Retail",
+      "link": "https://www.amazon.com/dp/B08Q7D4M98?tag=qhezpc-20",
+      "id": "68bd20762b16d7dcff9228ed"
+    },
+    {
+      "collection": "gpus_rtx_3050",
+      "name": "MSI GeForce RTX 3050 Ventus 2X 6G OC (Renewed)",
+      "link": "https://www.amazon.com/dp/B0DJNJR3RM?tag=qhezpc-20",
+      "id": "68bd135d2b16d7dcff9228bb"
+    },
+    {
+      "collection": "gpus_rtx_4090",
+      "name": "VIPERA NVIDIA GeForce RTX 4090 Founders Edition Graphic Card",
+      "link": "https://www.amazon.com/dp/B0BJFRT43X?tag=qhezpc-20",
+      "id": "68bcfe022b16d7dcff92286c"
+    },
+    {
+      "collection": "gpus_rx_7900_xtx",
+      "name": "ASRock AMD Radeon RX 7900 XTX Phantom Gaming 24GB OC GDDR6 Graphics Card DisplayPort HDMI 384-Bit",
+      "link": "https://www.amazon.com/dp/B0BTPK5J68?tag=qhezpc-20",
+      "id": "68bd147c2b16d7dcff9228bd"
+    },
+    {
+      "collection": "gpus_rx_7900_xtx",
+      "name": "Sapphire 11322-01-40G Nitro+ AMD Radeon RX 7900 XTX Vapor-X Gaming Graphics Card with 24GB GDDR6, AMD RDNA 3",
+      "link": "https://www.amazon.com/dp/B0BR6JWP1Q?tag=qhezpc-20",
+      "id": "68bd147c2b16d7dcff9228be"
+    },
+    {
+      "collection": "gpus_rx_7900_xtx",
+      "name": "PowerColor Hellhound AMD Radeon RX 7900 XTX Graphics Card (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D9KSDNY9?tag=qhezpc-20",
+      "id": "68bd147c2b16d7dcff9228bf"
+    },
+    {
+      "collection": "gpus_rtx_4060_ti",
+      "name": "MSI Gaming GeForce RTX 4060 Ti 8GB GDRR6 Extreme Clock: 2580 MHz 128-Bit HDMI/DP Nvlink TORX Fan 4.0 Ada Lovelace Architecture Graphics Card (RTX 4060 Ti Ventus 2X Black 8G OC)",
+      "link": "https://www.amazon.com/dp/B0C5B4XNWR?tag=qhezpc-20",
+      "id": "68bd06a22b16d7dcff922881"
+    },
+    {
+      "collection": "gpus_rtx_4060_ti",
+      "name": "MSI Gaming GeForce RTX 4060 Ti 16GB GDRR6 Boost Clock: 2625 MHz 128-Bit HDMI/DP Nvlink TORX Fan 4.0 Ada Lovelace Architecture Graphics Card (RTX 4060 Ti Ventus 2X Black 16G OC) (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D3KGNMXP?tag=qhezpc-20",
+      "id": "68bd06a22b16d7dcff922882"
+    },
+    {
+      "collection": "gpus_rtx_4060_ti",
+      "name": "MSI Gaming GeForce RTX 4060 Ti 16GB GDRR6 Extreme Clock: 2625 MHz 128-Bit HDMI/DP Nvlink TORX Fan 4.0 Ada Lovelace Architecture Graphics Card (RTX 4060 Ti Ventus 2X Black 16G OC)",
+      "link": "https://www.amazon.com/dp/B0CCG5S6LD?tag=qhezpc-20",
+      "id": "68bd06a22b16d7dcff922883"
+    },
+    {
+      "collection": "gpus_rtx_5060_ti",
+      "name": "MSI Gaming RTX 5060 Ti 16G Gaming Trio OC White Graphics Card (16GB GDDR7, 128-bit, Extreme Performance: TBA MHz, DisplayPort x 3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0F459Q88V?tag=qhezpc-20",
+      "id": "68bcfbb62b16d7dcff922865"
+    },
+    {
+      "collection": "gpus_rx_6800_xt",
+      "name": "MSI Gaming Radeon RX 6800 XT 16GB GDRR6 256-Bit HDMI/DP 2285 MHz RDNA 2 Architecture OC Graphics Card (RX 6800 XT Gaming X Trio 16G)",
+      "link": "https://www.amazon.com/dp/B098VYTC6H?tag=qhezpc-20",
+      "id": "68bd1f322b16d7dcff9228e7"
+    },
+    {
+      "collection": "gpus_rx_6800_xt",
+      "name": "XFX Speedster MERC319 AMD Radeon RX 6800 XT CORE Gaming Graphics Card with 16GB GDDR6 HDMI 3xDP RX-68XTALFD9",
+      "link": "https://www.amazon.com/dp/B08TJ2BHCQ?tag=qhezpc-20",
+      "id": "68bd1f322b16d7dcff9228e8"
+    },
+    {
+      "collection": "gpus_rx_7600",
+      "name": "MSI Gaming Radeon RX 7600 128-bit 8GB GDDR6 DP/HDMI Dual Torx 3.0 Fans FreeSync DirectX 12 VR Ready OC Graphics Card (RX 7600 MECH 2X Classic 8G OC)",
+      "link": "https://www.amazon.com/dp/B0C5BNC4KR?tag=qhezpc-20",
+      "id": "68bd1bdc2b16d7dcff9228db"
+    },
+    {
+      "collection": "gpus_rx_7600",
+      "name": "GIGABYTE Radeon RX 7600 XT Gaming OC 16G Graphics Card, 3X WINDFORCE Fans 16GB 128-bit GDDR6, GV-R76XTGAMING OC-16GD Video Card (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D9WY8GS1?tag=qhezpc-20",
+      "id": "68bd1bdc2b16d7dcff9228de"
+    },
+    {
+      "collection": "gpus_rtx_4070_ti",
+      "name": "MSI Gaming RTX 4070 Ti Super 16G Ventus 2X White OC Graphics Card (NVIDIA RTX 4070 Ti Super, 256-Bit, Extreme Clock: 2655 MHz, 16GB GDRR6X 21 Gbps, HDMI/DP, Ada Lovelace Architecture)",
+      "link": "https://www.amazon.com/dp/B0CSG9Z9ML?tag=qhezpc-20",
+      "id": "68bd02ee2b16d7dcff922878"
+    },
+    {
+      "collection": "gpus_rx_7600_xt",
+      "name": "GIGABYTE Radeon RX 7600 XT Gaming OC 16G Graphics Card, 3X WINDFORCE Fans 16GB 128-bit GDDR6, GV-R76XTGAMING OC-16GD Video Card (Renewed)",
+      "link": "https://www.amazon.com/dp/B0D9WY8GS1?tag=qhezpc-20",
+      "id": "68bd1ac42b16d7dcff9228d5"
+    },
+    {
+      "collection": "gpus_rtx_5080",
+      "name": "MSI Gaming RTX 5080 16G Gaming Trio OC Graphics Card (16GB GDDR7, 256-bit, Extreme Performance: 2715 MHz, DisplayPort x 3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0DSXNXTSS?tag=qhezpc-20",
+      "id": "68bcf85d2b16d7dcff922850"
+    },
+    {
+      "collection": "gpus_rtx_5080",
+      "name": "MSI Gaming RTX 5080 16G Expert OC Graphics Card (16GB GDDR7,256-bit, Extreme Performance: 2730 MHz, DisplayPort x3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0FLSWN28H?tag=qhezpc-20",
+      "id": "68bcf85d2b16d7dcff922851"
+    },
+    {
+      "collection": "gpus_rtx_5080",
+      "name": "NVIDIA GeForce RTX 5080 Founders Edition",
+      "link": "https://www.amazon.com/dp/B0DYVCGVK4?tag=qhezpc-20",
+      "id": "68bcf85d2b16d7dcff922852"
+    },
+    {
+      "collection": "gpus_rtx_5090",
+      "name": "MSI Gaming RTX 5090 32G Vanguard SOC Graphics Card (32GB GDDR7, 512-bit, Extreme Performance: 2527 MHz, DisplayPort x3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0DT7KGND2?tag=qhezpc-20",
+      "id": "68bcf70f2b16d7dcff92284b"
+    },
+    {
+      "collection": "gpus_rtx_5090",
+      "name": "MSI Gaming RTX 5090 32G SUPRIM SOC Graphics Card (32GB GDDR7, 512-bit, Extreme Performance: 2580 MHz, DisplayPort x3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0DT7JYTXQ?tag=qhezpc-20",
+      "id": "68bcf70f2b16d7dcff92284d"
+    },
+    {
+      "collection": "gpus_rx_7800_xt",
+      "name": "PowerColor Red Devil AMD Radeon RX 7800 XT 16GB GDDR6 Graphics Card",
+      "link": "https://www.amazon.com/dp/B0CFPSX77R?tag=qhezpc-20",
+      "id": "68bd18182b16d7dcff9228cb"
+    },
+    {
+      "collection": "gpus_rx_6600",
+      "name": "ASRock RX 6600 8GB CLD Challenger D gddr6",
+      "link": "https://www.amazon.com/dp/B09J8VCFWN?tag=qhezpc-20",
+      "id": "68bd266f2b16d7dcff9228f6"
+    },
+    {
+      "collection": "gpus_rx_6600",
+      "name": "ASRock Chanllenger AMD RX 6600 8G GDDR6 Graphics Card and Bronze 80+ 550W Power Supply",
+      "link": "https://www.amazon.com/dp/B0DV2ZCDDB?tag=qhezpc-20",
+      "id": "68bd266f2b16d7dcff9228f7"
+    },
+    {
+      "collection": "gpus_rtx_4080",
+      "name": "GIGABYTE GeForce RTX 4080 Super WINDFORCE V2 16G Graphics Card, 3X WINDFORCE Fans, 16GB 256-bit GDDR6X, GV-N408SWF3V2-16GD Video Card",
+      "link": "https://www.amazon.com/dp/B0CSK2GHR8?tag=qhezpc-20",
+      "id": "68bd008b2b16d7dcff922870"
+    },
+    {
+      "collection": "gpus_rtx_4070_ti_super",
+      "name": "MSI Gaming RTX 4070 Ti Super 16G Ventus 2X White OC Graphics Card (NVIDIA RTX 4070 Ti Super, 256-Bit, Extreme Clock: 2655 MHz, 16GB GDRR6X 21 Gbps, HDMI/DP, Ada Lovelace Architecture)",
+      "link": "https://www.amazon.com/dp/B0CSG9Z9ML?tag=qhezpc-20",
+      "id": "68bd01cc2b16d7dcff922875"
+    },
+    {
+      "collection": "gpus_rtx_4070_ti_super",
+      "name": "MSI GeForce RTX 4070 Ti Super 16G Ventus 3X Black OC Graphics Card (NVIDIA RTX 4070 Ti Super, 256-Bit, Extreme Clock: 2655 MHz, 16GB GDRR6X 21Gbps, HDMI/DP, Ada Lovelace Architecture) (Renewed)",
+      "link": "https://www.amazon.com/dp/B0DHJKWCMV?tag=qhezpc-20",
+      "id": "68bd01cc2b16d7dcff922876"
+    },
+    {
+      "collection": "gpus_rtx_4070_ti_super",
+      "name": "MSI Gaming RTX 4070 Ti Super 16G Ventus 2X OC Graphics Card (NVIDIA RTX 4070 Ti Super, 256-Bit, Extreme Clock: 2655 MHz, 16GB GDRR6X 21 Gbps, HDMI/DP, Ada Lovelace Architecture)",
+      "link": "https://www.amazon.com/dp/B0CSG8NYT3?tag=qhezpc-20",
+      "id": "68bd01cc2b16d7dcff922877"
+    },
+    {
+      "collection": "gpus_arc_a380",
+      "name": "Sparkle Intel Arc A380 Genie, 6GB GDDR6, Low-Profile, Dual-Fan, Dual-Slot, HDMI x1, Mini DisplayPort x2, SA380G-6G",
+      "link": "https://www.amazon.com/dp/B0CSFJZ8QZ?tag=qhezpc-20",
+      "id": "68bd2d0c2b16d7dcff92290c"
+    },
+    {
+      "collection": "gpus_rx_6400",
+      "name": "ASRock Low Profile AMD Radeon RX 6400 4GB GDDR6 Graphics Card - 2321 MHz Boost, Single Slot, SFF, HDMI 2.1, 0dB Cooling, DX12 Ultimate",
+      "link": "https://www.amazon.com/dp/B0D7ZQRRDS?tag=qhezpc-20",
+      "id": "68bd289b2b16d7dcff9228fb"
+    },
+    {
+      "collection": "gpus_rx_6400",
+      "name": "Sapphire 11315-01-20G Pulse AMD Radeon RX 6400 Low Profile Gaming Graphics Card with 4GB GDDR6, AMD RDNA 2, Black",
+      "link": "https://www.amazon.com/dp/B09Y2JWMXS?tag=qhezpc-20",
+      "id": "68bd289b2b16d7dcff9228fc"
+    },
+    {
+      "collection": "gpus_rtx_3060_ti",
+      "name": "Gigabyte GeForce RTX 3060 Ti Eagle OC 8GB V2 LHR Graphics Card (Renewed)",
+      "link": "https://www.amazon.com/dp/B0CWPVNXWP?tag=qhezpc-20",
+      "id": "68bd10dd2b16d7dcff9228ac"
+    },
+    {
+      "collection": "gpus_rtx_5070_ti",
+      "name": "MSI Gaming RTX 5070 TI 16G Gaming Trio OC White Graphics Card (16GB GDDR7, 256-bit, Extreme Performance: 2580 MHz, DisplayPort x 3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0F2X3SH37?tag=qhezpc-20",
+      "id": "68bcf9712b16d7dcff922855"
+    },
+    {
+      "collection": "gpus_rtx_5070_ti",
+      "name": "MSI Gaming RTX 5070 Ti 16G Gaming Trio OC Graphics Card (16GB GDDR7, 256-bit, Extreme Performance: 2580, DisplayPort x 3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0F11KQQF4?tag=qhezpc-20",
+      "id": "68bcf9712b16d7dcff922856"
+    },
+    {
+      "collection": "gpus_rtx_5070_ti",
+      "name": "MSI Gaming RTX 5070 TI 16G Inspire 3X OC Graphics Card (16GB GDDR7, 256-bit, Extreme Performance: 2497 MHz, DisplayPort x 3 2.1a, HDMI 2.1b, NVIDIA Blackwell Architecture)",
+      "link": "https://www.amazon.com/dp/B0F2XGK9XY?tag=qhezpc-20",
+      "id": "68bcf9712b16d7dcff922858"
+    },
+    {
+      "collection": "gpus_rtx_3090",
+      "name": "Nvidia RTX 3090 TI Founders Edition (Renewed) Founder Video Graphics Card",
+      "link": "https://www.amazon.com/dp/B0BKH8HDWK?tag=qhezpc-20",
+      "id": "68bd0b332b16d7dcff922896"
+    },
+    {
+      "collection": "gpus_rtx_3060",
+      "name": "ASUS Gaming Graphics Card - GeForce Dual RTX 3060, 12GB GDDR6, RGB, LHR, Ray Tracing, DLSS",
+      "link": "https://www.amazon.com/dp/B096658ZWP?tag=qhezpc-20",
+      "id": "68bd12112b16d7dcff9228b2"
+    },
+    {
+      "collection": "gpus_rtx_3060",
+      "name": "HP Nvidia RTX 3060 Gaming Video Graphics Card Ampere GPU 12GB GDDR6 (Renewed)",
+      "link": "https://www.amazon.com/dp/B0FD548DJX?tag=qhezpc-20",
+      "id": "68bd12112b16d7dcff9228b3"
+    }
+  ]
+}

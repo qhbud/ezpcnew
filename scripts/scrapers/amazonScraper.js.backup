@@ -1,0 +1,791 @@
+const BaseScraper = require('./baseScraper');
+const ProductFilter = require('../utils/productFilter');
+const PriceExtractor = require('../utils/priceExtractor');
+const Logger = require('../utils/logger');
+
+class AmazonScraper extends BaseScraper {
+  async waitForContent(page) {
+    try {
+      // Detect if we're on a search results page or a direct product page
+      const pageType = await page.evaluate(() => {
+        const hasSearchResults = document.querySelector('[data-component-type="s-search-result"]') !== null;
+        const hasProductTitle = document.querySelector('#productTitle') !== null;
+        const isProductPage = document.querySelector('#dp, #centerCol') !== null;
+        
+        if (hasSearchResults) return 'search';
+        if (hasProductTitle || isProductPage) return 'product';
+        return 'unknown';
+      });
+      
+      Logger.scraping(this.siteType, `Detected page type: ${pageType}`);
+      
+      if (pageType === 'search') {
+        Logger.scraping(this.siteType, 'Waiting for search results to load...');
+        await page.waitForSelector(this.selectors.searchResults, { timeout: 15000 });
+        Logger.scraping(this.siteType, 'Search results loaded successfully');
+      } else if (pageType === 'product') {
+        Logger.scraping(this.siteType, 'Direct product page detected, waiting for product content...');
+        await page.waitForSelector('#productTitle, #dp', { timeout: 15000 });
+        Logger.scraping(this.siteType, 'Product page loaded successfully');
+      } else {
+        Logger.warn('Unknown Amazon page type, proceeding anyway...');
+      }
+      
+      await page.waitForTimeout(2000);
+      
+    } catch (error) {
+      Logger.warn(`Amazon page content not found: ${error.message}`);
+      // Try to take a screenshot for debugging
+      try {
+        await page.screenshot({ path: 'amazon-debug.png', fullPage: true });
+        Logger.info('Screenshot saved as amazon-debug.png for debugging');
+      } catch (screenshotError) {
+        Logger.debug('Could not take screenshot');
+      }
+      throw error;
+    }
+  }
+
+  async extractProducts(page, cardName) {
+    // Check if we're on a direct product page or search results
+    const currentUrl = page.url();
+    const isDirectProductPage = currentUrl.includes('/dp/');
+    
+    if (isDirectProductPage) {
+      Logger.scraping(this.siteType, 'Processing direct product page...');
+      return await this.extractFromDirectProductPage(page, cardName);
+    } else {
+      // Extract product URLs from search results
+      const productUrls = await this.extractProductUrls(page);
+      Logger.scraping(this.siteType, `Found ${productUrls.length} product URLs to check`);
+      return await this.extractFromSearchResults(page, productUrls, cardName);
+    }
+  }
+  
+  async extractFromDirectProductPage(page, cardName) {
+    const currentUrl = page.url();
+    Logger.info(`🔍 Processing direct product page: ${currentUrl.substring(25, 80)}...`);
+    
+    try {
+      // For direct product pages, extract data directly from the current page
+      const productData = await this.extractSingleProductFromCurrentPage(page, currentUrl, cardName, true);
+      
+      if (productData && productData.isMatch) {
+        Logger.success(`✅ Direct product matches: ${productData.rawData.title?.substring(0, 80)}...`);
+        return [productData.product];
+      } else if (productData) {
+        Logger.warn(`❌ Direct product doesn't match RTX 4070: ${productData.rawData.title?.substring(0, 80)}...`);
+      } else {
+        Logger.error(`❌ Failed to extract data from direct product page`);
+      }
+      
+      // Still show debug info even if not matching
+      this.logAllProductsFound([productData].filter(Boolean), cardName);
+      
+      return [];
+      
+    } catch (error) {
+      Logger.error(`Error processing direct product page: ${error.message}`);
+      return [];
+    }
+  }
+  
+  async extractFromSearchResults(page, productUrls, cardName) {
+    const products = [];
+    const allProductsFound = []; // Track all products for debugging
+    const maxProducts = Math.min(25, productUrls.length);
+    
+    for (let i = 0; i < maxProducts; i++) {
+      const productUrl = productUrls[i];
+      Logger.info(`🔍 Checking product ${i + 1}/${maxProducts}: ${productUrl.substring(25, 80)}...`);
+      
+      try {
+        Logger.info(`🚀 Starting extraction for product ${i + 1}...`);
+        const productData = await this.extractSingleProduct(productUrl, cardName, true); // Pass debug flag
+        Logger.info(`🏁 Extraction completed for product ${i + 1}, isMatch: ${productData?.isMatch || 'unknown'}`);
+        if (productData) {
+          Logger.info(`📊 Product ${i + 1} data available: Title=${productData.rawData?.title ? 'YES' : 'NO'}, Price=${productData.rawData?.basePrice ? 'YES' : 'NO'}`);
+          if (productData.isMatch) {
+            products.push(productData.product);
+            Logger.info(`✅ Product ${i + 1} MATCHED and ADDED to results`);
+          } else {
+            Logger.info(`❌ Product ${i + 1} did not match criteria`);
+          }
+          allProductsFound.push(productData);
+        } else {
+          Logger.warn(`❌ Product ${i + 1} returned no data`);
+        }
+        
+        // Respectful delay between requests to avoid bot detection
+        const delay = Math.random() * 3000 + 5000; // Random delay between 5-8 seconds
+        Logger.info(`⏳ Waiting ${Math.round(delay/1000)} seconds before next product to avoid bot detection...`);
+        await page.waitForTimeout(delay);
+        
+      } catch (error) {
+        Logger.error(`Error checking product ${i + 1}: ${error.message}`);
+      }
+    }
+      
+      // Log all products found for debugging
+      this.logAllProductsFound(allProductsFound, cardName);
+      
+      return products;
+  }
+
+  async extractProductUrls(page) {
+    return await page.evaluate((selectors) => {
+      const urls = [];
+      const items = document.querySelectorAll(selectors.searchResults);
+      
+      console.log(`🔍 Amazon: Found ${items.length} search result items`);
+      
+      items.forEach((item, index) => {
+        try {
+          for (const linkSelector of selectors.productLinks) {
+            const linkElement = item.querySelector(linkSelector);
+            if (linkElement) {
+              const href = linkElement.getAttribute('href');
+              if (href && href.includes('/dp/')) {
+                const fullUrl = href.startsWith('http') ? href : `https://amazon.com${href}`;
+                urls.push(fullUrl);
+                console.log(`🔗 Amazon: Found product URL ${index + 1}: ${fullUrl.substring(0, 80)}...`);
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          console.log(`❌ Amazon: Error processing item ${index + 1}: ${e.message}`);
+        }
+      });
+      
+      console.log(`🔍 Amazon: Extracted ${urls.length} product URLs total`);
+      return urls;
+    }, this.selectors);
+  }
+
+  async extractSingleProductFromCurrentPage(page, productUrl, cardName, includeDebug = false) {
+    // Extract data from the current page (for direct product URLs)
+    try {
+      const productData = await this.performProductExtraction(page, productUrl, cardName);
+      return this.processProductData(productData, productUrl, cardName, includeDebug);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async extractSingleProduct(productUrl, cardName, includeDebug = false) {
+    const productPage = await this.browser.newPage();
+    
+    try {
+      Logger.info(`🔄 Opening new page for: ${productUrl.substring(25, 80)}...`);
+      
+      // Use a more realistic user agent
+      const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      ];
+      const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+      await productPage.setUserAgent(randomUA);
+      
+      // Add some viewport randomization
+      await productPage.setViewport({
+        width: 1920 + Math.floor(Math.random() * 100),
+        height: 1080 + Math.floor(Math.random() * 100)
+      });
+      
+      // Enable console logging from the page
+      productPage.on('console', msg => {
+        if (msg.type() === 'log') {
+          Logger.debug(`🌐 Browser Console: ${msg.text()}`);
+        }
+      });
+      
+      Logger.debug(`🌐 Navigating to product page...`);
+      try {
+        await productPage.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        Logger.debug(`✅ Product page loaded successfully`);
+      } catch (navError) {
+        Logger.warn(`⚠️ Navigation failed with networkidle2: ${navError.message}`);
+        Logger.debug(`🔄 Retrying with domcontentloaded...`);
+        try {
+          await productPage.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+          Logger.debug(`✅ Product page loaded with domcontentloaded`);
+        } catch (fallbackError) {
+          Logger.error(`❌ Navigation completely failed: ${fallbackError.message}`);
+          throw fallbackError;
+        }
+      }
+      
+      Logger.debug(`📊 Starting product data extraction...`);
+      const productData = await this.performProductExtraction(productPage, productUrl, cardName);
+      Logger.debug(`📊 Product data extracted, processing...`);
+      const result = this.processProductData(productData, productUrl, cardName, includeDebug);
+      
+      Logger.debug(`🚪 Closing product page...`);
+      await productPage.close();
+      Logger.debug(`✅ Product processing completed`);
+      return result;
+      
+    } catch (error) {
+      await productPage.close();
+      throw error;
+    }
+  }
+  
+  async performProductExtraction(page, productUrl, cardName) {
+    try {
+      // Check if we can find basic page elements first
+      const pageCheck = await page.evaluate(() => {
+        return {
+          hasTitle: !!document.querySelector('#productTitle'),
+          hasPrice: !!document.querySelector('.a-price'),
+          pageTitle: document.title,
+          bodyLength: document.body ? document.body.textContent.length : 0,
+          url: window.location.href
+        };
+      });
+      
+      Logger.info(`🔍 Page check for ${productUrl.substring(50, 90)}...: hasTitle=${pageCheck.hasTitle}, hasPrice=${pageCheck.hasPrice}, bodyLength=${pageCheck.bodyLength}`);
+      
+      if (pageCheck.bodyLength < 5000) {
+        Logger.warn(`⚠️ Page seems incomplete or blocked (${pageCheck.bodyLength} chars, pageTitle: "${pageCheck.pageTitle}")`);
+        
+        // Check if this looks like a captcha or blocking page
+        if (pageCheck.bodyLength < 2000) {
+          Logger.error(`❌ Page appears to be blocked by Amazon (${pageCheck.bodyLength} chars). Skipping this product.`);
+          return {
+            title: null,
+            basePrice: null,
+            salePrice: null,
+            isOnSale: false,
+            imageUrl: null,
+            debug: {
+              finalTitle: 'BLOCKED_BY_AMAZON',
+              finalBasePrice: 'BLOCKED_BY_AMAZON',
+              finalSalePrice: 'BLOCKED_BY_AMAZON',
+              finalOnSale: false,
+              finalImage: 'BLOCKED_BY_AMAZON',
+              extractionSuccess: false,
+              pageCheck
+            }
+          };
+        }
+        
+        Logger.info(`⏳ Waiting 5 seconds for page to fully load...`);
+        await page.waitForTimeout(5000);
+      }
+      
+      // Add a timeout wrapper for the evaluation
+      const extractionPromise = page.evaluate((selectors) => {
+        console.log('🚀 Starting product data extraction...');
+        // Extract title with comprehensive selector fallback
+        console.log(`🔍 Looking for title with primary selector: ${selectors.title}`);
+        let titleEl = document.querySelector(selectors.title);
+        let title = titleEl?.textContent?.trim() || null;
+        
+        if (!title) {
+          console.log(`❌ Primary title selector failed, trying alternatives...`);
+          // Try comprehensive alternative title selectors
+          const altSelectors = [
+            'h1[id*="title"]',                    // Any h1 with title in id
+            'h1.a-size-large',                     // Amazon's large heading
+            'span[id*="productTitle"]',            // Span with productTitle in id
+            '.a-size-large.product-title',         // Product title with size class
+            '[data-automation-id="title"]',       // Automation title
+            '.a-size-extra-large',                 // Extra large text
+            'h1',                                  // Any h1
+            '.s-size-mini .a-color-base',          // Search result title
+            'h2 a span',                           // Search result nested span
+            '.a-link-normal .a-size-base-plus'     // Link with base plus size
+          ];
+          
+          for (const altSelector of altSelectors) {
+            const altEl = document.querySelector(altSelector);
+            if (altEl && altEl.textContent.trim() && altEl.textContent.trim().length > 5) {
+              title = altEl.textContent.trim();
+              console.log(`✅ Found title with selector "${altSelector}": "${title.substring(0, 80)}..."`);
+              break;
+            }
+          }
+        } else {
+          console.log(`✅ Title found with primary selector: "${title.substring(0, 80)}..."`);
+        }
+        
+        console.log(`📄 Final title: "${title || 'No title found'}"`);
+        
+        // Extract prices using simplified Amazon price detection
+        let basePrice = null;
+        let salePrice = null;
+        let isOnSale = false;
+        
+        console.log('🔍 Amazon Price Detection: Using simplified accurate approach');
+        
+        // Check if we're on a product page vs search results page
+        const isProductPage = document.querySelector('#productTitle, #dp') !== null;
+        console.log(`🔍 Page type: ${isProductPage ? 'Product page' : 'Search results page'}`);
+        
+        // For product pages, focus on main product area
+        let mainProductArea = document;
+        if (isProductPage) {
+          mainProductArea = document.querySelector('#centerCol, #dp, #dp-container, .dp-wrap') || document;
+          console.log(`🔍 Using product area: ${mainProductArea === document ? 'entire page' : mainProductArea.id || mainProductArea.className}`);
+        }
+        
+        // First try to get the current/display price - this is usually the most accurate
+        const priceStrategies = [
+          {
+            name: 'Amazon Standard Price Structure',
+            selector: '.a-price .a-offscreen',
+            extract: (el) => parseFloat(el.textContent.replace(/[^0-9.]/g, ''))
+          },
+          {
+            name: 'Price Whole + Decimal',
+            selector: '.a-price-whole',
+            extract: (el) => {
+              const decimal = el.parentNode.querySelector('.a-price-decimal, .a-price-fraction');
+              const wholeText = el.textContent.replace(/[^0-9]/g, '');
+              const decimalText = decimal ? decimal.textContent.replace(/[^0-9]/g, '') : '00';
+              return parseFloat(`${wholeText}.${decimalText.padEnd(2, '0').substring(0, 2)}`);
+            }
+          },
+          {
+            name: 'Generic Price Pattern',
+            selector: '[class*="price"], [id*="price"]',
+            extract: (el) => {
+              const priceMatch = el.textContent.match(/\$?([\d,]+\.?\d*)/);
+              return priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : null;
+            }
+          }
+        ];
+        
+        // Try to find the current price first
+        let currentPrice = null;
+        for (const strategy of priceStrategies) {
+          const elements = mainProductArea.querySelectorAll(strategy.selector);
+          console.log(`🔍 Trying ${strategy.name}: found ${elements.length} elements`);
+          
+          for (const el of elements) {
+            try {
+              const price = strategy.extract(el);
+              if (price && price > 200 && price < 5000) {
+                currentPrice = price;
+                console.log(`💰 SUCCESS: Found current price $${currentPrice} using ${strategy.name}`);
+                break;
+              }
+            } catch (e) {
+              console.log(`⚠️ Error extracting price with ${strategy.name}: ${e.message}`);
+            }
+          }
+          if (currentPrice) break;
+        }
+        
+        // Default to current price as base price (no sale assumed)
+        if (currentPrice) {
+          basePrice = currentPrice;
+          console.log(`💰 Set base price to current price: $${basePrice}`);
+          
+          // Only look for sales if we have clear indicators
+          const productAreaText = mainProductArea.textContent || '';
+          
+          // Look for explicit "List Price" that's higher than current price
+          const listPriceMatch = productAreaText.match(/List Price:\s*\$?([\d,]+\.?\d*)/i);
+          if (listPriceMatch) {
+            const listPrice = parseFloat(listPriceMatch[1].replace(/,/g, ''));
+            if (listPrice > currentPrice && listPrice < currentPrice * 2) {
+              // Valid list price found
+              basePrice = listPrice;
+              salePrice = currentPrice;
+              isOnSale = true;
+              console.log(`💰 Sale detected: List Price $${basePrice} → Current $${salePrice}`);
+            }
+          }
+          
+          // Look for strikethrough prices that are higher than current
+          if (!isOnSale) {
+            const strikethroughElements = mainProductArea.querySelectorAll('.a-text-strike .a-offscreen, .a-price.a-text-price .a-offscreen');
+            let highestStrikethrough = 0;
+            
+            for (const el of strikethroughElements) {
+              const price = parseFloat(el.textContent.replace(/[^0-9.]/g, ''));
+              if (price > currentPrice && price < currentPrice * 2) {
+                highestStrikethrough = Math.max(highestStrikethrough, price);
+              }
+            }
+            
+            if (highestStrikethrough > currentPrice) {
+              basePrice = highestStrikethrough;
+              salePrice = currentPrice;
+              isOnSale = true;
+              console.log(`💰 Sale detected: Strikethrough $${basePrice} → Current $${salePrice}`);
+            }
+          }
+        } else {
+          console.log(`❌ No current price found using any strategy`);
+        }
+        
+        // Strategy 4: Look for the main selling price using comprehensive price detection
+        if (!basePrice && !salePrice) {
+          console.log(`🔍 Looking for main selling price using comprehensive price detection`);
+          
+          // Try multiple price detection strategies
+          const priceStrategies = [
+            // Strategy A: Amazon's standard structure
+            {
+              name: 'Amazon Standard (.a-price-whole + .a-price-decimal)',
+              detect: () => {
+                const priceWhole = mainProductArea.querySelector('.a-price-whole');
+                const priceDecimal = mainProductArea.querySelector('.a-price-decimal');
+                
+                console.log(`   .a-price-whole found: ${priceWhole ? 'Yes' : 'No'}`);
+                console.log(`   .a-price-decimal found: ${priceDecimal ? 'Yes' : 'No'}`);
+                
+                if (priceWhole) {
+                  let wholePrice = priceWhole.textContent.replace(/[^0-9]/g, '');
+                  let decimalPrice = priceDecimal ? priceDecimal.textContent.replace(/[^0-9]/g, '') : '00';
+                  
+                  console.log(`   Whole: "${priceWhole.textContent}" -> "${wholePrice}"`);
+                  console.log(`   Decimal: "${priceDecimal?.textContent || ''}" -> "${decimalPrice}"`);
+                  
+                  if (decimalPrice.length === 1) decimalPrice += '0';
+                  if (decimalPrice.length === 0) decimalPrice = '00';
+                  
+                  const price = parseFloat(`${wholePrice}.${decimalPrice}`);
+                  return price > 200 && price < 5000 ? price : null;
+                }
+                return null;
+              }
+            },
+            
+            // Strategy B: Standard .a-price .a-offscreen
+            {
+              name: 'Standard offscreen (.a-price .a-offscreen)',
+              detect: () => {
+                const priceEl = mainProductArea.querySelector('.a-price .a-offscreen');
+                if (priceEl && priceEl.textContent.includes('$')) {
+                  const price = parseFloat(priceEl.textContent.replace(/[^0-9.]/g, ''));
+                  console.log(`   Found price: "${priceEl.textContent}" -> $${price}`);
+                  return price > 200 && price < 5000 ? price : null;
+                }
+                return null;
+              }
+            },
+            
+            // Strategy C: Search for any element with price-like content
+            {
+              name: 'Pattern match (\$XXX.XX in text)',
+              detect: () => {
+                const pricePattern = /\$([0-9]{3,4}(?:,[0-9]{3})*(?:\.[0-9]{2})?)/g;
+                const pageText = mainProductArea.textContent || '';
+                const matches = Array.from(pageText.matchAll(pricePattern));
+                
+                console.log(`   Found ${matches.length} price pattern matches`);
+                
+                for (const match of matches) {
+                  const price = parseFloat(match[1].replace(/,/g, ''));
+                  console.log(`   Pattern match: "${match[0]}" -> $${price}`);
+                  
+                  if (price > 200 && price < 5000) {
+                    return price;
+                  }
+                }
+                return null;
+              }
+            },
+            
+            // Strategy D: Legacy Amazon selectors
+            {
+              name: 'Legacy Amazon selectors',
+              detect: () => {
+                const selectors = [
+                  '#priceblock_dealprice',
+                  '#priceblock_ourprice', 
+                  '.a-price-current .a-offscreen',
+                  '.a-price-current',
+                  '#dp-price',
+                  '.a-size-medium.a-color-price'
+                ];
+                
+                for (const selector of selectors) {
+                  const priceEl = mainProductArea.querySelector(selector);
+                  if (priceEl) {
+                    const priceText = priceEl.textContent || '';
+                    if (priceText.includes('$')) {
+                      const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+                      console.log(`   Found with ${selector}: "${priceText}" -> $${price}`);
+                      
+                      if (price > 200 && price < 5000) {
+                        return price;
+                      }
+                    }
+                  }
+                }
+                return null;
+              }
+            }
+          ];
+          
+          // Try each strategy until one works
+          for (const strategy of priceStrategies) {
+            console.log(`🔍 Trying strategy: ${strategy.name}`);
+            const price = strategy.detect();
+            
+            if (price) {
+              basePrice = price;
+              console.log(`💰 SUCCESS: Found price $${basePrice} using ${strategy.name}`);
+              break;
+            } else {
+              console.log(`❌ Failed: ${strategy.name}`);
+            }
+          }
+          
+          if (!basePrice) {
+            console.log(`❌ All price detection strategies failed`);
+            // Debug: show available elements
+            const priceElements = mainProductArea.querySelectorAll('[class*="price"], [id*="price"], .a-offscreen, .a-size-medium');
+            console.log(`🔍 Debug: Found ${priceElements.length} potential price elements:`);
+            Array.from(priceElements).slice(0, 5).forEach((el, i) => {
+              console.log(`   ${i + 1}. ${el.tagName}.${el.className || el.id}: "${el.textContent.substring(0, 50)}..."`);
+            });
+          }
+        }
+        
+        // Validate sale detection - ensure sale makes sense
+        if (isOnSale && basePrice && salePrice) {
+          const discountPercent = ((basePrice - salePrice) / basePrice) * 100;
+          if (discountPercent < 1 || discountPercent > 70) {
+            console.log(`⚠️ Suspicious discount ${discountPercent.toFixed(1)}%, treating as regular price`);
+            basePrice = salePrice; // Use the lower price as base
+            salePrice = null;
+            isOnSale = false;
+          }
+        }
+        
+        console.log(`💰 Final pricing: Base $${basePrice}, Sale $${salePrice}, On Sale: ${isOnSale}`);
+        
+        // Extract image with fallbacks
+        let imageUrl = null;
+        const imageSelectors = [
+          '#landingImage',                    // Primary product image
+          '#imgBlkFront',                    // Front image
+          '.a-dynamic-image',                // Dynamic image
+          'img[data-a-image-name="landingImage"]', // Landing image by name
+          '.s-image',                        // Search result image
+          'img[src*="images-amazon"]',      // Amazon CDN image
+          'img[src*="ssl-images-amazon"]',  // SSL images
+          'img'                              // Any image as last resort
+        ];
+        
+        for (const selector of imageSelectors) {
+          const imgEl = document.querySelector(selector);
+          if (imgEl && imgEl.src && imgEl.src.includes('http')) {
+            imageUrl = imgEl.src;
+            console.log(`🖼️ Found image with selector "${selector}": ${imageUrl.substring(0, 80)}...`);
+            break;
+          }
+        }
+        
+        if (!imageUrl) {
+          console.log(`❌ No image found with any selector`);
+        }
+        
+        // Final validation and return
+        const result = {
+          title,
+          basePrice,
+          salePrice,
+          isOnSale,
+          imageUrl
+        };
+        
+        // Return detailed result for debugging
+        return {
+          ...result,
+          debug: {
+            finalTitle: title ? `"${title.substring(0, 80)}..."` : 'NONE',
+            finalBasePrice: basePrice ? `$${basePrice}` : 'NONE', 
+            finalSalePrice: salePrice ? `$${salePrice}` : 'NONE',
+            finalOnSale: isOnSale,
+            finalImage: imageUrl ? 'Found' : 'NONE',
+            extractionSuccess: !!(title && basePrice)
+          }
+        };
+      }, this.selectors);
+      
+      // Add a timeout to the extraction process
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Product extraction timed out after 15 seconds')), 15000);
+      });
+      
+      const result = await Promise.race([extractionPromise, timeoutPromise]);
+      Logger.debug(`📊 Extraction completed for: ${productUrl.substring(50, 90)}...`);
+      return result;
+      
+    } catch (error) {
+      Logger.error(`❌ Product extraction failed for ${productUrl.substring(50, 90)}...: ${error.message}`);
+      // Return empty result instead of throwing
+      return {
+        title: null,
+        basePrice: null,
+        salePrice: null,
+        isOnSale: false,
+        imageUrl: null,
+        debug: {
+          finalTitle: 'EXTRACTION_FAILED',
+          finalBasePrice: 'EXTRACTION_FAILED',
+          finalSalePrice: 'EXTRACTION_FAILED',
+          finalOnSale: false,
+          finalImage: 'EXTRACTION_FAILED',
+          extractionSuccess: false
+        }
+      };
+    }
+  }
+  
+  processProductData(productData, productUrl, cardName, includeDebug) {
+    // Log debug info from page evaluation
+    if (productData.debug) {
+      Logger.debug(`🤖 Product ${productUrl.substring(50, 90)}...`);
+      Logger.debug(`   Title: ${productData.debug.finalTitle}`);
+      Logger.debug(`   Base Price: ${productData.debug.finalBasePrice}`);
+      Logger.debug(`   Sale Price: ${productData.debug.finalSalePrice}`);
+      Logger.debug(`   On Sale: ${productData.debug.finalOnSale}`);
+      Logger.debug(`   Image: ${productData.debug.finalImage}`);
+      Logger.debug(`   Extraction Success: ${productData.debug.extractionSuccess}`);
+    }
+    
+    if (!includeDebug) {
+      // Original behavior - only return matching products
+      if (ProductFilter.matchesSearchCriteria(productData.title, cardName) && 
+          ProductFilter.validateProduct(productData)) {
+        
+        Logger.success(`Found matching product: ${productData.title.substring(0, 80)}...`);
+        
+        const product = this.createProductData(
+          productData.title,
+          productData.basePrice,
+          productUrl,
+          productData.imageUrl,
+          'Amazon'
+        );
+        
+        // Override with sale price info if detected
+        if (productData.isOnSale && productData.salePrice) {
+          product.salePrice = productData.salePrice;
+          product.isOnSale = true;
+          product.currentPrice = productData.salePrice;
+        }
+        
+        return product;
+      }
+      return null;
+    } else {
+      // Debug mode - return all products with match status
+      const matchesSearch = ProductFilter.matchesSearchCriteria(productData.title, cardName);
+      const isValidProduct = ProductFilter.validateProduct(productData);
+      const isMatch = matchesSearch && isValidProduct;
+      
+      if (isMatch) {
+        Logger.success(`Found matching product: ${productData.title.substring(0, 80)}...`);
+      }
+      
+      return {
+        isMatch,
+        matchesSearch,
+        isValidProduct,
+        product: isMatch ? (() => {
+          const product = this.createProductData(
+            productData.title,
+            productData.basePrice,
+            productUrl,
+            productData.imageUrl,
+            'Amazon'
+          );
+          
+          // Override with sale price info if detected
+          if (productData.isOnSale && productData.salePrice) {
+            product.salePrice = productData.salePrice;
+            product.isOnSale = true;
+            product.currentPrice = productData.salePrice;
+          }
+          
+          return product;
+        })() : null,
+        rawData: {
+          title: productData.title,
+          basePrice: productData.basePrice,
+          salePrice: productData.salePrice,
+          isOnSale: productData.isOnSale,
+          imageUrl: productData.imageUrl,
+          url: productUrl,
+          debugInfo: productData.debug
+        }
+      };
+    }
+  }
+
+  setBrowser(browser) {
+    this.browser = browser;
+  }
+
+  logAllProductsFound(allProductsFound, cardName) {
+    if (allProductsFound.length === 0) {
+      Logger.warn('No products found to analyze');
+      return;
+    }
+
+    Logger.info('\n🔍 ALL PRODUCTS FOUND ON AMAZON (DEBUG):');
+    Logger.info('=' .repeat(120));
+    
+    allProductsFound.forEach((productInfo, index) => {
+      const data = productInfo.rawData;
+      
+      Logger.info(`\n📦 Product ${index + 1}:`);
+      Logger.info(`   Title: ${data.title || 'No title found'}`);
+      Logger.info(`   Base Price: ${data.basePrice ? `$${data.basePrice}` : 'No price found'}`);
+      Logger.info(`   Sale Price: ${data.salePrice ? `$${data.salePrice}` : 'Not on sale'}`);
+      if (data.isOnSale) {
+        const discount = ((data.basePrice - data.salePrice) / data.basePrice * 100).toFixed(1);
+        Logger.info(`   Discount: ${discount}% off`);
+      }
+      Logger.info(`   🔧 Price Detection: Check browser console for detailed price parsing info`);
+      Logger.info(`   URL: ${data.url.substring(0, 100)}...`);
+      
+      // Match analysis
+      Logger.info(`   🔍 Match Analysis:`);
+      Logger.info(`     - Matches "${cardName}": ${productInfo.matchesSearch ? '✅ YES' : '❌ NO'}`);
+      Logger.info(`     - Valid Product: ${productInfo.isValidProduct ? '✅ YES' : '❌ NO'}`);
+      Logger.info(`     - Overall Match: ${productInfo.isMatch ? '✅ INCLUDED' : '❌ EXCLUDED'}`);
+      
+      if (!productInfo.matchesSearch) {
+        const cleanTitle = (data.title || '').replace(/[™®©]/g, '').toLowerCase();
+        Logger.info(`     - Reason: Title "${cleanTitle}" doesn't contain "${cardName.toLowerCase()}"`);
+        
+        // Show what it does contain
+        if (cleanTitle.includes('rtx')) {
+          if (cleanTitle.includes('4070 super')) {
+            Logger.info(`     - Note: Contains "RTX 4070 Super" - excluded for base RTX 4070 search`);
+          } else if (cleanTitle.includes('4070 ti')) {
+            Logger.info(`     - Note: Contains "RTX 4070 Ti" - excluded for base RTX 4070 search`);
+          } else if (cleanTitle.includes('5070')) {
+            Logger.info(`     - Note: Contains "RTX 5070" - different generation`);
+          } else if (cleanTitle.includes('3060')) {
+            Logger.info(`     - Note: Contains "RTX 3060" - different model`);
+          }
+        }
+      }
+      if (!productInfo.isValidProduct) {
+        Logger.info(`     - Reason: Failed validation (no title/price or price out of range $200-$5000)`);
+      }
+    });
+    
+    Logger.info('\n' + '=' .repeat(120));
+    
+    const matchedCount = allProductsFound.filter(p => p.isMatch).length;
+    const excludedCount = allProductsFound.length - matchedCount;
+    
+    Logger.info(`📊 Summary: ${matchedCount} matched, ${excludedCount} excluded out of ${allProductsFound.length} total products`);
+  }
+}
+
+module.exports = AmazonScraper;

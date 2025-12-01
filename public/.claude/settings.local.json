@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/C:\\Users\\Quinn\\Desktop\\pcbuilder2/**)",
+      "Read(/C:\\Users\\Quinn\\Desktop\\pcbuilder2/**)",
+      "Read(/C:\\Users\\Quinn\\Desktop\\pcbuilder2/**)",
+      "Read(/C:\\Users\\Quinn\\Desktop\\pcbuilder2\\config/**)",
+      "Read(/C:\\Users\\Quinn\\Desktop\\pcbuilder2/**)",
+      "Bash(npm install)",
+      "Bash(npm run setup-db:*)",
+      "Bash(npm run seed-data:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,2976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Builder - Parts Database</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-microchip"></i> <span id="headerTitle">PC Builder</span></h1>
+            <button id="newActionBtn" class="header-action-btn">
+                <i class="fas fa-magic"></i> Build With AI Assistant
+            </button>
+            <p id="headerDescription">Build your custom PC by selecting components</p>
+        </header>
+
+        <!-- GPU Tab Content -->
+        <div class="tab-content" id="gpu-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="gpus">All GPUs</button>
+                <button class="nav-btn" data-category="nvidia">NVIDIA</button>
+                <button class="nav-btn" data-category="amd">AMD</button>
+                <button class="nav-btn" data-category="intel">Intel</button>
+            </nav>
+
+            <div class="gpu-selector-section">
+                <h2><i class="fas fa-desktop"></i> GPU Selector</h2>
+                <p>Select a GPU to build your PC around</p>
+                <div class="gpu-selector">
+                    <select id="gpuSelect" class="gpu-select">
+                        <option value="">Choose a GPU...</option>
+                    </select>
+                    <button id="selectGpuBtn" class="select-gpu-btn" disabled>
+                        <i class="fas fa-check"></i> Select This GPU
+                    </button>
+                </div>
+                <div id="selectedGpu" class="selected-gpu hidden">
+                    <div class="gpu-card-large">
+                        <div class="gpu-image">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <div class="gpu-details">
+                            <h3 id="selectedGpuName"></h3>
+                            <p id="selectedGpuSpecs"></p>
+                            <div class="gpu-price">
+                                <span class="price" id="selectedGpuPrice"></span>
+                                <span class="availability" id="selectedGpuAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="gpu-actions">
+                            <button id="changeGpuBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change GPU
+                            </button>
+                            <button id="buildAroundGpuBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This GPU
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CPU Tab Content -->
+        <div class="tab-content" id="cpu-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="cpus">All CPUs</button>
+                <button class="nav-btn" data-category="intel-cpu">Intel</button>
+                <button class="nav-btn" data-category="amd-cpu">AMD</button>
+                <button class="nav-btn" data-category="flagship">Flagship</button>
+                <button class="nav-btn" data-category="mainstream">Mainstream</button>
+            </nav>
+
+            <div class="cpu-selector-section">
+                <h2><i class="fas fa-microchip"></i> CPU Selector</h2>
+                <p>Select a CPU to build your PC around</p>
+                <div class="cpu-selector">
+                    <button id="browseCpusBtn" class="component-select-btn">
+                        <i class="fas fa-microchip"></i> Browse CPUs...
+                    </button>
+                </div>
+                <div id="selectedCpu" class="selected-cpu hidden">
+                    <div class="cpu-card-large">
+                        <div class="cpu-image">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <div class="cpu-details">
+                            <h3 id="selectedCpuName"></h3>
+                            <p id="selectedCpuSpecs"></p>
+                            <div class="cpu-price">
+                                <span class="price" id="selectedCpuPrice"></span>
+                                <span class="availability" id="selectedCpuAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="cpu-actions">
+                            <button id="changeCpuBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change CPU
+                            </button>
+                            <button id="buildAroundCpuBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This CPU
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motherboard Tab Content -->
+        <div class="tab-content" id="motherboard-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="motherboards">All Motherboards</button>
+                <button class="nav-btn" data-category="intel-mb">Intel</button>
+                <button class="nav-btn" data-category="amd-mb">AMD</button>
+                <button class="nav-btn" data-category="atx">ATX</button>
+                <button class="nav-btn" data-category="micro-atx">Micro ATX</button>
+                <button class="nav-btn" data-category="mini-itx">Mini ITX</button>
+            </nav>
+
+            <div class="motherboard-selector-section">
+                <h2><i class="fas fa-memory"></i> Motherboard Selector</h2>
+                <p>Select a motherboard to build your PC around</p>
+                <div class="motherboard-selector">
+                    <select id="motherboardSelect" class="motherboard-select">
+                        <option value="">Choose a Motherboard...</option>
+                    </select>
+                    <button id="selectMotherboardBtn" class="select-motherboard-btn" disabled>
+                        <i class="fas fa-check"></i> Select This Motherboard
+                    </button>
+                </div>
+                <div id="selectedMotherboard" class="selected-motherboard hidden">
+                    <div class="motherboard-card-large">
+                        <div class="motherboard-image">
+                            <i class="fas fa-memory"></i>
+                        </div>
+                        <div class="motherboard-details">
+                            <h3 id="selectedMotherboardName"></h3>
+                            <p id="selectedMotherboardSpecs"></p>
+                            <div class="motherboard-price">
+                                <span class="price" id="selectedMotherboardPrice"></span>
+                                <span class="availability" id="selectedMotherboardAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="motherboard-actions">
+                            <button id="changeMotherboardBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change Motherboard
+                            </button>
+                            <button id="buildAroundMotherboardBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This Motherboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RAM Tab Content -->
+        <div class="tab-content" id="ram-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="rams">All RAM</button>
+                <button class="nav-btn" data-category="ddr5">DDR5</button>
+                <button class="nav-btn" data-category="ddr4">DDR4</button>
+                <button class="nav-btn" data-category="high-speed">High Speed</button>
+                <button class="nav-btn" data-category="rgb-ram">RGB</button>
+                <button class="nav-btn" data-category="32gb-kit">32GB Kits</button>
+            </nav>
+
+            <div class="ram-selector-section">
+                <h2><i class="fas fa-hdd"></i> RAM Selector</h2>
+                <p>Select memory for your PC build</p>
+                <div class="ram-selector">
+                    <select id="ramSelect" class="ram-select">
+                        <option value="">Choose RAM...</option>
+                    </select>
+                    <button id="selectRamBtn" class="select-ram-btn" disabled>
+                        <i class="fas fa-check"></i> Select This RAM
+                    </button>
+                </div>
+                <div id="selectedRam" class="selected-ram hidden">
+                    <div class="ram-card-large">
+                        <div class="ram-image">
+                            <i class="fas fa-hdd"></i>
+                        </div>
+                        <div class="ram-details">
+                            <h3 id="selectedRamName"></h3>
+                            <p id="selectedRamSpecs"></p>
+                            <div class="ram-price">
+                                <span class="price" id="selectedRamPrice"></span>
+                                <span class="availability" id="selectedRamAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="ram-actions">
+                            <button id="changeRamBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change RAM
+                            </button>
+                            <button id="buildAroundRamBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This RAM
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PSU Tab Content -->
+        <div class="tab-content" id="psu-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="psus">All PSUs</button>
+                <button class="nav-btn" data-category="high-wattage">750W+</button>
+                <button class="nav-btn" data-category="modular">Modular</button>
+                <button class="nav-btn" data-category="80plus-gold">80+ Gold</button>
+                <button class="nav-btn" data-category="80plus-platinum">80+ Platinum</button>
+                <button class="nav-btn" data-category="sfx">SFX/SFX-L</button>
+            </nav>
+
+            <div class="psu-selector-section">
+                <h2><i class="fas fa-plug"></i> PSU Selector</h2>
+                <p>Select a power supply for your PC build</p>
+                <div class="psu-selector">
+                    <select id="psuSelect" class="psu-select">
+                        <option value="">Choose a PSU...</option>
+                    </select>
+                    <button id="selectPsuBtn" class="select-psu-btn" disabled>
+                        <i class="fas fa-check"></i> Select This PSU
+                    </button>
+                </div>
+                <div id="selectedPsu" class="selected-psu hidden">
+                    <div class="psu-card-large">
+                        <div class="psu-image">
+                            <i class="fas fa-plug"></i>
+                        </div>
+                        <div class="psu-details">
+                            <h3 id="selectedPsuName"></h3>
+                            <p id="selectedPsuSpecs"></p>
+                            <div class="psu-price">
+                                <span class="price" id="selectedPsuPrice"></span>
+                                <span class="availability" id="selectedPsuAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="psu-actions">
+                            <button id="changePsuBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change PSU
+                            </button>
+                            <button id="buildAroundPsuBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This PSU
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cooler Tab Content -->
+        <div class="tab-content" id="cooler-tab">
+            <nav class="category-nav">
+                <button class="nav-btn active" data-category="coolers">All Coolers</button>
+                <button class="nav-btn" data-category="air-cooler">Air Coolers</button>
+                <button class="nav-btn" data-category="liquid-cooler">Liquid Coolers</button>
+                <button class="nav-btn" data-category="high-end-cooler">High-End</button>
+                <button class="nav-btn" data-category="rgb-cooler">RGB</button>
+                <button class="nav-btn" data-category="low-profile">Low Profile</button>
+            </nav>
+
+            <div class="cooler-selector-section">
+                <h2><i class="fas fa-snowflake"></i> Cooler Selector</h2>
+                <p>Select a CPU cooler for your PC build</p>
+                <div class="cooler-selector">
+                    <select id="coolerSelect" class="cooler-select">
+                        <option value="">Choose a Cooler...</option>
+                    </select>
+                    <button id="selectCoolerBtn" class="select-cooler-btn" disabled>
+                        <i class="fas fa-check"></i> Select This Cooler
+                    </button>
+                </div>
+                <div id="selectedCooler" class="selected-cooler hidden">
+                    <div class="cooler-card-large">
+                        <div class="cooler-image">
+                            <i class="fas fa-snowflake"></i>
+                        </div>
+                        <div class="cooler-details">
+                            <h3 id="selectedCoolerName"></h3>
+                            <p id="selectedCoolerSpecs"></p>
+                            <div class="cooler-price">
+                                <span class="price" id="selectedCoolerPrice"></span>
+                                <span class="availability" id="selectedCoolerAvailability">In Stock</span>
+                            </div>
+                        </div>
+                        <div class="cooler-actions">
+                            <button id="changeCoolerBtn" class="change-btn">
+                                <i class="fas fa-exchange-alt"></i> Change Cooler
+                            </button>
+                            <button id="buildAroundCoolerBtn" class="build-btn">
+                                <i class="fas fa-cogs"></i> Build PC Around This Cooler
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PC Builder Tab Content -->
+        <div class="tab-content active" id="builder-tab">
+            <div class="pc-build-container">
+                <div class="component-selectors">
+                    <!-- Row 1: GPU and CPU -->
+                    <div class="component-row">
+                        <!-- GPU Component -->
+                        <div class="component-section component-left">
+                            <div class="component-selector">
+                                <button id="builderGpuSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-desktop"></i> Choose a GPU...
+                                </button>
+                                <button id="removeGpuBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderGpu" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- CPU Component -->
+                        <div class="component-section component-right">
+                            <div class="component-selector">
+                                <button id="builderCpuSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-microchip"></i> Choose a CPU...
+                                </button>
+                                <button id="removeCpuBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderCpu" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: RAM and Cooler -->
+                    <div class="component-row">
+                        <!-- RAM Component -->
+                        <div class="component-section component-left">
+                            <div class="component-selector">
+                                <button id="builderRamSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose RAM...
+                                </button>
+                                <button id="removeRamBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderRam" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Cooler Component -->
+                        <div class="component-section component-right">
+                            <div class="component-selector">
+                                <button id="builderCoolerSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-snowflake"></i> Choose a Cooler...
+                                </button>
+                                <button id="removeCoolerBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderCooler" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: PSU and Motherboard -->
+                    <div class="component-row">
+                        <!-- PSU Component -->
+                        <div class="component-section component-left">
+                            <div class="component-selector">
+                                <button id="builderPsuSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plug"></i> Choose a PSU...
+                                </button>
+                                <button id="removePsuBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderPsu" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Motherboard Component -->
+                        <div class="component-section component-right">
+                            <div class="component-selector">
+                                <button id="builderMotherboardSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-memory"></i> Choose a Motherboard...
+                                </button>
+                                <button id="removeMotherboardBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderMotherboard" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Case & Storage 1 -->
+                    <div class="component-row">
+                        <!-- Case Component -->
+                        <div class="component-section component-left">
+                            <div class="component-selector">
+                                <button id="builderCaseSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-box"></i> Choose a Case...
+                                </button>
+                                <button id="removeCaseBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderCase" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Storage Component 1 -->
+                        <div class="component-section component-right" id="storageSection1">
+                            <button class="add-storage-section-btn" id="addStorageBtn1" title="Add another storage slot">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorageSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorageBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 5: Storage 2 & 3 -->
+                    <div class="component-row">
+                        <!-- Storage Component 2 -->
+                        <div class="component-section component-left disabled" id="storageSection2">
+                            <button class="close-storage-section-btn" id="closeStorage2Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn2" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage2SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage2Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage2" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Storage Component 3 -->
+                        <div class="component-section component-right disabled" id="storageSection3">
+                            <button class="close-storage-section-btn" id="closeStorage3Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn3" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage3SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage3Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage3" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 6: Storage 4 & 5 -->
+                    <div class="component-row">
+                        <!-- Storage Component 4 -->
+                        <div class="component-section component-left disabled" id="storageSection4">
+                            <button class="close-storage-section-btn" id="closeStorage4Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn4" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage4SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage4Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage4" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Storage Component 5 -->
+                        <div class="component-section component-right disabled" id="storageSection5">
+                            <button class="close-storage-section-btn" id="closeStorage5Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn5" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage5SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage5Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage5" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 7: Storage 6 & Addon 1 -->
+                    <div class="component-row">
+                        <!-- Storage Component 6 -->
+                        <div class="component-section component-left disabled" id="storageSection6">
+                            <button class="close-storage-section-btn" id="closeStorage6Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn6" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage6SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage6Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage6" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Addon Component 1 -->
+                        <div class="component-section component-right" id="addonSection1">
+                            <button class="add-storage-section-btn" id="addAddonBtn1" title="Add another addon slot">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddonSelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddonBtn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 8: Addon 2 & 3 -->
+                    <div class="component-row">
+                        <!-- Addon Component 2 -->
+                        <div class="component-section component-left disabled" id="addonSection2">
+                            <button class="close-storage-section-btn" id="closeAddon2Btn" title="Disable this addon slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addAddonBtn2" title="Add another addon slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddon2SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddon2Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon2" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Addon Component 3 -->
+                        <div class="component-section component-right disabled" id="addonSection3">
+                            <button class="close-storage-section-btn" id="closeAddon3Btn" title="Disable this addon slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addAddonBtn3" title="Add another addon slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddon3SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddon3Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon3" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 9: Addon 4 & 5 -->
+                    <div class="component-row">
+                        <!-- Addon Component 4 -->
+                        <div class="component-section component-left disabled" id="addonSection4">
+                            <button class="close-storage-section-btn" id="closeAddon4Btn" title="Disable this addon slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addAddonBtn4" title="Add another addon slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddon4SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddon4Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon4" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Addon Component 5 -->
+                        <div class="component-section component-right disabled" id="addonSection5">
+                            <button class="close-storage-section-btn" id="closeAddon5Btn" title="Disable this addon slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addAddonBtn5" title="Add another addon slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddon5SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddon5Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon5" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 10: Storage 7 & Addon 6 -->
+                    <div class="component-row">
+                        <!-- Storage Component 7 -->
+                        <div class="component-section component-left disabled" id="storageSection7">
+                            <button class="close-storage-section-btn" id="closeStorage7Btn" title="Disable this storage slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addStorageBtn7" title="Add another storage slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderStorage7SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                </button>
+                                <button id="removeStorage7Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderStorage7" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Addon Component 6 -->
+                        <div class="component-section component-right disabled" id="addonSection6">
+                            <button class="close-storage-section-btn" id="closeAddon6Btn" title="Disable this addon slot">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="add-storage-section-btn" id="addAddonBtn6" title="Add another addon slot" style="display: none;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="component-selector">
+                                <button id="builderAddon6SelectBtn" class="component-select-btn">
+                                    <i class="fas fa-plus-circle"></i> Choose Add-on...
+                                </button>
+                                <button id="removeAddon6Btn" class="remove-component-btn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selectedBuilderAddon6" class="selected-component" style="display: none;">
+                                <!-- Component details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="build-summary-box">
+                    <!-- Total Price Section -->
+                    <div class="build-summary-header">
+                        <div class="build-total-section">
+                            <h3><i class="fas fa-desktop"></i> Your PC Build</h3>
+                            <div class="total-price-display">
+                                <span class="total-label">Total Price:</span>
+                                <span class="total-amount">$<span id="totalPrice">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="build-actions">
+                        <button id="clearBuildBtn" class="action-btn secondary">
+                            <i class="fas fa-trash"></i> Clear Build
+                        </button>
+                        <button id="saveBuildBtn" class="action-btn primary" disabled>
+                            <i class="fas fa-save"></i> Save Build
+                        </button>
+                        <button id="shareBuildBtn" class="action-btn secondary" disabled>
+                            <i class="fas fa-share"></i> Share Build
+                        </button>
+                    </div>
+
+                    <!-- Compatibility Check -->
+                    <div class="compatibility-section">
+                        <h4 id="compatibilityCheckHeading"><i class="fas fa-check-circle" id="compatibilityIcon"></i> Compatibility Check</h4>
+                        <div id="compatibilityResults" class="compatibility-results">
+                            <p class="compatibility-message">✅ No compatibility issues detected</p>
+                        </div>
+
+                        <!-- Estimated System Power -->
+                        <div id="buildSummaryWattageInfo" style="display: none; margin-top: 16px; padding: 14px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                <i class="fas fa-bolt" style="color: #667eea; font-size: 18px;"></i>
+                                <span style="color: #333; font-weight: 600; font-size: 14px;">Estimated System Power</span>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="color: #333; font-size: 16px; font-weight: 600;">Total Estimated:</span>
+                                    <span id="buildSummaryTotalWattage" style="color: #333; font-size: 20px; font-weight: 700;">0W</span>
+                                </div>
+                                <div style="font-size: 12px; color: #666;" id="buildSummaryWattageBreakdown">
+                                    No components selected
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
+                                <i class="fas fa-info-circle" style="color: #667eea; font-size: 14px;"></i>
+                                <span style="color: #666; font-size: 11px; font-weight: 500;">Recommendation: Choose a PSU with 20-30% overhead</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading parts...</p>
+        </div>
+
+        <div id="error" class="error hidden">
+            <p>❌ Error loading data. Please check your connection.</p>
+        </div>
+
+        <div id="partsGrid" class="parts-grid">
+            <!-- Parts will be dynamically loaded here -->
+        </div>
+
+        <div id="noResults" class="no-results hidden">
+            <p>No parts found matching your criteria.</p>
+        </div>
+    </div>
+
+    <!-- Component Selector Popup Modal -->
+    <div id="componentSelectorModal" class="modal-overlay">
+        <div class="modal-content-wrapper">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Select Component</h3>
+                    <div class="modal-header-actions">
+                        <button id="viewStatisticsBtn" class="view-statistics-btn hidden" onclick="pcBuilder.toggleStatisticsPanel()" title="View Statistics">
+                            <i class="fas fa-chart-scatter"></i> View Statistics
+                        </button>
+                        <button class="modal-close" onclick="closeComponentModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div id="badgeFiltersContainer" style="padding: 0 0 15px 0; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e9ecef; margin-bottom: 15px;"></div>
+                    <div id="compatibilityInfoContainer" style="display: none; padding: 12px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <div id="cpuCompatibilityInfo" style="display: none; align-items: center; gap: 10px;">
+                                <i class="fas fa-microchip" style="color: white; font-size: 18px;"></i>
+                                <span id="selectedCpuLabel" style="color: white; font-weight: 600; font-size: 14px;">Selected CPU:</span>
+                                <span id="selectedCpuNameInfo" style="color: white; font-size: 14px;"></span>
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; transition: background 0.2s;">
+                                <input type="checkbox" id="showOnlyCompatibleCheckbox" checked style="cursor: pointer; width: 16px; height: 16px;">
+                                <span style="color: white; font-size: 13px; font-weight: 500;">Show only compatible</span>
+                            </label>
+                        </div>
+                        <div id="cpuChipsetsInfo" style="display: none; align-items: center; gap: 10px; margin-bottom: 6px;">
+                            <i class="fas fa-check-circle" style="color: #10b981; font-size: 16px;"></i>
+                            <span id="compatibleChipsetsLabel" style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">Compatible Chipsets:</span>
+                            <span id="compatibleChipsetsInfo" style="color: white; font-size: 13px; font-weight: 600;"></span>
+                        </div>
+                        <div id="ramTypeCompatInfo" style="display: none; align-items: center; gap: 10px;">
+                            <i class="fas fa-memory" style="color: #10b981; font-size: 16px;"></i>
+                            <span style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">Selected RAM:</span>
+                            <span id="selectedRamDdrType" style="color: white; font-size: 13px; font-weight: 600;"></span>
+                        </div>
+                        <div id="caseFormFactorInfo" style="display: none; align-items: center; gap: 10px;">
+                            <i class="fas fa-box" style="color: #10b981; font-size: 16px;"></i>
+                            <span style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">Selected Case:</span>
+                            <span id="selectedCaseFormFactor" style="color: white; font-size: 13px; font-weight: 600;"></span>
+                        </div>
+                        <div id="ramSlotsInfo" style="display: none; align-items: center; gap: 10px;">
+                            <i class="fas fa-memory" style="color: #10b981; font-size: 16px;"></i>
+                            <span style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">RAM Slots:</span>
+                            <span id="motherboardRamSlots" style="color: white; font-size: 13px; font-weight: 600;"></span>
+                        </div>
+                    </div>
+                    <div id="psuWattageInfoContainer" style="display: none; padding: 12px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                            <i class="fas fa-bolt" style="color: #667eea; font-size: 18px;"></i>
+                            <span style="color: #333; font-weight: 600; font-size: 14px;">Estimated System Power</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="color: #333; font-size: 16px; font-weight: 600;">Total Estimated:</span>
+                                <span id="totalEstimatedWattage" style="color: #333; font-size: 20px; font-weight: 700;">0W</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666;" id="wattageBreakdown">
+                                No components selected
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
+                            <i class="fas fa-info-circle" style="color: #667eea; font-size: 14px;"></i>
+                            <span style="color: #666; font-size: 11px; font-weight: 500;">Recommendation: Choose a PSU with 20-30% overhead</span>
+                        </div>
+                    </div>
+                    <div id="priceRangeContainer" style="padding: 0 0 15px 0; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #e9ecef; margin-bottom: 15px;">
+                        <label style="font-size: 13px; font-weight: 500; color: #666;">Price Range:</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; color: #999;">Min</span>
+                            <input type="number" id="minPriceInput" placeholder="$0" min="0" step="25" style="width: 100px; padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <span style="color: #999;">—</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; color: #999;">Max</span>
+                            <input type="number" id="maxPriceInput" placeholder="No limit" min="0" step="25" style="width: 100px; padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <button id="clearPriceRangeBtn" style="padding: 6px 12px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; cursor: pointer; color: #666; transition: all 0.2s;">Clear</button>
+                    </div>
+                    <div class="component-table-container">
+                        <table class="component-table" id="componentTable">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="name">Component <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="performance">Single-Thread Performance <i class="fas fa-sort"></i></th>
+                                    <th class="sortable cpu-only-column" data-sort="multiThreadPerformance" style="display: none;">Multi-Thread Performance <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="salePrice">Price <i class="fas fa-sort"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="componentTableBody">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- Component Details Side Panel -->
+            <div id="componentDetailsPanel" class="component-details-panel hidden">
+                <div class="details-panel-header">
+                    <h3>Component Details</h3>
+                    <button class="details-panel-close" onclick="pcBuilder.closeDetailsPanel()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="details-panel-body" id="detailsPanelBody">
+                    <p class="no-selection">Select a component to view details</p>
+                </div>
+            </div>
+            <!-- Statistics Side Panel -->
+            <div id="statisticsPanel" class="component-details-panel hidden">
+                <div class="details-panel-header">
+                    <h3 id="statisticsPanelHeaderTitle">Performance vs Price</h3>
+                    <button class="details-panel-close" onclick="pcBuilder.closeStatisticsPanel()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="details-panel-body" id="statisticsPanelBody">
+                    <div id="statisticsChartTitle" style="text-align: center; margin-bottom: 15px; padding: 10px 20px; background: #f8f9fa; border-radius: 8px;">
+                        <h3 id="statisticsTitleText" style="margin: 0; font-size: 18px; font-weight: 700; color: #333;">Performance vs Price</h3>
+                    </div>
+                    <canvas id="statisticsScatterPlot" style="width: 100%; height: 500px;"></canvas>
+                    <div id="statisticsLegend" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 0;
+            width: 90%;
+            max-width: 1600px;
+            height: 80vh;
+            max-height: 80vh;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px 0 0 12px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-content-wrapper:has(.component-details-panel:not(.hidden)) .modal-content {
+            border-radius: 12px 0 0 12px;
+        }
+
+        .modal-content-wrapper:has(.component-details-panel.hidden) .modal-content {
+            border-radius: 12px;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .modal-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .view-statistics-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .view-statistics-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+
+        .view-statistics-btn i {
+            font-size: 1rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .component-table-container {
+            overflow-x: auto;
+        }
+
+        .component-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .component-table th {
+            background: #f8f9fa;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e9ecef;
+            white-space: nowrap;
+        }
+
+        .component-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        .component-table th.sortable:hover {
+            background: #e9ecef;
+        }
+
+        .component-table th.sortable.sorted-asc i {
+            transform: rotate(180deg);
+            color: #667eea;
+        }
+
+        .component-table th.sortable.sorted-desc i {
+            color: #667eea;
+        }
+
+        .component-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: middle;
+        }
+
+        .component-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .component-name-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .component-name {
+            font-weight: 500;
+            color: #333;
+            line-height: 1.3;
+        }
+
+        .component-specs {
+            color: #666;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .price-cell {
+            font-weight: 600;
+        }
+
+        .base-price {
+            color: #333;
+        }
+
+        .sale-price {
+            color: #e74c3c;
+        }
+
+        .original-price {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .discount-badge {
+            background: #27ae60;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .select-component-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 21px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .select-component-btn i {
+            opacity: 0;
+            margin-right: 0;
+            width: 0;
+            transition: all 0.3s ease;
+        }
+
+        .select-component-btn:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .select-component-btn:hover i {
+            opacity: 1;
+            margin-right: 8px;
+            width: auto;
+        }
+
+        .component-select-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .component-select-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .component-select-btn i {
+            font-size: 16px;
+        }
+
+        /* Remove old component-select styles */
+        .component-select {
+            display: none;
+        }
+
+        /* Expandable variants styles */
+        .expand-icon {
+            margin-right: 8px;
+            font-size: 12px;
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+
+        .component-main-row.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .component-main-row:hover {
+            background: #f8f9fa !important;
+        }
+
+        .variants-row {
+            background: #f8f9fa;
+        }
+
+        .variants-container {
+            padding: 15px 20px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .variants-header {
+            font-weight: 600;
+            font-size: 14px;
+            color: #667eea;
+            margin-bottom: 12px;
+        }
+
+        .variants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+            min-height: 120px;
+            align-content: start;
+        }
+
+        .variant-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: all 0.2s;
+            min-height: 80px;
+        }
+
+        .variant-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .variant-info {
+            flex: 1;
+        }
+
+        .variant-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .variant-price {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .variant-price .price {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .variant-price .original-price {
+            font-size: 12px;
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .variant-price .sale-price {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e74c3c;
+        }
+
+        .discount-badge-small {
+            background: #27ae60;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .variant-discount-badge {
+            display: flex;
+            align-items: flex-start;
+            margin-left: 8px;
+            padding-top: 2px;
+        }
+
+        .select-variant-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-left: 12px;
+        }
+
+        .select-variant-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .no-variants {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Component Details Side Panel */
+        .component-details-panel {
+            background: white;
+            border-radius: 0 12px 12px 0;
+            width: 400px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .component-details-panel.hidden {
+            display: none;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .details-panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .details-panel-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .details-panel-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .details-panel-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .details-panel-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .no-selection {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 40px 20px;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-section h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .detail-image-container {
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .detail-product-link {
+            text-decoration: none;
+            display: block;
+        }
+
+        .detail-product-link:hover .detail-image-container {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .detail-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            padding: 10px;
+        }
+
+        .detail-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+        }
+
+        .image-price-overlay {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+            backdrop-filter: blur(4px);
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-align: right;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-manufacturer-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 142, 255, 0.95) 100%);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            padding: 6px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Hide manufacturer badge for storage components to prevent overlap with buttons */
+        #selectedBuilderStorage .image-manufacturer-badge,
+        #selectedBuilderStorage2 .image-manufacturer-badge,
+        #selectedBuilderStorage3 .image-manufacturer-badge,
+        #selectedBuilderStorage4 .image-manufacturer-badge,
+        #selectedBuilderStorage5 .image-manufacturer-badge,
+        #selectedBuilderStorage6 .image-manufacturer-badge {
+            display: none;
+        }
+
+        .image-vram-overlay {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            padding: 6px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .overlay-vram-text {
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .overlay-sale-price {
+            color: #e74c3c;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 2px;
+        }
+
+        .overlay-original-price {
+            color: #999;
+            font-size: 11px;
+            text-decoration: line-through;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .overlay-discount {
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .overlay-current-price {
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .detail-title-link {
+            text-decoration: none;
+            display: block;
+            transition: opacity 0.2s;
+        }
+
+        .detail-title-link:hover {
+            opacity: 0.8;
+        }
+
+        .detail-title-link:hover .detail-title {
+            color: #667eea;
+        }
+
+        .detail-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.2s;
+        }
+
+        .detail-manufacturer {
+            font-size: 14px;
+            color: #667eea;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+
+        .detail-price-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .detail-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .detail-price-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-price-label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .detail-price-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .detail-sale-price {
+            color: #e74c3c;
+        }
+
+        .detail-original-price {
+            font-size: 14px;
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .detail-discount {
+            background: #27ae60;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Savings Graph Styles */
+        .savings-graph-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .savings-graph-section canvas {
+            display: block;
+            margin: 0 auto 20px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .savings-summary {
+            padding: 16px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .savings-amount {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #2e7d32;
+        }
+
+        .savings-amount i {
+            font-size: 20px;
+            color: #27ae60;
+        }
+
+        .savings-amount strong {
+            font-size: 16px;
+            color: #1b5e20;
+        }
+
+        #clearPriceRangeBtn:hover {
+            background: #e9ecef !important;
+            border-color: #d0d0d0 !important;
+        }
+
+        /* Builder Component Card Styles */
+        .builder-component-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 0;
+            transition: all 0.2s;
+            position: relative;
+            min-height: 315px;
+            width: 607.5px;
+            max-width: 607.5px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .builder-component-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .swap-component-btn {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .swap-component-btn:hover {
+            background: rgba(102, 126, 234, 1);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .swap-component-btn i {
+            font-size: 16px;
+        }
+
+        .builder-component-info {
+            margin-top: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .selected-component {
+            margin-top: 12px;
+            position: relative;
+            top: -14%;
+        }
+
+
+        .detail-title {
+            min-height: 60px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+            max-height: calc(1.4em * 3);
+        }
+
+        /* Component Grid Layout */
+        .component-selectors {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .component-row {
+            display: flex;
+            gap: 120px;
+            margin-bottom: 24px;
+            justify-content: flex-start;
+            padding-left: calc((100% - (607.5px * 2 + 120px)) / 2);
+        }
+
+        .component-section {
+            flex: 0 0 607.5px;
+            width: 607.5px;
+            min-width: 607.5px;
+            max-width: 607.5px;
+            min-height: 350px;
+            position: relative;
+        }
+
+
+        .component-section-full {
+            flex: 0 0 607.5px;
+            width: 607.5px;
+            margin: 40px 0;
+        }
+
+        .component-selector {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .component-select-btn {
+            width: 607.5px !important;
+            height: 283.5px !important;
+            min-height: unset;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+
+        .component-section {
+            position: relative;
+        }
+
+        .component-selector {
+            position: relative;
+        }
+
+        .close-storage-section-btn {
+            position: absolute;
+            top: 20px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+        }
+
+        /* Adjust button position when selected component is showing */
+        .component-section:has(.selected-component:not([style*="display: none"])) .close-storage-section-btn {
+            top: 8px;
+            transform: translateY(-14%);
+        }
+
+        .close-storage-section-btn:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5);
+        }
+
+        .close-storage-section-btn:active {
+            transform: scale(0.95);
+        }
+
+        .close-storage-section-btn i {
+            font-size: 14px;
+        }
+
+        .add-storage-section-btn {
+            position: absolute;
+            top: 20px;
+            right: 48px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #27ae60;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+        }
+
+        /* Adjust button position when selected component is showing */
+        .component-section:has(.selected-component:not([style*="display: none"])) .add-storage-section-btn {
+            top: 8px;
+            transform: translateY(-14%);
+        }
+
+        .add-storage-section-btn:hover {
+            background: #229954;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.5);
+        }
+
+        .add-storage-section-btn:active {
+            transform: scale(0.95);
+        }
+
+        .add-storage-section-btn i {
+            font-size: 14px;
+        }
+
+        .component-section.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            display: none;
+        }
+
+        /* Build Results Modal Styles */
+        .build-results-modal {
+            max-width: 800px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .build-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-label {
+            display: block;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            display: block;
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .build-components {
+            max-height: 600px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .build-component-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .build-component-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .component-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .component-type {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .component-price {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .component-name {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .component-specs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .spec-badge {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #4a5568;
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #e53e3e;
+        }
+
+        .error-message i {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .error-message p {
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .build-summary {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .build-results-modal {
+                max-width: 95%;
+            }
+        }
+    </style>
+
+    <!-- Budget Questionnaire Modal -->
+    <div id="budgetModal" class="budget-modal-overlay">
+        <div class="budget-modal-content">
+            <div class="budget-modal-header">
+                <h2><i class="fas fa-dollar-sign"></i> PC Build Wizard</h2>
+                <button class="budget-modal-close" onclick="closeBudgetModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="budget-modal-body">
+                <!-- Question 1: Budget -->
+                <div class="question-container" id="question1" style="display: block;">
+                    <label for="budgetInput" class="question-label">What is your budget?</label>
+                    <div class="budget-input-wrapper">
+                        <span class="currency-symbol">$</span>
+                        <input
+                            type="number"
+                            id="budgetInput"
+                            class="budget-input"
+                            placeholder="Enter your budget"
+                            min="500"
+                            max="5000"
+                            step="100"
+                            value="1500"
+                        >
+                        <span id="unlimitedBadge" class="unlimited-badge" style="display: none;">Unlimited</span>
+                    </div>
+                    <div class="budget-slider-container">
+                        <div class="slider-labels">
+                            <span class="slider-label-min">$500</span>
+                            <span class="slider-label-max">Unlimited</span>
+                        </div>
+                        <input
+                            type="range"
+                            id="budgetSlider"
+                            class="budget-slider"
+                            min="500"
+                            max="5100"
+                            step="100"
+                            value="1500"
+                        >
+                        <div class="slider-value-display" id="sliderValueDisplay">$1,500</div>
+                    </div>
+                </div>
+
+                <!-- Question 2: Performance Type -->
+                <div class="question-container" id="question2" style="display: none;">
+                    <label class="question-label">Prioritize Single Thread or Multi-Thread Performance?</label>
+                    <p class="question-description">
+                        Multithreading can be incredibly powerful for 3D modeling and exporting video. Some games are programmed to run mainly on one thread, such as Minecraft Java, Paradox Games, BTD, and most browser games.
+                    </p>
+                    <div class="performance-options">
+                        <button class="performance-option-btn" id="singleThreadBtn" onclick="selectPerformance('single')">
+                            <i class="fas fa-bolt"></i>
+                            <div class="option-title">Single Thread</div>
+                            <div class="option-subtitle">Gaming & browsing</div>
+                        </button>
+                        <button class="performance-option-btn" id="multiThreadBtn" onclick="selectPerformance('multi')">
+                            <i class="fas fa-layer-group"></i>
+                            <div class="option-title">Multi-Thread</div>
+                            <div class="option-subtitle">3D modeling & video editing</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Question 3: Storage -->
+                <div class="question-container" id="question3" style="display: none;">
+                    <label for="storageInput" class="question-label">How much storage do you need?</label>
+                    <div class="storage-input-wrapper">
+                        <input
+                            type="number"
+                            id="storageInput"
+                            class="storage-input"
+                            placeholder="Enter storage amount"
+                            min="0.5"
+                            max="10"
+                            step="0.25"
+                            value="1"
+                        >
+                        <span class="storage-unit">TB</span>
+                    </div>
+                    <div class="storage-slider-container">
+                        <div class="slider-labels">
+                            <span class="slider-label-min">500 GB</span>
+                            <span class="slider-label-max">10 TB</span>
+                        </div>
+                        <input
+                            type="range"
+                            id="storageSlider"
+                            class="storage-slider"
+                            min="500"
+                            max="10000"
+                            step="250"
+                            value="1000"
+                        >
+                        <div class="slider-value-display" id="storageValueDisplay">1 TB</div>
+                    </div>
+                </div>
+
+                <!-- Question 4: Monitor -->
+                <div class="question-container" id="question4" style="display: none;">
+                    <label class="question-label">Should a monitor be included?</label>
+                    <div class="performance-options">
+                        <button class="performance-option-btn" id="includeMonitorBtn" onclick="selectMonitorOption('yes')">
+                            <i class="fas fa-desktop"></i>
+                            <div class="option-title">Yes, include a monitor</div>
+                            <div class="option-subtitle">Add a display to the build</div>
+                        </button>
+                        <button class="performance-option-btn" id="excludeMonitorBtn" onclick="selectMonitorOption('no')">
+                            <i class="fas fa-times-circle"></i>
+                            <div class="option-title">No, I have a monitor</div>
+                            <div class="option-subtitle">Exclude monitor from budget</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="budget-modal-footer">
+                    <button class="budget-back-btn" id="backBtn" onclick="previousQuestion()" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="budget-cancel-btn" onclick="closeBudgetModal()">Cancel</button>
+                    <button class="budget-next-btn" id="nextBtn" onclick="nextQuestion()">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Build Results Modal -->
+    <div id="buildResultsModal" class="budget-modal-overlay" style="display: none;">
+        <div class="budget-modal-content build-results-modal">
+            <div class="budget-modal-header">
+                <h2><i class="fas fa-check-circle"></i> Your AI-Generated PC Build</h2>
+                <button class="budget-modal-close" onclick="closeBuildResults()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="budget-modal-body">
+                <div id="buildLoadingState" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Generating your perfect PC build...</p>
+                </div>
+
+                <div id="buildResultsContent" style="display: none;">
+                    <!-- Build Summary -->
+                    <div class="build-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Total Cost:</span>
+                            <span class="summary-value" id="buildTotalCost">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Budget:</span>
+                            <span class="summary-value" id="buildBudget">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Status:</span>
+                            <span class="summary-value" id="buildStatus">Within Budget</span>
+                        </div>
+                    </div>
+
+                    <!-- Build Components -->
+                    <div class="build-components" id="buildComponentsList">
+                        <!-- Components will be dynamically added here -->
+                    </div>
+
+                    <!-- Debug Information (Collapsible) -->
+                    <div class="debug-section" id="debugSection" style="margin-top: 20px;">
+                        <button class="debug-toggle-btn" onclick="toggleDebugInfo()" style="width: 100%; padding: 12px; background: #4299e1; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="fas fa-bug"></i> Show Debug Information</span>
+                            <i class="fas fa-chevron-down" id="debugToggleIcon"></i>
+                        </button>
+                        <div id="debugContent" style="display: none; margin-top: 15px; background: #2d3748; border-radius: 8px; padding: 20px; color: #e2e8f0; font-family: 'Courier New', monospace; font-size: 13px; max-height: 500px; overflow-y: auto;">
+                            <!-- Debug info will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="buildErrorState" style="display: none;">
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p id="buildErrorMessage">Failed to generate build</p>
+                    </div>
+                </div>
+            </div>
+            <div class="budget-modal-footer">
+                <button class="budget-cancel-btn" onclick="closeBuildResults()">Close</button>
+                <button class="budget-next-btn" onclick="acceptBuild()">
+                    <i class="fas fa-shopping-cart"></i> Accept Build
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Budget Modal Functions
+        let isUnlimited = false;
+        let currentQuestion = 1;
+        let wizardData = {
+            budget: null,
+            performance: null,
+            storage: null,
+            includeMonitor: null
+        };
+        let lastGeneratedBuild = null; // Store the last AI-generated build
+
+        function formatCurrency(amount) {
+            if (amount === null || amount === undefined || isNaN(amount)) {
+                return '$0.00';
+            }
+            const num = parseFloat(amount);
+            return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatStorage(gb) {
+            if (gb >= 1000) {
+                const tb = gb / 1000;
+                return tb % 1 === 0 ? tb + ' TB' : tb.toFixed(2) + ' TB';
+            }
+            return gb + ' GB';
+        }
+
+        function updateStorageDisplay(valueInGB) {
+            const input = document.getElementById('storageInput');
+            const sliderDisplay = document.getElementById('storageValueDisplay');
+
+            // Convert GB to TB for the input field
+            const valueInTB = valueInGB / 1000;
+            input.value = valueInTB;
+            sliderDisplay.textContent = formatStorage(parseInt(valueInGB));
+        }
+
+        function tbToGb(tb) {
+            return tb * 1000;
+        }
+
+        function gbToTb(gb) {
+            return gb / 1000;
+        }
+
+        function updateBudgetDisplay(value) {
+            const input = document.getElementById('budgetInput');
+            const sliderDisplay = document.getElementById('sliderValueDisplay');
+            const unlimitedBadge = document.getElementById('unlimitedBadge');
+            const currencySymbol = document.querySelector('.currency-symbol');
+
+            if (parseInt(value) > 5000) {
+                // Unlimited state
+                isUnlimited = true;
+                input.value = '';
+                input.placeholder = 'Unlimited';
+                sliderDisplay.textContent = 'Unlimited';
+                sliderDisplay.style.color = '#27ae60';
+                sliderDisplay.style.fontWeight = '700';
+                unlimitedBadge.style.display = 'inline-block';
+                currencySymbol.style.display = 'none';
+            } else {
+                // Normal budget state
+                isUnlimited = false;
+                input.value = value;
+                input.placeholder = 'Enter your budget';
+                sliderDisplay.textContent = formatCurrency(parseInt(value));
+                sliderDisplay.style.color = '#667eea';
+                sliderDisplay.style.fontWeight = '600';
+                unlimitedBadge.style.display = 'none';
+                currencySymbol.style.display = 'block';
+            }
+        }
+
+        function openBudgetModal() {
+            document.getElementById('budgetModal').style.display = 'flex';
+            currentQuestion = 1;
+            showQuestion(1);
+            updateBudgetDisplay(1500);
+            updateStorageDisplay(1000);
+        }
+
+        function closeBudgetModal() {
+            document.getElementById('budgetModal').style.display = 'none';
+            document.getElementById('budgetInput').value = '1500';
+            document.getElementById('budgetSlider').value = '1500';
+            document.getElementById('storageInput').value = '1';
+            document.getElementById('storageSlider').value = '1000';
+            isUnlimited = false;
+            currentQuestion = 1;
+            wizardData = { budget: null, performance: null, storage: null };
+            // Reset performance selection
+            document.querySelectorAll('.performance-option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+        }
+
+        function showQuestion(questionNumber) {
+            // Hide all questions
+            document.getElementById('question1').style.display = 'none';
+            document.getElementById('question2').style.display = 'none';
+            document.getElementById('question3').style.display = 'none';
+            document.getElementById('question4').style.display = 'none';
+
+            // Show current question
+            document.getElementById('question' + questionNumber).style.display = 'block';
+
+            // Update back button visibility
+            const backBtn = document.getElementById('backBtn');
+            if (questionNumber > 1) {
+                backBtn.style.display = 'inline-flex';
+            } else {
+                backBtn.style.display = 'none';
+            }
+
+            // Update next button text
+            const nextBtn = document.getElementById('nextBtn');
+            if (questionNumber === 4) {
+                nextBtn.innerHTML = 'Finish <i class="fas fa-check"></i>';
+            } else {
+                nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestion === 1) {
+                // Validate budget
+                const budgetInput = document.getElementById('budgetInput');
+                const budget = isUnlimited ? 'Unlimited' : budgetInput.value;
+
+                if (!isUnlimited && (!budget || budget < 500)) {
+                    alert('Please enter a valid budget amount (minimum $500)');
+                    return;
+                }
+
+                wizardData.budget = budget;
+                currentQuestion = 2;
+                showQuestion(2);
+            } else if (currentQuestion === 2) {
+                // Validate performance selection
+                if (!wizardData.performance) {
+                    alert('Please select a performance priority');
+                    return;
+                }
+
+                currentQuestion = 3;
+                showQuestion(3);
+            } else if (currentQuestion === 3) {
+                // Validate storage (input is in TB, convert to GB)
+                const storageInput = document.getElementById('storageInput');
+                const storageInTB = parseFloat(storageInput.value);
+
+                if (!storageInTB || storageInTB < 0.5) {
+                    alert('Please enter a valid storage amount (minimum 0.5 TB)');
+                    return;
+                }
+
+                // Store in GB for consistency
+                wizardData.storage = tbToGb(storageInTB);
+
+                currentQuestion = 4;
+                showQuestion(4);
+            } else if (currentQuestion === 4) {
+                // Validate monitor selection
+                if (wizardData.includeMonitor === null) {
+                    alert('Please select whether to include a monitor');
+                    return;
+                }
+
+                // Submit the wizard
+                submitWizard();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestion > 1) {
+                currentQuestion--;
+                showQuestion(currentQuestion);
+            }
+        }
+
+        function selectPerformance(type) {
+            wizardData.performance = type;
+
+            // Remove selected class from all buttons
+            document.querySelectorAll('.performance-option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            // Add selected class to clicked button
+            if (type === 'single') {
+                document.getElementById('singleThreadBtn').classList.add('selected');
+            } else if (type === 'multi') {
+                document.getElementById('multiThreadBtn').classList.add('selected');
+            }
+        }
+
+        function selectMonitorOption(option) {
+            wizardData.includeMonitor = option === 'yes';
+
+            // Remove selected class from monitor buttons only
+            document.getElementById('includeMonitorBtn').classList.remove('selected');
+            document.getElementById('excludeMonitorBtn').classList.remove('selected');
+
+            // Add selected class to clicked button
+            if (option === 'yes') {
+                document.getElementById('includeMonitorBtn').classList.add('selected');
+            } else {
+                document.getElementById('excludeMonitorBtn').classList.add('selected');
+            }
+        }
+
+        async function submitWizard() {
+            console.log('Wizard completed:', wizardData);
+
+            // Save wizardData before closing modal (as closeBudgetModal resets it)
+            const savedWizardData = { ...wizardData };
+
+            // Close the wizard modal
+            closeBudgetModal();
+
+            // Show the build results modal in loading state
+            document.getElementById('buildResultsModal').style.display = 'flex';
+            document.getElementById('buildLoadingState').style.display = 'block';
+            document.getElementById('buildResultsContent').style.display = 'none';
+            document.getElementById('buildErrorState').style.display = 'none';
+
+            try {
+                // Call the AI build API
+                console.log('Sending request to /api/ai-build with data:', savedWizardData);
+                const response = await fetch('/api/ai-build', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(savedWizardData)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error response:', errorText);
+                    throw new Error('Failed to generate build: ' + response.status);
+                }
+
+                const data = await response.json();
+                console.log('API response data:', data);
+
+                if (data.success) {
+                    lastGeneratedBuild = data; // Store the build data
+                    displayBuildResults(data);
+                } else {
+                    throw new Error(data.error || 'Failed to generate build');
+                }
+            } catch (error) {
+                console.error('Error generating build:', error);
+                document.getElementById('buildLoadingState').style.display = 'none';
+                document.getElementById('buildErrorState').style.display = 'block';
+                document.getElementById('buildErrorMessage').textContent = error.message || 'Failed to generate build. Please try again.';
+            }
+        }
+
+        function displayBuildResults(data) {
+            console.log('Displaying build results:', data);
+
+            // Hide loading state
+            document.getElementById('buildLoadingState').style.display = 'none';
+            document.getElementById('buildResultsContent').style.display = 'block';
+
+            // Update summary with safe defaults
+            const budget = data.budget || 0;
+            const totalCost = data.totalCost || 0;
+            const budgetDisplay = (data.wizardData && data.wizardData.budget > 5000) ? 'Unlimited' : formatCurrency(budget);
+
+            document.getElementById('buildTotalCost').textContent = formatCurrency(totalCost);
+            document.getElementById('buildBudget').textContent = budgetDisplay;
+
+            const statusElement = document.getElementById('buildStatus');
+            if (data.underBudget) {
+                statusElement.textContent = 'Within Budget';
+                statusElement.style.color = '#48bb78';
+            } else {
+                statusElement.textContent = 'Over Budget';
+                statusElement.style.color = '#f56565';
+            }
+
+            // Build components list
+            const componentsList = document.getElementById('buildComponentsList');
+            componentsList.innerHTML = '';
+            componentsList.scrollTop = 0; // Scroll to top to see all components
+
+            const componentOrder = ['cpu', 'gpu', 'motherboard', 'ram', 'storage', 'psu', 'cooler', 'case', 'monitor', 'addon2', 'addon3', 'windows11'];
+            const componentLabels = {
+                cpu: 'Processor',
+                gpu: 'Graphics Card',
+                motherboard: 'Motherboard',
+                ram: 'Memory',
+                storage: 'Storage',
+                psu: 'Power Supply',
+                cooler: 'CPU Cooler',
+                case: 'Case',
+                monitor: 'Monitor',
+                addon2: 'Monitor 2',
+                addon3: 'Monitor 3',
+                windows11: 'Windows 11 License'
+            };
+
+            componentOrder.forEach(componentType => {
+                const component = data.build[componentType];
+                console.log(`Checking ${componentType}:`, component ? 'EXISTS' : 'NOT FOUND');
+                if (component) {
+                    // Handle storage specially as it might be an array
+                    if (componentType === 'storage' && Array.isArray(component)) {
+                        console.log(`Storage is an array with ${component.length} items`);
+                        // Show combined storage info
+                        component.forEach((storage, index) => {
+                            console.log(`Creating card for storage ${index + 1}:`, storage.name || storage.title);
+                            const storageLabel = component.length > 1 ? `${componentLabels[componentType]} ${index + 1}` : componentLabels[componentType];
+                            const card = createComponentCard(componentType, storageLabel, storage);
+                            componentsList.appendChild(card);
+                            console.log(`Card appended for storage ${index + 1}`);
+                        });
+                    } else {
+                        console.log(`Creating card for ${componentType}:`, component.name || component.title);
+                        const card = createComponentCard(componentType, componentLabels[componentType], component);
+                        componentsList.appendChild(card);
+                        console.log(`Card appended for ${componentType}`);
+                    }
+                }
+            });
+
+            // Log all children to verify monitor is in the DOM
+            console.log(`Total components in list: ${componentsList.children.length}`);
+            console.log('Component list children:', Array.from(componentsList.children).map(c => c.textContent.substring(0, 50)));
+
+            // Scroll to bottom to ensure monitor is visible
+            setTimeout(() => {
+                componentsList.scrollTop = componentsList.scrollHeight;
+                console.log('Scrolled to bottom. ScrollTop:', componentsList.scrollTop, 'ScrollHeight:', componentsList.scrollHeight);
+            }, 100);
+
+            // Populate debug information if available
+            if (data.debug) {
+                displayDebugInfo(data.debug);
+            }
+        }
+
+        function toggleDebugInfo() {
+            const debugContent = document.getElementById('debugContent');
+            const debugIcon = document.getElementById('debugToggleIcon');
+            const isVisible = debugContent.style.display !== 'none';
+
+            if (isVisible) {
+                debugContent.style.display = 'none';
+                debugIcon.className = 'fas fa-chevron-down';
+            } else {
+                debugContent.style.display = 'block';
+                debugIcon.className = 'fas fa-chevron-up';
+            }
+        }
+
+        function displayDebugInfo(debug) {
+            const debugContent = document.getElementById('debugContent');
+            let html = '';
+
+            // User Choices
+            if (debug.userChoices) {
+                html += `<div style="margin-bottom: 20px;">`;
+                html += `<h3 style="color: #63b3ed; margin-bottom: 10px; font-size: 16px;">🎯 Your Choices</h3>`;
+                html += `<div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 10px;">`;
+                html += `<div style="color: #e2e8f0; margin-bottom: 8px;"><strong style="color: #90cdf4;">Budget:</strong> ${debug.userChoices.budget}</div>`;
+                html += `<div style="color: #e2e8f0; margin-bottom: 8px;"><strong style="color: #90cdf4;">Performance Type:</strong> ${debug.userChoices.performanceType}</div>`;
+                html += `<div style="color: #e2e8f0; margin-bottom: 8px;"><strong style="color: #90cdf4;">Storage Required:</strong> ${debug.userChoices.storageRequired}</div>`;
+                html += `<div style="color: #e2e8f0;"><strong style="color: #90cdf4;">Include Monitor:</strong> ${debug.userChoices.includeMonitor}</div>`;
+                html += `</div></div>`;
+            }
+
+            // Strategy and Allocations
+            html += `<div style="margin-bottom: 20px;">`;
+            html += `<h3 style="color: #63b3ed; margin-bottom: 10px; font-size: 16px;">📊 Build Strategy</h3>`;
+            html += `<div style="background: #1a202c; padding: 12px; border-radius: 6px; margin-bottom: 10px;">`;
+            html += `<strong style="color: #90cdf4;">Strategy:</strong> ${debug.allocations.strategy}<br/>`;
+            html += `<strong style="color: #90cdf4;">Budget Allocations:</strong><br/>`;
+            Object.entries(debug.allocations.budgetAmounts).forEach(([key, value]) => {
+                const percent = (debug.allocations.percentages[key] * 100).toFixed(0);
+                html += `<span style="color: #a0aec0; margin-left: 15px;">• ${key.toUpperCase()}: ${value} (${percent}%)</span><br/>`;
+            });
+            html += `</div></div>`;
+
+            // Component Selections
+            html += `<h3 style="color: #63b3ed; margin-bottom: 10px; font-size: 16px;">🔍 Component Selection Process</h3>`;
+
+            debug.selections.forEach((selection, index) => {
+                html += `<div style="background: #1a202c; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 4px solid ${selection.selected ? '#48bb78' : '#f56565'};">`;
+                html += `<div style="font-size: 15px; font-weight: bold; color: #90cdf4; margin-bottom: 8px;">${index + 1}. ${selection.component}</div>`;
+                html += `<div style="margin-left: 10px; color: #cbd5e0;">`;
+                html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Budget:</strong> ${selection.budget}</div>`;
+                html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Search Criteria:</strong> ${selection.searchCriteria}</div>`;
+
+                // Special handling for different component types
+                if (selection.component === 'CPU' && selection.performanceMetric) {
+                    html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Performance Metric:</strong> ${selection.performanceMetric}</div>`;
+                }
+
+                if (selection.component === 'PSU' && selection.powerCalculation) {
+                    html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Power Calculation:</strong></div>`;
+                    html += `<div style="margin-left: 15px; font-size: 12px;">`;
+                    html += `Base: ${selection.powerCalculation.baseSystem}, `;
+                    html += `GPU: ${selection.powerCalculation.gpu}, `;
+                    html += `CPU: ${selection.powerCalculation.cpu}<br/>`;
+                    html += `Estimated: ${selection.powerCalculation.estimated} → Recommended: ${selection.powerCalculation.recommended}`;
+                    html += `</div>`;
+                }
+
+                if (selection.component === 'RAM' && selection.preferredCapacity) {
+                    html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Preferred Capacity:</strong> ${selection.preferredCapacity}</div>`;
+                }
+
+                html += `<div style="margin-bottom: 5px;"><strong style="color: #a0aec0;">Candidates Found:</strong> ${selection.candidatesFound}</div>`;
+
+                // Show attempts if available (motherboard, storage)
+                if (selection.attempts && selection.attempts.length > 0) {
+                    html += `<div style="margin-top: 8px;"><strong style="color: #a0aec0;">Selection Attempts:</strong></div>`;
+                    selection.attempts.forEach(attempt => {
+                        const attemptColor = attempt.success ? '#68d391' : '#fc8181';
+                        html += `<div style="margin-left: 15px; margin-top: 5px; padding: 8px; background: #2d3748; border-radius: 4px;">`;
+                        html += `<div style="color: ${attemptColor}; font-weight: bold;">Attempt ${attempt.attemptNumber}: ${attempt.strategy}</div>`;
+                        if (attempt.candidatesFound !== undefined) {
+                            html += `<div style="font-size: 12px; color: #a0aec0;">Candidates: ${attempt.candidatesFound}</div>`;
+                        }
+                        html += `<div style="font-size: 12px; color: #cbd5e0;">${attempt.result}</div>`;
+                        html += `</div>`;
+                    });
+                }
+
+                // Show top candidates
+                if (selection.topCandidates && selection.topCandidates.length > 0) {
+                    html += `<div style="margin-top: 8px;"><strong style="color: #a0aec0;">Top Candidates:</strong></div>`;
+                    html += `<div style="margin-left: 15px; font-size: 12px;">`;
+                    selection.topCandidates.forEach((candidate, idx) => {
+                        let candidateInfo = `${idx + 1}. ${candidate.name} - ${candidate.price}`;
+
+                        // Add performance scores for CPU
+                        if (selection.component === 'CPU' && candidate.selectedMetric) {
+                            candidateInfo += ` (${candidate.selectedMetric})`;
+                        }
+
+                        html += `<div style="margin-top: 3px; color: #cbd5e0;">${candidateInfo}</div>`;
+                    });
+                    html += `</div>`;
+                }
+
+                // Show selected component
+                if (selection.selected) {
+                    html += `<div style="margin-top: 10px; padding: 10px; background: #2f855a; border-radius: 4px;">`;
+                    html += `<div style="color: #9ae6b4; font-weight: bold;">✓ SELECTED</div>`;
+                    if (selection.selected.name) {
+                        html += `<div style="color: #e6fffa; margin-top: 5px;">${selection.selected.name}</div>`;
+                    }
+                    if (selection.selected.drives) {
+                        html += `<div style="color: #e6fffa; margin-top: 5px;">Multiple Drives:</div>`;
+                        selection.selected.drives.forEach((drive, idx) => {
+                            html += `<div style="margin-left: 15px; color: #cbd5e0; font-size: 12px;">${idx + 1}. ${drive.name} - ${drive.capacity}</div>`;
+                        });
+                    }
+                    html += `<div style="color: #c6f6d5; font-size: 12px; margin-top: 5px;">Price: ${selection.selected.price}</div>`;
+
+                    // Show CPU performance scores if available
+                    if (selection.component === 'CPU') {
+                        if (selection.selected.singleCorePerformance && selection.selected.singleCorePerformance !== 'N/A') {
+                            html += `<div style="color: #c6f6d5; font-size: 12px; margin-top: 3px;">Single-Core Performance: ${selection.selected.singleCorePerformance}%</div>`;
+                        }
+                        if (selection.selected.multiThreadPerformance && selection.selected.multiThreadPerformance !== 'N/A') {
+                            html += `<div style="color: #c6f6d5; font-size: 12px; margin-top: 3px;">Multi-Thread Performance: ${selection.selected.multiThreadPerformance}%</div>`;
+                        }
+                    }
+
+                    html += `<div style="color: #c6f6d5; font-size: 12px; font-style: italic; margin-top: 5px;">${selection.selected.reason}</div>`;
+                    if (selection.selected.warning) {
+                        html += `<div style="color: #fbd38d; font-size: 12px; margin-top: 5px;">⚠ ${selection.selected.warning}</div>`;
+                    }
+                    html += `</div>`;
+                } else {
+                    html += `<div style="margin-top: 10px; padding: 10px; background: #742a2a; border-radius: 4px;">`;
+                    html += `<div style="color: #feb2b2; font-weight: bold;">✗ NOT SELECTED</div>`;
+                    html += `<div style="color: #fed7d7; font-size: 12px; font-style: italic;">${selection.reason || selection.error || 'Unknown reason'}</div>`;
+                    html += `</div>`;
+                }
+
+                html += `</div></div>`;
+            });
+
+            // Summary
+            if (debug.summary) {
+                html += `<div style="margin-top: 20px; background: #1a202c; padding: 15px; border-radius: 6px; border: 2px solid #4299e1;">`;
+                html += `<h3 style="color: #63b3ed; margin-bottom: 10px; font-size: 16px;">📝 Summary</h3>`;
+                html += `<div style="color: #cbd5e0;">`;
+                html += `<div><strong style="color: #90cdf4;">Total Cost:</strong> ${debug.summary.totalCost}</div>`;
+                html += `<div><strong style="color: #90cdf4;">Budget:</strong> ${debug.summary.budget}</div>`;
+                html += `<div><strong style="color: #90cdf4;">Under Budget:</strong> ${debug.summary.underBudget ? '✓ Yes' : '✗ No'}</div>`;
+                html += `<div><strong style="color: #90cdf4;">Components Selected:</strong> ${debug.summary.componentsSelected}</div>`;
+                html += `</div></div>`;
+            }
+
+            debugContent.innerHTML = html;
+        }
+
+        function createComponentCard(type, label, component) {
+            console.log(`createComponentCard called for ${type}:`, component.name || component.title);
+            const card = document.createElement('div');
+            card.className = 'build-component-card';
+            card.setAttribute('data-component-type', type);
+
+            const price = component.price || component.currentPrice || 0;
+
+            let specs = '';
+            // Add relevant specs based on component type
+            if (type === 'cpu' && component.cores) {
+                specs += `<span class="spec-badge">${component.cores} Cores</span>`;
+            }
+            if (type === 'gpu' && component.vram) {
+                specs += `<span class="spec-badge">${component.vram}</span>`;
+            }
+            if (type === 'ram' && component.capacity) {
+                specs += `<span class="spec-badge">${component.capacity}GB</span>`;
+            }
+            if (type === 'ram' && component.speed) {
+                specs += `<span class="spec-badge">${component.speed}</span>`;
+            }
+            if (type === 'storage' && component.capacity) {
+                specs += `<span class="spec-badge">${component.capacity}GB</span>`;
+            }
+            if (type === 'storage' && component.type) {
+                specs += `<span class="spec-badge">${component.type}</span>`;
+            }
+            if (type === 'psu' && component.wattage) {
+                specs += `<span class="spec-badge">${component.wattage}W</span>`;
+            }
+            if (type === 'monitor' && component.category) {
+                specs += `<span class="spec-badge">${component.category}</span>`;
+            }
+            if (component.brand && type !== 'monitor') {
+                specs += `<span class="spec-badge">${component.brand}</span>`;
+            }
+
+            card.innerHTML = `
+                <div class="component-card-header">
+                    <span class="component-type">${label}</span>
+                    <span class="component-price">${formatCurrency(price)}</span>
+                </div>
+                <div class="component-name">${component.name || component.title || 'Unknown'}</div>
+                <div class="component-specs">
+                    ${specs}
+                </div>
+            `;
+
+            console.log(`Card created for ${type}, HTML length: ${card.innerHTML.length}`);
+            return card;
+        }
+
+        function closeBuildResults() {
+            document.getElementById('buildResultsModal').style.display = 'none';
+        }
+
+        function acceptBuild() {
+            if (!lastGeneratedBuild || !lastGeneratedBuild.build) {
+                alert('No build data available. Please generate a build first.');
+                return;
+            }
+
+            // Get the PartsDatabase instance
+            const db = window.partsDatabase;
+            if (!db) {
+                alert('Parts database not initialized. Please refresh the page.');
+                return;
+            }
+
+            // Add each component to the builder
+            const build = lastGeneratedBuild.build;
+            const componentMap = {
+                'gpu': 'gpu',
+                'cpu': 'cpu',
+                'motherboard': 'motherboard',
+                'ram': 'ram',
+                'storage': 'storage',
+                'psu': 'psu',
+                'cooler': 'cooler',
+                'case': 'case',
+                'monitor': 'addon',
+                'addon2': 'addon2',
+                'addon3': 'addon3',
+                'windows11': 'addon4'
+            };
+
+            // Enable addon sections if we have multiple addons
+            const addonComponents = ['monitor', 'addon2', 'addon3', 'windows11'];
+            const addonsPresent = addonComponents.filter(key => build[key]);
+            for (let i = 1; i < addonsPresent.length; i++) {
+                db.addAddonSection();
+            }
+
+            let componentsAdded = 0;
+            for (const [key, componentType] of Object.entries(componentMap)) {
+                if (build[key]) {
+                    // Handle storage specially as it might be an array of multiple drives
+                    if (key === 'storage' && Array.isArray(build[key])) {
+                        // Enable additional storage sections if needed
+                        for (let i = 1; i < build[key].length; i++) {
+                            db.addStorageSection();
+                        }
+
+                        // Add all storage devices using storage, storage2, storage3, etc.
+                        build[key].forEach((storage, index) => {
+                            const storageSlot = index === 0 ? 'storage' : `storage${index + 1}`;
+                            console.log(`About to add storage device ${index + 1} to slot '${storageSlot}'`);
+                            console.log(`Storage data:`, storage);
+                            db.selectComponent(storageSlot, storage);
+                            componentsAdded++;
+                            console.log(`Added storage device ${index + 1}/${build[key].length} to slot '${storageSlot}': ${storage.name || storage.title}`);
+
+                            // Verify the component was added
+                            const selectedDiv = document.getElementById(`selectedBuilder${storageSlot.charAt(0).toUpperCase() + storageSlot.slice(1)}`);
+                            console.log(`selectedBuilder${storageSlot.charAt(0).toUpperCase() + storageSlot.slice(1)} element:`, selectedDiv);
+                            console.log(`Display style:`, selectedDiv ? selectedDiv.style.display : 'element not found');
+                        });
+                    } else {
+                        db.selectComponent(componentType, build[key]);
+                        componentsAdded++;
+                    }
+                }
+            }
+
+            // Close the results modal
+            closeBuildResults();
+
+            // Show success message
+            alert(`Build accepted! ${componentsAdded} components have been added to your PC Builder.`);
+
+            // Switch to builder tab if not already there
+            if (db.currentTab !== 'builder') {
+                const builderTab = document.querySelector('[data-tab="builder"]');
+                if (builderTab) {
+                    builderTab.click();
+                }
+            }
+        }
+
+        // Open budget modal when button is clicked
+        document.addEventListener('DOMContentLoaded', function() {
+            const newActionBtn = document.getElementById('newActionBtn');
+            const budgetInput = document.getElementById('budgetInput');
+            const budgetSlider = document.getElementById('budgetSlider');
+            const storageInput = document.getElementById('storageInput');
+            const storageSlider = document.getElementById('storageSlider');
+
+            if (newActionBtn) {
+                newActionBtn.addEventListener('click', openBudgetModal);
+            }
+
+            // Budget: Sync slider with input
+            budgetSlider.addEventListener('input', function(e) {
+                updateBudgetDisplay(e.target.value);
+            });
+
+            // Budget: Sync input with slider
+            budgetInput.addEventListener('input', function(e) {
+                let value = parseInt(e.target.value);
+                if (value && value >= 500) {
+                    if (value > 5000) {
+                        value = 5001;
+                    }
+                    budgetSlider.value = value;
+                    updateBudgetDisplay(value);
+                }
+            });
+
+            // Budget: Allow Enter key to go to next question
+            budgetInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    nextQuestion();
+                }
+            });
+
+            // Storage: Sync slider with input
+            storageSlider.addEventListener('input', function(e) {
+                updateStorageDisplay(e.target.value);
+            });
+
+            // Storage: Sync input (in TB) with slider (in GB)
+            storageInput.addEventListener('input', function(e) {
+                let valueInTB = parseFloat(e.target.value);
+                if (valueInTB && valueInTB >= 0.5) {
+                    let valueInGB = tbToGb(valueInTB);
+                    if (valueInGB > 10000) {
+                        valueInGB = 10000;
+                    }
+                    storageSlider.value = valueInGB;
+                    updateStorageDisplay(valueInGB);
+                }
+            });
+
+            // Storage: Allow Enter key to go to next question
+            storageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    nextQuestion();
+                }
+            });
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('budgetModal');
+            if (e.target === modal) {
+                closeBudgetModal();
+            }
+        });
+    </script>
+</body>
+</html>

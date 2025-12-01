@@ -1,0 +1,142 @@
+const { connectToDatabase, getDatabase } = require('../config/database');
+
+const cpuBenchmarks = [
+    // AMD Ryzen 5 Series
+    { name: 'AMD Ryzen 5 5600', singleCore: 60.4, multiCore: 28.7 },
+    { name: 'AMD Ryzen 5 5600X', singleCore: 63, multiCore: 28.9 },
+    { name: 'AMD Ryzen 5 7600', singleCore: 74.5, multiCore: 36.1 },
+
+    // AMD Ryzen 7 Series
+    { name: 'AMD Ryzen 7 5700X', singleCore: 61.1, multiCore: 35.3 },
+    { name: 'AMD Ryzen 7 5800X', singleCore: 64, multiCore: 38.7 },
+    { name: 'AMD Ryzen 7 7700X', singleCore: 83.4, multiCore: 49.9 },
+    { name: 'AMD Ryzen 7 7800X3D', singleCore: 70.1, multiCore: 46 },
+
+    // AMD Ryzen 9 Series
+    { name: 'AMD Ryzen 9 5900X', singleCore: 67.5, multiCore: 51.6 },
+    { name: 'AMD Ryzen 9 5950X', singleCore: 68.6, multiCore: 60.5 },
+    { name: 'AMD Ryzen 9 7900X', singleCore: 85.8, multiCore: 69 },
+    { name: 'AMD Ryzen 9 7950X', singleCore: 86.2, multiCore: 89 },
+
+    // Intel Core i3
+    { name: 'Intel Core i3-13100F', singleCore: 72.8, multiCore: 21.2 },
+
+    // Intel Core i5
+    { name: 'Intel Core i5-12600K', singleCore: 79.7, multiCore: 40 },
+    { name: 'Intel Core i5-13600K', singleCore: 83.9, multiCore: 52 },
+
+    // Intel Core i7
+    { name: 'Intel Core i7-12700K', singleCore: 81.2, multiCore: 53.6 },
+    { name: 'Intel Core i7-13700K', singleCore: 88.4, multiCore: 64.8 },
+    { name: 'Intel Core i7-13700KF', singleCore: 88.4, multiCore: 71.1 },
+
+    // Intel Core i9
+    { name: 'Intel Core i9-12900K', singleCore: 81.5, multiCore: 62.1 },
+    { name: 'Intel Core i9-13900F', singleCore: 77.4, multiCore: 74.9 },
+    { name: 'Intel Core i9-13900K', singleCore: 91.1, multiCore: 80.7 },
+    { name: 'Intel Core i9-13900KF', singleCore: 91.1, multiCore: 80.7 }
+];
+
+async function updateCpuBenchmarks() {
+    console.log('🚀 Updating CPU benchmark data across all collections...\\n');
+
+    try {
+        await connectToDatabase();
+        const db = getDatabase();
+
+        // Get all CPU collections
+        const collections = await db.listCollections().toArray();
+        const cpuCollectionNames = collections
+            .filter(col => col.name === 'cpus' || col.name.startsWith('cpus_'))
+            .map(col => col.name);
+
+        console.log(`Found ${cpuCollectionNames.length} CPU collections\\n`);
+
+        let successCount = 0;
+        let notFoundCount = 0;
+
+        for (const cpu of cpuBenchmarks) {
+            // Try to find CPU by name (may need to match variations)
+            const nameVariations = [
+                cpu.name,
+                cpu.name + ' Desktop Processor',
+                cpu.name.replace('Desktop Processor', '').trim()
+            ];
+
+            let foundInstances = [];
+
+            // Search across ALL collections and find ALL instances
+            for (const collectionName of cpuCollectionNames) {
+                const collection = db.collection(collectionName);
+
+                for (const nameVar of nameVariations) {
+                    const found = await collection.findOne({
+                        $or: [
+                            { name: nameVar },
+                            { name: { $regex: new RegExp('^' + nameVar.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'), 'i') } },
+                            { title: nameVar },
+                            { title: { $regex: new RegExp('^' + nameVar.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'), 'i') } }
+                        ]
+                    });
+                    if (found) {
+                        foundInstances.push({ doc: found, collection: collectionName });
+                        break; // Found in this collection, move to next collection
+                    }
+                }
+            }
+
+            if (foundInstances.length > 0) {
+                // Update ALL instances of this CPU across all collections
+                let updatedCount = 0;
+                for (const instance of foundInstances) {
+                    const collection = db.collection(instance.collection);
+                    const result = await collection.updateOne(
+                        { _id: instance.doc._id },
+                        {
+                            $set: {
+                                singleCorePerformance: cpu.singleCore,
+                                multiThreadPerformance: cpu.multiCore,
+                                updatedAt: new Date()
+                            }
+                        }
+                    );
+
+                    if (result.modifiedCount > 0) {
+                        updatedCount++;
+                    }
+                }
+
+                if (updatedCount > 0) {
+                    const collections = foundInstances.map(i => i.collection).join(', ');
+                    console.log(`✅ Updated: ${cpu.name} (in ${foundInstances.length} collection(s): ${collections})`);
+                    console.log(`   Single-Core: ${cpu.singleCore} | Multi-Thread: ${cpu.multiCore}`);
+                    successCount++;
+                } else {
+                    console.log(`⚠️  ${cpu.name} found but not modified (may already have same values)`);
+                }
+            } else {
+                console.log(`❌ Not found: ${cpu.name}`);
+                notFoundCount++;
+            }
+        }
+
+        console.log('\\n' + '='.repeat(60));
+        console.log('📊 BENCHMARK UPDATE SUMMARY');
+        console.log('='.repeat(60));
+        console.log(`Total CPUs processed: ${cpuBenchmarks.length}`);
+        console.log(`✅ Successfully updated: ${successCount}`);
+        console.log(`❌ Not found: ${notFoundCount}`);
+        console.log('='.repeat(60));
+
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error updating benchmarks:', error);
+        process.exit(1);
+    }
+}
+
+if (require.main === module) {
+    updateCpuBenchmarks();
+}
+
+module.exports = { updateCpuBenchmarks, cpuBenchmarks };
