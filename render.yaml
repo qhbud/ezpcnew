@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ezpc-builder
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_NAME
+        value: pcbuilder
+      - key: MONGODB_URI
+        sync: false
+      - key: AMAZON_ACCESS_KEY_ID
+        sync: false
+      - key: AMAZON_SECRET_ACCESS_KEY
+        sync: false
+      - key: AMAZON_ASSOCIATE_TAG
+        sync: false
+      - key: AMAZON_REGION
+        value: us-east-1
+      - key: AMAZON_HOST
+        value: webservices.amazon.com
