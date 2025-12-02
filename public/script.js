@@ -7724,8 +7724,14 @@ class PartsDatabase {
 
         // Unround modal right corners
         const modalContent = document.querySelector('.modal-content');
+        console.log('Found modal-content:', modalContent);
         if (modalContent) {
+            console.log('Before:', modalContent.style.borderRadius);
             modalContent.style.borderRadius = '12px 0 0 12px';
+            console.log('After:', modalContent.style.borderRadius);
+            console.log('Computed style:', window.getComputedStyle(modalContent).borderRadius);
+        } else {
+            console.log('Modal content not found!');
         }
     }
 
