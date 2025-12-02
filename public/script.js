@@ -7721,6 +7721,12 @@ class PartsDatabase {
         // Render the comparison view
         this.renderComparisonView();
         panel.classList.remove('hidden');
+
+        // Unround modal right corners
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.borderRadius = '12px 0 0 12px';
+        }
     }
 
     renderComparisonView() {
@@ -9198,6 +9204,12 @@ class PartsDatabase {
 
         // Hide tooltip if visible
         this.hideGraphTooltip();
+
+        // Restore modal rounded corners
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.borderRadius = '12px';
+        }
     }
 
     addToBuildFromDetails() {
@@ -9234,6 +9246,12 @@ class PartsDatabase {
             detailsPanel.classList.add('hidden');
             statisticsBtn.innerHTML = '<i class="fas fa-times"></i> Hide Statistics';
             this.renderStatisticsScatterPlot();
+
+            // Unround modal right corners
+            const modalContent = document.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.borderRadius = '12px 0 0 12px';
+            }
         } else {
             // Hide statistics panel
             this.closeStatisticsPanel();
@@ -9250,6 +9268,12 @@ class PartsDatabase {
         document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
             card.classList.remove('panel-expanded');
         });
+
+        // Restore modal rounded corners
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.borderRadius = '12px';
+        }
     }
 
     toggleCpuPerformanceMode() {
