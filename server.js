@@ -2216,24 +2216,40 @@ app.post('/api/ai-build', async (req, res) => {
 
         debugLog.selections.push(caseDebug);
 
-        // 8. Select Cooler (OPTIONAL - skip if budget is tight)
+        // 8. Select Cooler (MANDATORY for K/KF/X CPUs, OPTIONAL otherwise)
         const remainingBudgetBeforeCooler = maxBudget - totalCost;
         const budgetUtilization = totalCost / maxBudget;
         const coolerBudget = maxBudget * allocations.cooler;
 
-        // Skip cooler if we're already at 85%+ budget (save money for mandatory components)
-        if (budgetUtilization < 0.85 && remainingBudgetBeforeCooler > 20) {
+        // Check if CPU requires a cooler (K, KF, X suffix CPUs don't include stock coolers)
+        const cpuName = selectedParts.cpu ? (selectedParts.cpu.name || selectedParts.cpu.title || '') : '';
+        const cpuNeedsCooler = /-(K|KF|X|KS|X3D)\b/i.test(cpuName) || cpuName.includes('Threadripper');
+
+        // Cooler is MANDATORY if CPU doesn't include one, OPTIONAL otherwise
+        const shouldSelectCooler = cpuNeedsCooler || (budgetUtilization < 0.85 && remainingBudgetBeforeCooler > 20);
+
+        if (shouldSelectCooler) {
             const coolerDebug = {
                 component: 'Cooler',
                 budget: `$${coolerBudget.toFixed(2)}`,
-                searchCriteria: `Price: $0 - $${(coolerBudget * 1.5).toFixed(2)} (50% buffer)`,
+                searchCriteria: cpuNeedsCooler ?
+                    `MANDATORY for ${cpuName} (no stock cooler) - Finding cheapest available` :
+                    `Price: $0 - $${(coolerBudget * 1.5).toFixed(2)} (50% buffer)`,
                 candidatesFound: 0,
                 topCandidates: []
             };
 
-            const coolers = await db.collection('coolers').find({
+            let coolers = await db.collection('coolers').find({
                 currentPrice: { $gt: 0, $lte: coolerBudget * 1.5 }
             }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray();
+
+            // If CPU needs cooler but none found in budget, find the CHEAPEST available (MANDATORY)
+            if (cpuNeedsCooler && coolers.length === 0) {
+                coolers = await db.collection('coolers').find({
+                    currentPrice: { $gt: 0 }
+                }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
+                coolerDebug.searchCriteria = 'MANDATORY - Cheapest available (budget allocation insufficient)';
+            }
 
             coolerDebug.candidatesFound = coolers.length;
             coolerDebug.topCandidates = coolers.slice(0, 5).map(cooler => ({
@@ -2248,26 +2264,34 @@ app.post('/api/ai-build', async (req, res) => {
                 coolerDebug.selected = {
                     name: selectedParts.cooler.name || selectedParts.cooler.title,
                     price: `$${coolerPrice.toFixed(2)}`,
-                    reason: 'Best cooler within budget allocation'
+                    reason: cpuNeedsCooler ?
+                        `MANDATORY for ${cpuName} (CPU does not include stock cooler)` :
+                        'Best cooler within budget allocation'
                 };
             } else {
                 coolerDebug.selected = null;
-                coolerDebug.reason = 'No coolers found within budget';
+                coolerDebug.reason = 'ERROR: No coolers found in database';
             }
 
             debugLog.selections.push(coolerDebug);
+
+            // If cooler was MANDATORY and pushed us over budget, log a warning
+            if (cpuNeedsCooler && totalCost > maxBudget) {
+                console.log(`⚠️ WARNING: Mandatory cooler for ${cpuName} pushed budget to $${totalCost.toFixed(2)} (over $${maxBudget} budget)`);
+                console.log('   Consider: 1) Cheaper CPU, 2) Cheaper case, or 3) Less storage');
+            }
         } else {
             const coolerDebug = {
                 component: 'Cooler',
                 budget: `$${coolerBudget.toFixed(2)}`,
-                searchCriteria: 'Skipped due to tight budget',
+                searchCriteria: 'Skipped - CPU includes stock cooler',
                 candidatesFound: 0,
                 topCandidates: [],
                 selected: null,
-                reason: 'Skipped - budget too tight, CPU stock cooler assumed'
+                reason: `Skipped - ${cpuName} includes stock cooler`
             };
             debugLog.selections.push(coolerDebug);
-            console.log('Skipping cooler selection - budget utilization already at ' + (budgetUtilization * 100).toFixed(1) + '%');
+            console.log('Skipping cooler selection - CPU includes stock cooler');
         }
 
         // 9. Fill remaining budget with additional SSDs (aim for 90% budget utilization)
