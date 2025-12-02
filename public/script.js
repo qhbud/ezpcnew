@@ -6370,7 +6370,7 @@ class PartsDatabase {
         console.log('showSingleComponentDetails - Found modal-content:', modalContent);
         if (modalContent) {
             console.log('Before:', modalContent.style.borderRadius);
-            modalContent.style.borderRadius = '12px 0 0 12px';
+            modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
             console.log('After:', modalContent.style.borderRadius);
             console.log('Computed style:', window.getComputedStyle(modalContent).borderRadius);
         }
@@ -7737,7 +7737,7 @@ class PartsDatabase {
         console.log('Found modal-content:', modalContent);
         if (modalContent) {
             console.log('Before:', modalContent.style.borderRadius);
-            modalContent.style.borderRadius = '12px 0 0 12px';
+            modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
             console.log('After:', modalContent.style.borderRadius);
             console.log('Computed style:', window.getComputedStyle(modalContent).borderRadius);
         } else {
@@ -7923,8 +7923,9 @@ class PartsDatabase {
         // Unround modal right corners (do this AFTER all HTML is rendered)
         const modalContent = document.querySelector('.modal-content');
         if (modalContent) {
-            modalContent.style.borderRadius = '12px 0 0 12px';
+            modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
             console.log('renderComparisonView - Set border-radius to:', modalContent.style.borderRadius);
+            console.log('Computed after setProperty:', window.getComputedStyle(modalContent).borderRadius);
         }
     }
 
@@ -9231,7 +9232,7 @@ class PartsDatabase {
         // Restore modal rounded corners
         const modalContent = document.querySelector('.modal-content');
         if (modalContent) {
-            modalContent.style.borderRadius = '12px';
+            modalContent.style.setProperty('border-radius', '12px', 'important');
         }
     }
 
@@ -9273,7 +9274,7 @@ class PartsDatabase {
             // Unround modal right corners
             const modalContent = document.querySelector('.modal-content');
             if (modalContent) {
-                modalContent.style.borderRadius = '12px 0 0 12px';
+                modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
             }
         } else {
             // Hide statistics panel
@@ -9295,7 +9296,7 @@ class PartsDatabase {
         // Restore modal rounded corners
         const modalContent = document.querySelector('.modal-content');
         if (modalContent) {
-            modalContent.style.borderRadius = '12px';
+            modalContent.style.setProperty('border-radius', '12px', 'important');
         }
     }
 
@@ -9803,7 +9804,7 @@ class PartsDatabase {
             const avgGBPerDollar = dataPoints.reduce((sum, p) => sum + (p.performance / p.price), 0) / dataPoints.length;
             thirdStatValue = avgGBPerDollar.toFixed(2);
             thirdStatLabel = 'Avg GB per $';
-            colorGuideText = '<strong>Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #27ae60; font-weight: 600;">Best Value</span> <span style="margin: 0 8px;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #e74c3c; font-weight: 600;">Lower Value</span>';
+            colorGuideText = '<strong style="color: #222;">Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #0f6124; font-weight: 600;">Best Value</span> <span style="margin: 0 8px; color: #333;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #a93226; font-weight: 600;">Lower Value</span>';
             valueExplanation = 'Value = Capacity per Dollar (GB/$). Higher GB/$ = Better Value';
         } else if (isRamMode) {
             componentLabel = 'RAM Modules';
@@ -9811,7 +9812,7 @@ class PartsDatabase {
             const avgGBPerDollar = dataPoints.reduce((sum, p) => sum + (p.performance / p.price), 0) / dataPoints.length;
             thirdStatValue = avgGBPerDollar.toFixed(2);
             thirdStatLabel = 'Avg GB per $';
-            colorGuideText = '<strong>Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #27ae60; font-weight: 600;">Best Value</span> <span style="margin: 0 8px;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #e74c3c; font-weight: 600;">Lower Value</span>';
+            colorGuideText = '<strong style="color: #222;">Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #0f6124; font-weight: 600;">Best Value</span> <span style="margin: 0 8px; color: #333;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #a93226; font-weight: 600;">Lower Value</span>';
             valueExplanation = 'Value = Capacity per Dollar (GB/$). Higher GB/$ = Better Value';
         } else if (isCpuMode) {
             componentLabel = 'CPUs';
@@ -9821,14 +9822,14 @@ class PartsDatabase {
             const maxPerfNote = this.cpuPerformanceMode === 'multiThread'
                 ? 'AMD Ryzen 9 7950X = 1.0'
                 : 'Intel Core i9-13900K = 1.0';
-            colorGuideText = '<strong>Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #27ae60; font-weight: 600;">Best Value</span> <span style="margin: 0 8px;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #e74c3c; font-weight: 600;">Lower Value</span>';
+            colorGuideText = '<strong style="color: #222;">Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #0f6124; font-weight: 600;">Best Value</span> <span style="margin: 0 8px; color: #333;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #a93226; font-weight: 600;">Lower Value</span>';
             valueExplanation = `Value = Performance per Dollar. Performance normalized 0-1 (${maxPerfNote})`;
         } else {
             componentLabel = 'GPUs';
             const avgPerf = (dataPoints.reduce((sum, p) => sum + p.performance, 0) / dataPoints.length).toFixed(3);
             thirdStatValue = avgPerf;
             thirdStatLabel = 'Avg Performance';
-            colorGuideText = '<strong>Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #27ae60; font-weight: 600;">Best Value</span> <span style="margin: 0 8px;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #e74c3c; font-weight: 600;">Lower Value</span>';
+            colorGuideText = '<strong style="color: #222;">Color Guide:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(100, 255, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #0f6124; font-weight: 600;">Best Value</span> <span style="margin: 0 8px; color: #333;">→</span> <span style="display: inline-block; width: 12px; height: 12px; background: rgb(255, 100, 100); border-radius: 50%; margin: 0 4px; vertical-align: middle;"></span><span style="color: #a93226; font-weight: 600;">Lower Value</span>';
             valueExplanation = 'Value = Performance per Dollar. Performance normalized 0-1 (RTX 5090 = 1.0)';
         }
 

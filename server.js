@@ -90,9 +90,77 @@ function getGpuPerformance(gpu) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Simple in-memory cache with TTL
+class SimpleCache {
+    constructor(ttl = 300000) { // Default 5 minutes
+        this.cache = new Map();
+        this.ttl = ttl;
+    }
+
+    set(key, value) {
+        this.cache.set(key, {
+            value,
+            expires: Date.now() + this.ttl
+        });
+    }
+
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) return null;
+
+        if (Date.now() > item.expires) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return item.value;
+    }
+
+    clear() {
+        this.cache.clear();
+    }
+}
+
+// Create cache instances
+const apiCache = new SimpleCache(300000); // 5 minute cache for API responses
+const statsCache = new SimpleCache(600000); // 10 minute cache for statistics
+
+// Caching middleware
+function cacheMiddleware(duration) {
+    return (req, res, next) => {
+        // Create cache key from URL and query params
+        const key = req.originalUrl || req.url;
+        const cachedResponse = apiCache.get(key);
+
+        if (cachedResponse) {
+            console.log(`✅ Cache HIT: ${key}`);
+            return res.json(cachedResponse);
+        }
+
+        console.log(`❌ Cache MISS: ${key}`);
+
+        // Override res.json to cache the response
+        const originalJson = res.json.bind(res);
+        res.json = function(data) {
+            apiCache.set(key, data);
+            // Set cache headers
+            res.set({
+                'Cache-Control': `public, max-age=${Math.floor(duration / 1000)}`,
+                'ETag': `"${Date.now()}"` // Simple ETag
+            });
+            return originalJson(data);
+        };
+
+        next();
+    };
+}
+
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1h', // Cache static assets for 1 hour
+    etag: true
+}));
 
 // Connect to MongoDB
 let db = null;
@@ -108,15 +176,8 @@ async function initializeDatabase() {
 }
 
 // API Routes
-app.get('/api/parts', async (req, res) => {
+app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
     try {
-        // Prevent caching of API responses to ensure fresh data
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        });
-
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
         }
@@ -149,24 +210,28 @@ app.get('/api/parts', async (req, res) => {
             filter.$text = { $search: search };
         }
 
-        // Get parts from all collections
+        // Get parts from all collections in PARALLEL
         const collections = ['cpus', 'motherboards', 'gpus', 'rams', 'storages', 'psus', 'cases', 'coolers'];
-        let allParts = [];
 
-        for (const collectionName of collections) {
-            try {
-                const parts = await db.collection(collectionName).find(filter).toArray();
-                // Filter out parts with invalid prices
-                const validParts = parts.filter(part => hasValidPrice(part));
-                // Add category to each part
-                validParts.forEach(part => {
-                    part.category = collectionName;
-                });
-                allParts = allParts.concat(validParts);
-            } catch (error) {
-                console.error(`Error fetching from ${collectionName}:`, error);
-            }
-        }
+        const collectionPromises = collections.map(collectionName =>
+            db.collection(collectionName).find(filter).toArray()
+                .then(parts => {
+                    // Filter out parts with invalid prices
+                    const validParts = parts.filter(part => hasValidPrice(part));
+                    // Add category to each part
+                    validParts.forEach(part => {
+                        part.category = collectionName;
+                    });
+                    return validParts;
+                })
+                .catch(error => {
+                    console.error(`Error fetching from ${collectionName}:`, error);
+                    return [];
+                })
+        );
+
+        const results = await Promise.all(collectionPromises);
+        const allParts = results.flat();
 
         res.json(allParts);
     } catch (error) {
@@ -175,15 +240,8 @@ app.get('/api/parts', async (req, res) => {
     }
 });
 
-app.get('/api/parts/:category', async (req, res) => {
+app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
     try {
-        // Prevent caching of API responses to ensure fresh data
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        });
-
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
         }
@@ -348,37 +406,38 @@ async function handleGPURequest(req, res) {
         }
 
         console.log(`Found GPU collections: ${gpuCollectionNames.join(', ')}`);
-        
-        let allGPUs = [];
 
-        // Fetch from all GPU collections
-        for (const collectionName of gpuCollectionNames) {
-            try {
-                const collection = db.collection(collectionName);
-                const gpus = await collection.find({}).toArray();
+        // Fetch from all GPU collections in PARALLEL
+        const gpuPromises = gpuCollectionNames.map(collectionName =>
+            db.collection(collectionName).find({}).toArray()
+                .then(gpus => {
+                    // Filter out desktops, laptops, pre-built systems, and items with invalid prices
+                    const filteredGpus = gpus.filter(gpu =>
+                        !isDesktopOrLaptop(gpu.title || gpu.name || '') && hasValidPrice(gpu)
+                    );
 
-                // Filter out desktops, laptops, pre-built systems, and items with invalid prices
-                const filteredGpus = gpus.filter(gpu =>
-                    !isDesktopOrLaptop(gpu.title || gpu.name || '') && hasValidPrice(gpu)
-                );
-                
-                // Add source collection info
-                filteredGpus.forEach(gpu => {
-                    gpu.collection = collectionName;
-                    gpu.category = 'gpus';
-                });
-                
-                allGPUs = allGPUs.concat(filteredGpus);
-                
-                if (gpus.length !== filteredGpus.length) {
-                    console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName} (filtered out ${gpus.length - filteredGpus.length} desktop/laptop systems)`);
-                } else {
-                    console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName}`);
-                }
-            } catch (error) {
-                console.error(`Error fetching from ${collectionName}:`, error);
-            }
-        }
+                    // Add source collection info
+                    filteredGpus.forEach(gpu => {
+                        gpu.collection = collectionName;
+                        gpu.category = 'gpus';
+                    });
+
+                    if (gpus.length !== filteredGpus.length) {
+                        console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName} (filtered out ${gpus.length - filteredGpus.length} desktop/laptop systems)`);
+                    } else {
+                        console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName}`);
+                    }
+
+                    return filteredGpus;
+                })
+                .catch(error => {
+                    console.error(`Error fetching from ${collectionName}:`, error);
+                    return [];
+                })
+        );
+
+        const gpuResults = await Promise.all(gpuPromises);
+        const allGPUs = gpuResults.flat();
 
         // Apply filters
         let filteredGPUs = allGPUs;
@@ -512,28 +571,29 @@ async function handleCPURequest(req, res) {
         }
 
         console.log(`Found CPU collections: ${cpuCollectionNames.join(', ')}`);
-        
-        let allCPUs = [];
 
-        // Fetch from all CPU collections
-        for (const collectionName of cpuCollectionNames) {
-            try {
-                const collection = db.collection(collectionName);
-                const cpus = await collection.find({}).toArray();
-                
-                // For CPUs, we don't filter out desktop processors as they're what we want
-                // Add source collection info
-                cpus.forEach(cpu => {
-                    cpu.collection = collectionName;
-                    cpu.category = 'cpus';
-                });
-                
-                allCPUs = allCPUs.concat(cpus);
-                console.log(`Loaded ${cpus.length} CPUs from ${collectionName}`);
-            } catch (error) {
-                console.error(`Error fetching from ${collectionName}:`, error);
-            }
-        }
+        // Fetch from all CPU collections in PARALLEL
+        const cpuPromises = cpuCollectionNames.map(collectionName =>
+            db.collection(collectionName).find({}).toArray()
+                .then(cpus => {
+                    // For CPUs, we don't filter out desktop processors as they're what we want
+                    // Add source collection info
+                    cpus.forEach(cpu => {
+                        cpu.collection = collectionName;
+                        cpu.category = 'cpus';
+                    });
+
+                    console.log(`Loaded ${cpus.length} CPUs from ${collectionName}`);
+                    return cpus;
+                })
+                .catch(error => {
+                    console.error(`Error fetching from ${collectionName}:`, error);
+                    return [];
+                })
+        );
+
+        const cpuResults = await Promise.all(cpuPromises);
+        const allCPUs = cpuResults.flat();
 
         // Apply filters
         let filteredCPUs = allCPUs;
@@ -972,7 +1032,7 @@ app.get('/api/manufacturers', async (req, res) => {
     }
 });
 
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', cacheMiddleware(600000), async (req, res) => {
     try {
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
@@ -1026,7 +1086,7 @@ app.get('/api/cpus', async (req, res) => {
     await handleCPURequest(req, res);
 });
 
-app.get('/api/cpu-stats', async (req, res) => {
+app.get('/api/cpu-stats', cacheMiddleware(600000), async (req, res) => {
     try {
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
