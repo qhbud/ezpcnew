@@ -4236,6 +4236,17 @@ class PartsDatabase {
                     componentCopy.quantity = quantity;
                 }
 
+                // Debug GPU data
+                if (type === 'gpu') {
+                    console.log('GPU component data:', {
+                        title: component.title,
+                        name: component.name,
+                        imageUrl: component.imageUrl,
+                        image: component.image,
+                        manufacturer: component.manufacturer
+                    });
+                }
+
                 // Add the component to the build
                 this.currentBuild[type] = componentCopy;
                 console.log(`✅ Found ${type}, calling updateBuilderComponentDisplay`);
