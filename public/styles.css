@@ -347,6 +347,37 @@ header p {
     text-align: center;
 }
 
+/* Component Table Styling */
+.component-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.component-table thead th {
+    color: #1a202c !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 2px solid rgba(168, 85, 247, 0.3);
+}
+
+.component-table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.component-table thead th.sortable:hover {
+    background: rgba(168, 85, 247, 0.1);
+}
+
+.component-table tbody td {
+    color: #1a202c !important;
+    padding: 12px;
+}
+
 /* Incompatible table row styling */
 tr.incompatible {
     opacity: 0.5;
