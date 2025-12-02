@@ -4076,13 +4076,21 @@ class PartsDatabase {
     }
 
     shareBuild() {
-        // Create a compact representation with only IDs (no names to avoid Unicode issues)
+        // Create a compact representation with IDs and quantities
         const buildData = {};
 
         Object.entries(this.currentBuild).forEach(([type, component]) => {
             if (component !== null) {
-                // Store only the _id to keep URL short and avoid Unicode issues
-                buildData[type] = component._id;
+                // For RAM and GPU, save ID and quantity
+                if ((type === 'ram' || type === 'gpu') && component.quantity) {
+                    buildData[type] = {
+                        id: component._id,
+                        qty: component.quantity
+                    };
+                } else {
+                    // For other components, just save ID
+                    buildData[type] = component._id;
+                }
             }
         });
 
@@ -4135,11 +4143,24 @@ class PartsDatabase {
         }
     }
 
-    async loadAndAddComponentById(type, componentId) {
+    async loadAndAddComponentById(type, componentData) {
         try {
+            // Handle both string IDs and {id, qty} objects
+            let componentId, quantity;
+            if (typeof componentData === 'object' && componentData.id) {
+                componentId = componentData.id;
+                quantity = componentData.qty || 1;
+            } else {
+                componentId = componentData;
+                quantity = 1;
+            }
+
+            // Extract base type (e.g., 'storage' from 'storage2', 'addon' from 'addon3')
+            const baseType = type.replace(/\d+$/, '');
+
             // Map component type to the appropriate array
             let componentArray;
-            switch(type) {
+            switch(baseType) {
                 case 'cpu':
                     componentArray = this.allCPUs;
                     break;
@@ -4176,9 +4197,17 @@ class PartsDatabase {
             const component = componentArray.find(c => c._id === componentId);
 
             if (component) {
+                // Clone the component to avoid modifying the original
+                const componentCopy = { ...component };
+
+                // Set quantity for RAM and GPU
+                if (baseType === 'ram' || baseType === 'gpu') {
+                    componentCopy.quantity = quantity;
+                }
+
                 // Add the component to the build
-                this.currentBuild[type] = component;
-                this.updateBuilderComponentDisplay(type, component);
+                this.currentBuild[type] = componentCopy;
+                this.updateBuilderComponentDisplay(type, componentCopy);
                 this.updateTotalPrice();
                 this.checkCompatibility();
                 this.updateBuildActions();
