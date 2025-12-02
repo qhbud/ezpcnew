@@ -2175,7 +2175,10 @@ app.post('/api/ai-build', async (req, res) => {
         };
 
         let cases = await db.collection('cases').find({
-            currentPrice: { $gt: 0, $lte: caseBudget * 1.5 }
+            currentPrice: { $gt: 0, $lte: caseBudget * 1.5 },
+            // Exclude PSUs that might be misclassified as cases
+            wattage: { $exists: false },
+            name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
         }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray();
 
         caseDebug.candidatesFound = cases.length;
@@ -2183,7 +2186,10 @@ app.post('/api/ai-build', async (req, res) => {
         // If no cases found in budget, find the cheapest available (MANDATORY component)
         if (cases.length === 0) {
             cases = await db.collection('cases').find({
-                currentPrice: { $gt: 0 }
+                currentPrice: { $gt: 0 },
+                // Exclude PSUs that might be misclassified as cases
+                wattage: { $exists: false },
+                name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
             }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
             caseDebug.searchCriteria = 'Cheapest available (budget allocation insufficient)';
             caseDebug.candidatesFound = cases.length;
