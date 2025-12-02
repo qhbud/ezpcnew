@@ -6364,6 +6364,16 @@ class PartsDatabase {
         this.renderComparisonView();
         const panel = document.getElementById('componentDetailsPanel');
         panel.classList.remove('hidden');
+
+        // Unround modal right corners
+        const modalContent = document.querySelector('.modal-content');
+        console.log('showSingleComponentDetails - Found modal-content:', modalContent);
+        if (modalContent) {
+            console.log('Before:', modalContent.style.borderRadius);
+            modalContent.style.borderRadius = '12px 0 0 12px';
+            console.log('After:', modalContent.style.borderRadius);
+            console.log('Computed style:', window.getComputedStyle(modalContent).borderRadius);
+        }
     }
 
     async toggleComponentVariants(mainRow, component, componentType, index, autoSelectAllVariants = true) {
