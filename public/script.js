@@ -541,9 +541,6 @@ class PartsDatabase {
             this.shareBuild();
         });
 
-        // Load build from URL if present
-        this.loadBuildFromURL();
-
         // Set initial button state
         this.updateBuildActions();
     }
@@ -610,22 +607,25 @@ class PartsDatabase {
         headerDescription.textContent = 'Build your custom PC by selecting components';
     }
 
-    loadInitialData() {
+    async loadInitialData() {
         // Load overall stats for the header
         this.loadOverallStats();
 
-        // Load GPU data by default (initial tab)
-        this.loadAllGPUs();
+        // Load all component data in parallel
+        await Promise.all([
+            this.loadAllGPUs(),      // Load GPU data by default (initial tab)
+            this.loadAllCPUs(),
+            this.loadAllMotherboards(),
+            this.loadAllRAM(),
+            this.loadAllPSUs(),
+            this.loadAllCoolers(),
+            this.loadAllStorage(),
+            this.loadAllCases(),
+            this.loadAllAddons()
+        ]);
 
-        // Also load CPU, motherboard, RAM, PSU, cooler, storage, and case data in background for when user switches
-        this.loadAllCPUs();
-        this.loadAllMotherboards();
-        this.loadAllRAM();
-        this.loadAllPSUs();
-        this.loadAllCoolers();
-        this.loadAllStorage();
-        this.loadAllCases();
-        this.loadAllAddons();
+        // After all data is loaded, check if there's a build to restore from URL
+        this.loadBuildFromURL();
     }
 
     async loadOverallStats() {
@@ -4148,22 +4148,51 @@ class PartsDatabase {
 
     async loadAndAddComponentById(type, componentData) {
         try {
-            // Fetch the component from the API by ID
-            const response = await fetch(`/api/parts/${type}s`);
-            if (!response.ok) {
-                console.error(`Failed to fetch ${type}s`);
-                return;
+            // Map component type to the appropriate array
+            let componentArray;
+            switch(type) {
+                case 'cpu':
+                    componentArray = this.allCPUs;
+                    break;
+                case 'gpu':
+                    componentArray = this.allGPUs;
+                    break;
+                case 'motherboard':
+                    componentArray = this.allMotherboards;
+                    break;
+                case 'ram':
+                    componentArray = this.allRAM;
+                    break;
+                case 'psu':
+                    componentArray = this.allPSUs;
+                    break;
+                case 'case':
+                    componentArray = this.allCases;
+                    break;
+                case 'cooler':
+                    componentArray = this.allCoolers;
+                    break;
+                case 'storage':
+                    componentArray = this.allStorage;
+                    break;
+                case 'addon':
+                    componentArray = this.allAddons;
+                    break;
+                default:
+                    console.error(`Unknown component type: ${type}`);
+                    return;
             }
 
-            const components = await response.json();
-
-            // Find the component by ID
-            const component = components.find(c => c._id === componentData.id);
+            // Find the component by ID in the already-loaded array
+            const component = componentArray.find(c => c._id === componentData.id);
 
             if (component) {
                 // Add the component to the build
                 this.currentBuild[type] = component;
-                this.updateBuildDisplay();
+                this.updateComponentDisplay(type, component);
+                this.updateTotalPrice();
+                this.checkCompatibility();
+                this.updateBuildActions();
             } else {
                 console.warn(`Component not found: ${type} with ID ${componentData.id}`);
             }
