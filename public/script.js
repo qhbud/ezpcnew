@@ -7919,6 +7919,13 @@ class PartsDatabase {
 
         // Initialize hover functionality for comparison legend items
         this.initializeComparisonLegendHover();
+
+        // Unround modal right corners (do this AFTER all HTML is rendered)
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.borderRadius = '12px 0 0 12px';
+            console.log('renderComparisonView - Set border-radius to:', modalContent.style.borderRadius);
+        }
     }
 
     initializeImageTooltip() {
