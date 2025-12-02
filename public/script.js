@@ -4209,7 +4209,9 @@ class PartsDatabase {
 
                 // Add the component to the build
                 this.currentBuild[type] = componentCopy;
+                console.log(`✅ Found ${type}, calling updateBuilderComponentDisplay`);
                 this.updateBuilderComponentDisplay(type, componentCopy);
+                console.log(`✅ Display updated for ${type}`);
                 this.updateTotalPrice();
                 this.checkCompatibility();
                 this.updateBuildActions();
