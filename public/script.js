@@ -7712,11 +7712,19 @@ class PartsDatabase {
 
         // Find and mark the clicked card as expanded
         const componentId = component._id || component.title || component.name;
+        console.log('Looking for component ID:', componentId);
+        let foundCard = false;
         document.querySelectorAll('.part-card').forEach(card => {
+            console.log('Card ID:', card.dataset.componentId);
             if (card.dataset.componentId === componentId) {
+                console.log('Found matching card! Adding panel-expanded class');
                 card.classList.add('panel-expanded');
+                foundCard = true;
             }
         });
+        if (!foundCard) {
+            console.log('No matching card found!');
+        }
 
         // Render the comparison view
         this.renderComparisonView();
