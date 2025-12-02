@@ -382,11 +382,12 @@ tr.incompatible td {
 }
 
 .part-manufacturer {
-    color: #7f8c8d;
+    color: #4a5568;
     font-size: 0.9rem;
     margin-bottom: 15px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 600;
 }
 
 .bios-warning-icon {
@@ -412,7 +413,7 @@ tr.incompatible td {
 
 .spec-label {
     font-size: 0.85rem;
-    color: #4a5568;
+    color: #1a202c;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
