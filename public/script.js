@@ -4158,6 +4158,8 @@ class PartsDatabase {
             // Extract base type (e.g., 'storage' from 'storage2', 'addon' from 'addon3')
             const baseType = type.replace(/\d+$/, '');
 
+            console.log(`Loading ${type} (base: ${baseType}) with ID: ${componentId}, qty: ${quantity}`);
+
             // Map component type to the appropriate array
             let componentArray;
             switch(baseType) {
