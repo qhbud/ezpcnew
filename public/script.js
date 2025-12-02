@@ -4131,9 +4131,34 @@ class PartsDatabase {
                 }
             }
 
+            // Enable additional storage/addon sections that have components
+            // Check which storage/addon slots have components and enable their sections
+            for (let i = 2; i <= 7; i++) {
+                const storageKey = i === 1 ? 'storage' : `storage${i}`;
+                if (this.currentBuild[storageKey]) {
+                    const section = document.querySelector(`#storageSection${i}`);
+                    if (section && section.classList.contains('disabled')) {
+                        section.classList.remove('disabled');
+                        section.style.display = '';
+                    }
+                }
+            }
+
+            for (let i = 2; i <= 6; i++) {
+                const addonKey = i === 1 ? 'addon' : `addon${i}`;
+                if (this.currentBuild[addonKey]) {
+                    const section = document.querySelector(`#addonSection${i}`);
+                    if (section && section.classList.contains('disabled')) {
+                        section.classList.remove('disabled');
+                        section.style.display = '';
+                    }
+                }
+            }
+
             // Update plus button visibility to show additional storage/addon slots if needed
             this.updateStoragePlusButtons();
             this.updateAddonPlusButtons();
+            this.updateComponentPositions();
 
             // Show success message
             const componentCount = Object.keys(buildData).length;
