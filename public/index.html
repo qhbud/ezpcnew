@@ -942,7 +942,7 @@
 
         .modal-content {
             background: white;
-            border-radius: 12px 0 0 12px;
+            border-radius: 12px;
             flex: 1;
             overflow: hidden;
             display: flex;
@@ -950,11 +950,11 @@
         }
 
         .modal-content-wrapper:has(.component-details-panel:not(.hidden)) .modal-content {
-            border-radius: 12px 0 0 12px;
+            border-radius: 12px 0 0 12px !important;
         }
 
         .modal-content-wrapper:has(.component-details-panel.hidden) .modal-content {
-            border-radius: 12px;
+            border-radius: 12px !important;
         }
 
         .modal-header {
