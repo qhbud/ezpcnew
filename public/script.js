@@ -536,14 +536,16 @@ class PartsDatabase {
         document.getElementById('clearBuildBtn').addEventListener('click', () => {
             this.clearBuild();
         });
-        
-        document.getElementById('saveBuildBtn').addEventListener('click', () => {
-            this.saveBuild();
-        });
-        
+
         document.getElementById('shareBuildBtn').addEventListener('click', () => {
             this.shareBuild();
         });
+
+        // Load build from URL if present
+        this.loadBuildFromURL();
+
+        // Set initial button state
+        this.updateBuildActions();
     }
 
     // Tab switching functionality
@@ -4033,11 +4035,11 @@ class PartsDatabase {
 
     updateBuildActions() {
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
-        const saveBtn = document.getElementById('saveBuildBtn');
         const shareBtn = document.getElementById('shareBuildBtn');
-        
-        saveBtn.disabled = !hasComponents;
-        shareBtn.disabled = !hasComponents;
+
+        if (shareBtn) {
+            shareBtn.disabled = !hasComponents;
+        }
     }
 
     clearBuild() {
@@ -4073,39 +4075,94 @@ class PartsDatabase {
         this.updateBuildActions();
     }
 
-    saveBuild() {
-        const buildData = {
-            components: { ...this.currentBuild },
-            totalPrice: this.totalPrice,
-            createdAt: new Date().toISOString()
-        };
-        
-        // Store in localStorage for now
-        const savedBuilds = JSON.parse(localStorage.getItem('pcBuilds') || '[]');
-        savedBuilds.push(buildData);
-        localStorage.setItem('pcBuilds', JSON.stringify(savedBuilds));
-        
-        alert(`Build saved successfully!\nTotal: $${this.totalPrice.toFixed(2)}\nComponents: ${Object.values(this.currentBuild).filter(c => c !== null).length}`);
+    shareBuild() {
+        // Create a compact representation of the build with only essential data
+        const buildData = {};
+
+        Object.entries(this.currentBuild).forEach(([type, component]) => {
+            if (component !== null) {
+                // Store only the _id to keep URL short
+                buildData[type] = {
+                    id: component._id,
+                    name: component.title || component.name,
+                    price: component.currentPrice || component.price
+                };
+            }
+        });
+
+        // Encode the build data as a URL parameter
+        const encodedBuild = btoa(JSON.stringify(buildData));
+        const shareURL = `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(shareURL).then(() => {
+            // Show success message with a styled alert
+            const componentCount = Object.keys(buildData).length;
+            alert(`✅ Share link copied to clipboard!\n\nTotal: $${this.totalPrice.toFixed(2)}\nComponents: ${componentCount}\n\nAnyone with this link can view and use your build!`);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy link. Please try again.');
+        });
     }
 
-    shareBuild() {
-        const componentNames = Object.entries(this.currentBuild)
-            .filter(([_, component]) => component !== null)
-            .map(([type, component]) => `${type.toUpperCase()}: ${component.title || component.name}`)
-            .join('\n');
-        
-        const shareText = `My PC Build - Total: $${this.totalPrice.toFixed(2)}\n\n${componentNames}`;
-        
-        if (navigator.share) {
-            navigator.share({
-                title: 'My PC Build',
-                text: shareText
-            });
-        } else {
-            // Fallback - copy to clipboard
-            navigator.clipboard.writeText(shareText).then(() => {
-                alert('Build details copied to clipboard!');
-            });
+    async loadBuildFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const buildParam = urlParams.get('build');
+
+        if (!buildParam) {
+            return; // No build to load
+        }
+
+        try {
+            // Decode the build data
+            const buildData = JSON.parse(atob(buildParam));
+
+            console.log('Loading build from URL:', buildData);
+
+            // Load each component by its ID
+            for (const [type, componentData] of Object.entries(buildData)) {
+                if (componentData && componentData.id) {
+                    // We need to find and add the component to the build
+                    // This will require fetching the component from the API
+                    await this.loadAndAddComponentById(type, componentData);
+                }
+            }
+
+            // Show success message
+            const componentCount = Object.keys(buildData).length;
+            setTimeout(() => {
+                alert(`✅ Build loaded successfully!\n\n${componentCount} components restored from shared link.`);
+            }, 500);
+
+        } catch (error) {
+            console.error('Error loading build from URL:', error);
+            alert('Failed to load build from link. The link may be invalid or corrupted.');
+        }
+    }
+
+    async loadAndAddComponentById(type, componentData) {
+        try {
+            // Fetch the component from the API by ID
+            const response = await fetch(`/api/parts/${type}s`);
+            if (!response.ok) {
+                console.error(`Failed to fetch ${type}s`);
+                return;
+            }
+
+            const components = await response.json();
+
+            // Find the component by ID
+            const component = components.find(c => c._id === componentData.id);
+
+            if (component) {
+                // Add the component to the build
+                this.currentBuild[type] = component;
+                this.updateBuildDisplay();
+            } else {
+                console.warn(`Component not found: ${type} with ID ${componentData.id}`);
+            }
+        } catch (error) {
+            console.error(`Error loading ${type}:`, error);
         }
     }
 
@@ -5599,8 +5656,8 @@ class PartsDatabase {
         let html = '';
         this.activeBadgeFilters.forEach(filterKey => {
             const [type, value] = filterKey.split(':');
-            let color = '#667eea';
-            let bgColor = 'rgba(102, 126, 234, 0.1)';
+            let color = '#2563eb';
+            let bgColor = 'rgba(37, 99, 235, 0.1)';
 
             if (type === 'manufacturer') {
                 const valueLower = value.toLowerCase();
@@ -5616,8 +5673,8 @@ class PartsDatabase {
                 }
             } else if (type === 'tier') {
                 if (value === 'High End') {
-                    color = '#a855f7';
-                    bgColor = 'rgba(168, 85, 247, 0.1)';
+                    color = '#3b82f6';
+                    bgColor = 'rgba(59, 130, 246, 0.1)';
                 } else if (value === 'Low End') {
                     color = '#64748b';
                     bgColor = 'rgba(100, 116, 139, 0.1)';
@@ -5704,8 +5761,8 @@ class PartsDatabase {
         const expandIcon = hasVariants ? '<i class="fas fa-chevron-right expand-icon"></i>' : '';
 
         // Determine manufacturer badge color
-        let badgeColor = '#667eea'; // default purple
-        let badgeBgColor = 'rgba(102, 126, 234, 0.1)';
+        let badgeColor = '#2563eb'; // default blue
+        let badgeBgColor = 'rgba(37, 99, 235, 0.1)';
 
         if (manufacturer) {
             const mfgLower = manufacturer.toLowerCase();
@@ -6340,15 +6397,15 @@ class PartsDatabase {
         if (componentRow) {
             componentRow.classList.add('component-selected');
             // Add highlight styling to the selected row
-            componentRow.style.backgroundColor = 'rgba(102, 126, 234, 0.08)';
-            componentRow.style.borderLeft = '3px solid #667eea';
+            componentRow.style.backgroundColor = 'rgba(37, 99, 235, 0.08)';
+            componentRow.style.borderLeft = '3px solid #2563eb';
 
             // Add checkmark indicator if not present
             if (!componentRow.querySelector('.selection-indicator')) {
                 const indicator = document.createElement('div');
                 indicator.className = 'selection-indicator';
                 indicator.innerHTML = '<i class="fas fa-check-circle"></i>';
-                indicator.style.cssText = 'position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #667eea; font-size: 18px; pointer-events: none;';
+                indicator.style.cssText = 'position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #2563eb; font-size: 18px; pointer-events: none;';
                 const firstCell = componentRow.querySelector('td');
                 if (firstCell) {
                     firstCell.style.position = 'relative';
@@ -7790,7 +7847,7 @@ class PartsDatabase {
 
         // Determine manufacturer color
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
         if (manufacturerLower.includes('amd') || manufacturerLower.includes('radeon')) {
             manufacturerColor = 'rgba(220, 38, 38, 0.95)'; // red for AMD
         } else if (manufacturerLower.includes('nvidia') || manufacturerLower.includes('geforce')) {
@@ -8004,7 +8061,7 @@ class PartsDatabase {
             // Add hover style
             item.addEventListener('mouseenter', (e) => {
                 if (e.currentTarget.style.background === 'transparent') {
-                    e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+                    e.currentTarget.style.background = 'rgba(37, 99, 235, 0.05)';
                 }
             });
 
@@ -8203,12 +8260,12 @@ class PartsDatabase {
             const displayPrice = salePrice > 0 ? salePrice : basePrice;
 
             return `
-                <div class="comparison-legend-item" data-comparison-index="${index}" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: ${isCurrent ? 'rgba(102, 126, 234, 0.1)' : 'transparent'}; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                <div class="comparison-legend-item" data-comparison-index="${index}" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: ${isCurrent ? 'rgba(37, 99, 235, 0.1)' : 'transparent'}; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
                     <div style="width: 12px; height: 12px; background: ${item.color}; border-radius: 2px; flex-shrink: 0;"></div>
-                    <div style="font-size: 11px; color: ${isCurrent ? '#667eea' : '#666'}; font-weight: ${isCurrent ? '600' : '400'}; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</div>
+                    <div style="font-size: 11px; color: ${isCurrent ? '#2563eb' : '#666'}; font-weight: ${isCurrent ? '600' : '400'}; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</div>
                     <div style="font-size: 11px; color: #16a34a; font-weight: 600; background: rgba(34, 197, 94, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">$${displayPrice.toFixed(2)}</div>
                     ${performanceScore !== null ? `
-                        <div style="font-size: 11px; color: #667eea; font-weight: 600; background: rgba(102, 126, 234, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">${(performanceScore * 100).toFixed(1)}%</div>
+                        <div style="font-size: 11px; color: #2563eb; font-weight: 600; background: rgba(37, 99, 235, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">${(performanceScore * 100).toFixed(1)}%</div>
                     ` : ''}
                     <div class="remove-comparison-item-btn" data-remove-index="${index}" style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-radius: 3px; font-size: 10px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: all 0.2s;" title="Remove from comparison">×</div>
                 </div>
@@ -8217,7 +8274,7 @@ class PartsDatabase {
 
         return `
             <div class="savings-graph-section">
-                <h4 style="font-size: 14px; font-weight: 600; color: #667eea; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                <h4 style="font-size: 14px; font-weight: 600; color: #2563eb; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">
                     Price Comparison (Last 30 Days)
                 </h4>
 
@@ -8234,7 +8291,7 @@ class PartsDatabase {
 
     getComparisonColor(index) {
         const colors = [
-            '#667eea', // Purple (primary)
+            '#2563eb', // Blue (primary)
             '#ff6b6b', // Red
             '#4ecdc4', // Teal
             '#ffd93d', // Yellow
@@ -8532,7 +8589,7 @@ class PartsDatabase {
                 color: white;
                 padding: 10px 15px;
                 border-radius: 6px;
-                border: 2px solid #667eea;
+                border: 2px solid #2563eb;
                 font-size: 11px;
                 font-family: Arial, sans-serif;
                 z-index: 10000;
@@ -8779,7 +8836,7 @@ class PartsDatabase {
         // Update the manufacturer badge
         const manufacturer = component.manufacturer || 'Unknown';
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
         if (manufacturerLower.includes('amd') || manufacturerLower.includes('radeon')) {
             manufacturerColor = 'rgba(220, 38, 38, 0.95)'; // red for AMD
         } else if (manufacturerLower.includes('nvidia') || manufacturerLower.includes('geforce')) {
@@ -8887,12 +8944,12 @@ class PartsDatabase {
                 const displayPrice = salePrice > 0 ? salePrice : basePrice;
 
                 return `
-                    <div class="comparison-legend-item" data-comparison-index="${index}" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: ${isCurrent ? 'rgba(102, 126, 234, 0.1)' : 'transparent'}; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                    <div class="comparison-legend-item" data-comparison-index="${index}" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: ${isCurrent ? 'rgba(37, 99, 235, 0.1)' : 'transparent'}; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
                         <div style="width: 12px; height: 12px; background: ${item.color}; border-radius: 2px; flex-shrink: 0;"></div>
-                        <div style="font-size: 11px; color: ${isCurrent ? '#667eea' : '#666'}; font-weight: ${isCurrent ? '600' : '400'}; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</div>
+                        <div style="font-size: 11px; color: ${isCurrent ? '#2563eb' : '#666'}; font-weight: ${isCurrent ? '600' : '400'}; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</div>
                         <div style="font-size: 11px; color: #16a34a; font-weight: 600; background: rgba(34, 197, 94, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">$${displayPrice.toFixed(2)}</div>
                         ${performanceScore !== null ? `
-                            <div style="font-size: 11px; color: #667eea; font-weight: 600; background: rgba(102, 126, 234, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">${(performanceScore * 100).toFixed(1)}%</div>
+                            <div style="font-size: 11px; color: #2563eb; font-weight: 600; background: rgba(37, 99, 235, 0.1); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">${(performanceScore * 100).toFixed(1)}%</div>
                         ` : ''}
                         <div class="remove-comparison-item-btn" data-remove-index="${index}" style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-radius: 3px; font-size: 10px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: all 0.2s;" title="Remove from comparison">×</div>
                     </div>
@@ -8924,7 +8981,7 @@ class PartsDatabase {
 
         return `
             <div class="savings-graph-section">
-                <h4 style="font-size: 14px; font-weight: 600; color: #667eea; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Price History (Last 30 Days)</h4>
+                <h4 style="font-size: 14px; font-weight: 600; color: #2563eb; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Price History (Last 30 Days)</h4>
 
                 <canvas id="${graphId}" width="360" height="200" style="width: 100%; max-width: 360px;"></canvas>
             </div>
@@ -9108,7 +9165,7 @@ class PartsDatabase {
 
         // Draw price line (only draw lines between actual data points)
         if (priceHistory.length > 0) {
-            ctx.strokeStyle = '#667eea';
+            ctx.strokeStyle = '#2563eb';
             ctx.lineWidth = 2;
             ctx.beginPath();
             priceHistory.forEach((point, index) => {
@@ -9123,7 +9180,7 @@ class PartsDatabase {
             ctx.stroke();
 
             // Fill area under the line
-            ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.1)';
             ctx.beginPath();
             const firstX = xScale(priceHistory[0].date);
             ctx.moveTo(firstX, padding.top + chartHeight);
@@ -9142,7 +9199,7 @@ class PartsDatabase {
                 const x = xScale(point.date);
                 const y = yScale(point.price);
 
-                ctx.fillStyle = '#667eea';
+                ctx.fillStyle = '#2563eb';
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 ctx.fill();
@@ -9594,7 +9651,7 @@ class PartsDatabase {
             const xThreshold = padding.left + ((scaledThreshold - scaledMinPerformance) / (scaledMaxPerformance - scaledMinPerformance)) * chartWidth;
 
             // Draw dashed line at 100%
-            ctx.strokeStyle = 'rgba(102, 126, 234, 0.6)';
+            ctx.strokeStyle = 'rgba(37, 99, 235, 0.6)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
@@ -9604,7 +9661,7 @@ class PartsDatabase {
             ctx.setLineDash([]);
 
             // Add label
-            ctx.fillStyle = 'rgba(102, 126, 234, 0.9)';
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.9)';
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
@@ -9627,11 +9684,11 @@ class PartsDatabase {
             const yMax = height - padding.bottom - ((scaledFilterMin - roundedMinPrice) / (roundedMaxPrice - roundedMinPrice)) * chartHeight;
 
             // Draw semi-transparent rectangle
-            ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.1)';
             ctx.fillRect(padding.left, yMin, chartWidth, yMax - yMin);
 
             // Draw border lines for the price range
-            ctx.strokeStyle = 'rgba(102, 126, 234, 0.6)';
+            ctx.strokeStyle = 'rgba(37, 99, 235, 0.6)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]); // Dashed line
 
@@ -9643,7 +9700,7 @@ class PartsDatabase {
                 ctx.stroke();
 
                 // Add label for max price
-                ctx.fillStyle = '#667eea';
+                ctx.fillStyle = '#2563eb';
                 ctx.font = 'bold 11px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'bottom';
@@ -9658,7 +9715,7 @@ class PartsDatabase {
                 ctx.stroke();
 
                 // Add label for min price
-                ctx.fillStyle = '#667eea';
+                ctx.fillStyle = '#2563eb';
                 ctx.font = 'bold 11px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
@@ -9765,7 +9822,7 @@ class PartsDatabase {
         } else if (isCpuMode) {
             const perfType = this.cpuPerformanceMode === 'multiThread' ? 'Multi-Thread Performance' : 'Single-Thread Performance';
             titleElement.textContent = perfType;
-            titleElement.style.background = '#667eea';
+            titleElement.style.background = '#2563eb';
             titleElement.style.color = 'white';
             titleElement.style.cursor = 'pointer';
             titleElement.style.transition = 'background 0.3s';
@@ -9775,10 +9832,10 @@ class PartsDatabase {
 
             // Add hover effect
             titleElement.onmouseenter = function() {
-                this.style.background = '#5568d3';
+                this.style.background = '#1e40af';
             };
             titleElement.onmouseleave = function() {
-                this.style.background = '#667eea';
+                this.style.background = '#2563eb';
             };
         } else {
             titleElement.textContent = 'GPU Performance vs Price';
@@ -9837,15 +9894,15 @@ class PartsDatabase {
             <div id="statisticsSummary" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
                     <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #667eea;">${dataPoints.length}</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #2563eb;">${dataPoints.length}</div>
                         <div style="font-size: 12px; color: #666;">Total ${componentLabel}</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #667eea;">$${avgPrice}</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #2563eb;">$${avgPrice}</div>
                         <div style="font-size: 12px; color: #666;">Average Price</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 24px; font-weight: 700; color: #667eea;">${thirdStatValue}</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #2563eb;">${thirdStatValue}</div>
                         <div style="font-size: 12px; color: #666;">${thirdStatLabel}</div>
                     </div>
                 </div>
@@ -9983,7 +10040,7 @@ class PartsDatabase {
 
         // Determine manufacturer color
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
         if (manufacturerLower.includes('amd') || manufacturerLower.includes('ryzen')) {
             manufacturerColor = 'rgba(220, 38, 38, 0.95)'; // red for AMD
         } else if (manufacturerLower.includes('intel') || manufacturerLower.includes('core')) {
@@ -10092,7 +10149,7 @@ class PartsDatabase {
 
         // Determine manufacturer color
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
         if (manufacturerLower.includes('amd') || manufacturerLower.includes('radeon')) {
             manufacturerColor = 'rgba(220, 38, 38, 0.95)'; // red for AMD
         } else if (manufacturerLower.includes('nvidia') || manufacturerLower.includes('geforce')) {
@@ -10229,7 +10286,7 @@ class PartsDatabase {
 
         // Determine manufacturer color
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
 
         // Get RAM specs
         const memoryType = ram.memoryType || 'Unknown';
@@ -10316,7 +10373,7 @@ class PartsDatabase {
 
         // Determine manufacturer color
         const manufacturerLower = manufacturer.toLowerCase();
-        let manufacturerColor = 'rgba(102, 126, 234, 0.95)'; // default purple
+        let manufacturerColor = 'rgba(37, 99, 235, 0.95)'; // default purple
 
         // Get Storage specs
         const storageType = storage.storageType || 'Unknown';

@@ -724,11 +724,8 @@
                         <button id="clearBuildBtn" class="action-btn secondary">
                             <i class="fas fa-trash"></i> Clear Build
                         </button>
-                        <button id="saveBuildBtn" class="action-btn primary" disabled>
-                            <i class="fas fa-save"></i> Save Build
-                        </button>
-                        <button id="shareBuildBtn" class="action-btn secondary" disabled>
-                            <i class="fas fa-share"></i> Share Build
+                        <button id="shareBuildBtn" class="action-btn primary">
+                            <i class="fas fa-link"></i> Copy Share Link
                         </button>
                     </div>
 
@@ -742,7 +739,7 @@
                         <!-- Estimated System Power -->
                         <div id="buildSummaryWattageInfo" style="display: none; margin-top: 16px; padding: 14px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                                <i class="fas fa-bolt" style="color: #a855f7; font-size: 18px;"></i>
+                                <i class="fas fa-bolt" style="color: #3b82f6; font-size: 18px;"></i>
                                 <span style="color: #333; font-weight: 600; font-size: 14px;">Estimated System Power</span>
                             </div>
                             <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
@@ -755,7 +752,7 @@
                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
-                                <i class="fas fa-info-circle" style="color: #a855f7; font-size: 14px;"></i>
+                                <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 14px;"></i>
                                 <span style="color: #666; font-size: 11px; font-weight: 500;">Recommendation: Choose a PSU with 20-30% overhead</span>
                             </div>
                         </div>
@@ -800,7 +797,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="badgeFiltersContainer" style="padding: 0 0 15px 0; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e9ecef; margin-bottom: 15px;"></div>
-                    <div id="compatibilityInfoContainer" style="display: none; padding: 12px 16px; background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%); border-radius: 8px; margin-bottom: 15px;">
+                    <div id="compatibilityInfoContainer" style="display: none; padding: 12px 16px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                             <div id="cpuCompatibilityInfo" style="display: none; align-items: center; gap: 10px;">
                                 <i class="fas fa-microchip" style="color: white; font-size: 18px;"></i>
@@ -835,7 +832,7 @@
                     </div>
                     <div id="psuWattageInfoContainer" style="display: none; padding: 12px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                            <i class="fas fa-bolt" style="color: #a855f7; font-size: 18px;"></i>
+                            <i class="fas fa-bolt" style="color: #3b82f6; font-size: 18px;"></i>
                             <span style="color: #333; font-weight: 600; font-size: 14px;">Estimated System Power</span>
                         </div>
                         <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
@@ -848,7 +845,7 @@
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
-                            <i class="fas fa-info-circle" style="color: #a855f7; font-size: 14px;"></i>
+                            <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 14px;"></i>
                             <span style="color: #666; font-size: 11px; font-weight: 500;">Recommendation: Choose a PSU with 20-30% overhead</span>
                         </div>
                     </div>
@@ -958,7 +955,7 @@
         }
 
         .modal-header {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             padding: 20px;
             display: flex;
@@ -1055,11 +1052,11 @@
 
         .component-table th.sortable.sorted-asc i {
             transform: rotate(180deg);
-            color: #a855f7;
+            color: #3b82f6;
         }
 
         .component-table th.sortable.sorted-desc i {
-            color: #a855f7;
+            color: #3b82f6;
         }
 
         .component-table td {
@@ -1118,7 +1115,7 @@
         }
 
         .select-component-btn {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             border: none;
             padding: 21px 20px;
@@ -1137,9 +1134,9 @@
         }
 
         .select-component-btn:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
         }
 
         .select-component-btn:hover i {
@@ -1149,7 +1146,7 @@
         }
 
         .component-select-btn {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             border: none;
             padding: 12px 20px;
@@ -1166,7 +1163,7 @@
 
         .component-select-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
         }
 
         .component-select-btn i {
@@ -1217,7 +1214,7 @@
         .variants-header {
             font-weight: 600;
             font-size: 14px;
-            color: #a855f7;
+            color: #3b82f6;
             margin-bottom: 12px;
         }
 
@@ -1242,8 +1239,8 @@
         }
 
         .variant-card:hover {
-            border-color: #a855f7;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
             transform: translateY(-1px);
         }
 
@@ -1268,7 +1265,7 @@
         .variant-price .price {
             font-size: 14px;
             font-weight: 600;
-            color: #a855f7;
+            color: #3b82f6;
         }
 
         .variant-price .original-price {
@@ -1300,7 +1297,7 @@
         }
 
         .select-variant-btn {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             border: none;
             padding: 6px 12px;
@@ -1315,7 +1312,7 @@
 
         .select-variant-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
         .no-variants {
@@ -1353,7 +1350,7 @@
         }
 
         .details-panel-header {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             padding: 20px;
             display: flex;
@@ -1403,7 +1400,7 @@
         .detail-section h4 {
             font-size: 14px;
             font-weight: 600;
-            color: #a855f7;
+            color: #3b82f6;
             margin: 0 0 12px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -1454,8 +1451,8 @@
         }
 
         .detail-product-link:hover .detail-image-container {
-            border-color: #a855f7;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
         }
 
         .detail-image {
@@ -1490,12 +1487,12 @@
             position: absolute;
             top: 8px;
             right: 8px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 142, 255, 0.95) 100%);
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(118, 142, 255, 0.95) 100%);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
             padding: 6px 12px;
             border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
             font-size: 12px;
             font-weight: 600;
             color: white;
@@ -1575,7 +1572,7 @@
         }
 
         .detail-title-link:hover .detail-title {
-            color: #a855f7;
+            color: #3b82f6;
         }
 
         .detail-title {
@@ -1594,7 +1591,7 @@
 
         .detail-manufacturer {
             font-size: 14px;
-            color: #a855f7;
+            color: #3b82f6;
             margin-bottom: 16px;
             font-weight: 500;
         }
@@ -1625,7 +1622,7 @@
         .detail-price-value {
             font-size: 18px;
             font-weight: 700;
-            color: #a855f7;
+            color: #3b82f6;
         }
 
         .detail-sale-price {
@@ -1717,7 +1714,7 @@
             position: absolute;
             top: 12px;
             left: 12px;
-            background: rgba(102, 126, 234, 0.9);
+            background: rgba(37, 99, 235, 0.9);
             color: white;
             border: none;
             border-radius: 6px;
@@ -1733,9 +1730,9 @@
         }
 
         .swap-component-btn:hover {
-            background: rgba(102, 126, 234, 1);
+            background: rgba(37, 99, 235, 1);
             transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
         .swap-component-btn i {
@@ -1925,7 +1922,7 @@
             width: 50px;
             height: 50px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #a855f7;
+            border-top: 4px solid #3b82f6;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
@@ -1937,14 +1934,14 @@
         }
 
         .build-summary {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             padding: 25px;
             border-radius: 12px;
             margin-bottom: 25px;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
         }
 
         .summary-item {
@@ -1983,8 +1980,8 @@
         }
 
         .build-component-card:hover {
-            border-color: #a855f7;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
         }
 
         .component-card-header {
@@ -1996,7 +1993,7 @@
 
         .component-type {
             font-size: 12px;
-            color: #a855f7;
+            color: #3b82f6;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -2321,7 +2318,7 @@
                 input.value = value;
                 input.placeholder = 'Enter your budget';
                 sliderDisplay.textContent = formatCurrency(parseInt(value));
-                sliderDisplay.style.color = '#a855f7';
+                sliderDisplay.style.color = '#3b82f6';
                 sliderDisplay.style.fontWeight = '600';
                 unlimitedBadge.style.display = 'none';
                 currencySymbol.style.display = 'block';
