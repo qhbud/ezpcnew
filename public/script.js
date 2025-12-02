@@ -1517,7 +1517,8 @@ class PartsDatabase {
     createGPUCard(gpu) {
         const card = document.createElement('div');
         card.className = 'part-card';
-        
+        card.dataset.componentId = gpu._id || gpu.title || gpu.name;
+
         // Handle different price formats in the data
         let price = gpu.currentPrice || gpu.salePrice || gpu.basePrice || gpu.price || 0;
         price = parseFloat(price) || 0;
@@ -1885,7 +1886,8 @@ class PartsDatabase {
     createPSUCard(psu) {
         const card = document.createElement('div');
         card.className = 'part-card';
-        
+        card.dataset.componentId = psu._id || psu.title || psu.name;
+
         const title = psu.title || psu.name || 'Unknown PSU';
         
         // Handle price display with sale price support (same logic as GPUs)
@@ -7677,6 +7679,11 @@ class PartsDatabase {
         const panel = document.getElementById('componentDetailsPanel');
         const bodyElement = document.getElementById('detailsPanelBody');
 
+        // Remove panel-expanded class from all cards
+        document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
+            card.classList.remove('panel-expanded');
+        });
+
         // Initialize comparison array if it doesn't exist
         if (!this.comparisonComponents) {
             this.comparisonComponents = [];
@@ -7702,6 +7709,14 @@ class PartsDatabase {
 
         // Close statistics panel if it's open
         this.closeStatisticsPanel();
+
+        // Find and mark the clicked card as expanded
+        const componentId = component._id || component.title || component.name;
+        document.querySelectorAll('.part-card').forEach(card => {
+            if (card.dataset.componentId === componentId) {
+                card.classList.add('panel-expanded');
+            }
+        });
 
         // Render the comparison view
         this.renderComparisonView();
@@ -9154,6 +9169,11 @@ class PartsDatabase {
         panel.classList.add('hidden');
         this.currentDetailSelection = null;
 
+        // Remove panel-expanded class from all cards
+        document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
+            card.classList.remove('panel-expanded');
+        });
+
         // Clear all variant card selections visually
         const selectedVariants = document.querySelectorAll('.variant-card.variant-selected');
         selectedVariants.forEach(card => {
@@ -9225,6 +9245,11 @@ class PartsDatabase {
         const statisticsBtn = document.getElementById('viewStatisticsBtn');
         statisticsPanel.classList.add('hidden');
         statisticsBtn.innerHTML = '<i class="fas fa-chart-scatter"></i> View Statistics';
+
+        // Remove panel-expanded class from all cards
+        document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
+            card.classList.remove('panel-expanded');
+        });
     }
 
     toggleCpuPerformanceMode() {
