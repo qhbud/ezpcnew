@@ -4178,7 +4178,7 @@ class PartsDatabase {
             if (component) {
                 // Add the component to the build
                 this.currentBuild[type] = component;
-                this.updateComponentDisplay(type, component);
+                this.updateBuilderComponentDisplay(type, component);
                 this.updateTotalPrice();
                 this.checkCompatibility();
                 this.updateBuildActions();
