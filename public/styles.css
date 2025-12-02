@@ -298,6 +298,7 @@ header p {
     transition: all 0.3s ease;
     cursor: pointer;
     backdrop-filter: blur(10px);
+    color: #1a202c !important;
 }
 
 .part-card:hover {
