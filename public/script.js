@@ -4090,8 +4090,11 @@ class PartsDatabase {
             }
         });
 
-        // Encode the build data as a URL parameter
-        const encodedBuild = btoa(JSON.stringify(buildData));
+        // Encode the build data as a URL parameter (handle Unicode properly)
+        const jsonString = JSON.stringify(buildData);
+        const encodedBuild = btoa(encodeURIComponent(jsonString).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+            return String.fromCharCode(parseInt(p1, 16));
+        }));
         const shareURL = `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
 
         // Copy to clipboard
@@ -4114,8 +4117,11 @@ class PartsDatabase {
         }
 
         try {
-            // Decode the build data
-            const buildData = JSON.parse(atob(buildParam));
+            // Decode the build data (handle Unicode properly)
+            const decodedString = atob(buildParam).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('');
+            const buildData = JSON.parse(decodeURIComponent(decodedString));
 
             console.log('Loading build from URL:', buildData);
 
