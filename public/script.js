@@ -6920,6 +6920,7 @@ class PartsDatabase {
 
         this.updateTotalPrice();
         this.checkCompatibility();
+        this.updateBuildActions();
     }
 
     updateBuilderComponentDisplay(componentType, component) {
