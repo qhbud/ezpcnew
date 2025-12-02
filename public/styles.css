@@ -36,7 +36,7 @@ header h1 {
 }
 
 header h1 i {
-    color: #60a5fa;
+    color: #c084fc;
     margin-right: 15px;
 }
 
@@ -47,7 +47,7 @@ header p {
 }
 
 .header-action-btn {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     color: white;
     border: none;
     padding: 15px 30px;
@@ -59,13 +59,13 @@ header p {
     align-items: center;
     gap: 10px;
     margin: 15px 0;
-    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 5px 15px rgba(168, 85, 247, 0.4);
     transition: all 0.3s ease;
 }
 
 .header-action-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.6);
 }
 
 .header-action-btn:active {
@@ -88,11 +88,11 @@ header p {
     flex-direction: column;
     align-items: center;
     padding: 15px 25px;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: linear-gradient(135deg, #a855f7, #ec4899);
     color: white;
     border-radius: 15px;
     min-width: 120px;
-    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 5px 15px rgba(168, 85, 247, 0.4);
 }
 
 .stat-number {
@@ -140,9 +140,9 @@ header p {
 }
 
 .main-tab.active {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: linear-gradient(135deg, #a855f7, #ec4899);
     color: white;
-    box-shadow: 0 5px 25px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 5px 25px rgba(168, 85, 247, 0.4);
     border-color: transparent;
 }
 
@@ -187,10 +187,10 @@ header p {
 }
 
 .nav-btn.active {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+    border-color: rgba(168, 85, 247, 0.5);
 }
 
 .search-section {
@@ -303,7 +303,7 @@ header p {
 .part-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-    border-color: rgba(59, 130, 246, 0.5);
+    border-color: rgba(168, 85, 247, 0.5);
 }
 
 /* Incompatible part card styling */
@@ -673,7 +673,7 @@ tr.incompatible td {
 }
 
 .gpu-selector-section h2 i {
-    color: #60a5fa;
+    color: #c084fc;
     font-size: 1.5rem;
 }
 
@@ -709,13 +709,13 @@ tr.incompatible td {
 
 .gpu-select:focus {
     outline: none;
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #c084fc;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .select-gpu-btn {
     padding: 12px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     color: white;
     border: none;
     border-radius: 12px;
@@ -753,7 +753,7 @@ tr.incompatible td {
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     border-radius: 15px;
     padding: 25px;
-    border: 2px solid #667eea;
+    border: 2px solid #a855f7;
     box-shadow: 0 8px 32px rgba(102, 126, 234, 0.1);
 }
 
@@ -763,7 +763,7 @@ tr.incompatible td {
     justify-content: center;
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     border-radius: 15px;
     color: white;
     font-size: 2rem;
@@ -798,7 +798,7 @@ tr.incompatible td {
 .gpu-price .price {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #667eea;
+    color: #a855f7;
 }
 
 .gpu-price .availability {
@@ -1042,7 +1042,7 @@ tr.incompatible td {
 
 /* GPU Comparison Cycling Buttons */
 .cycle-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     border: none;
     color: white;
     width: 36px;
@@ -1104,8 +1104,8 @@ tr.incompatible td {
 }
 
 .variant-card.variant-selected {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    border-color: #a855f7;
     box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
 }
 
@@ -1138,7 +1138,7 @@ tr.incompatible td {
     top: 10px;
     right: 10px;
     background: white;
-    color: #667eea;
+    color: #a855f7;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -1290,14 +1290,14 @@ tr.incompatible td {
 }
 
 .build-total-section h3 i {
-    color: #667eea;
+    color: #a855f7;
 }
 
 .total-price-display {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     padding: 20px 30px;
     border-radius: 12px;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
@@ -1340,7 +1340,7 @@ tr.incompatible td {
 }
 
 .action-btn.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     color: white;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
@@ -1494,7 +1494,7 @@ tr.incompatible td {
 }
 
 .budget-modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     color: white;
     padding: 30px;
     display: flex;
@@ -1569,7 +1569,7 @@ tr.incompatible td {
     transform: translateY(-50%);
     font-size: 1.5rem;
     font-weight: 600;
-    color: #667eea;
+    color: #a855f7;
     transition: all 0.3s;
 }
 
@@ -1585,7 +1585,7 @@ tr.incompatible td {
 }
 
 .budget-input:focus {
-    border-color: #667eea;
+    border-color: #a855f7;
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
@@ -1625,7 +1625,7 @@ tr.incompatible td {
     width: 100%;
     height: 8px;
     border-radius: 5px;
-    background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(to right, #a855f7 0%, #ec4899 100%);
     outline: none;
     opacity: 0.9;
     transition: opacity 0.2s;
@@ -1645,7 +1645,7 @@ tr.incompatible td {
     background: white;
     cursor: pointer;
     box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
-    border: 3px solid #667eea;
+    border: 3px solid #a855f7;
     transition: all 0.2s;
 }
 
@@ -1665,7 +1665,7 @@ tr.incompatible td {
     background: white;
     cursor: pointer;
     box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
-    border: 3px solid #667eea;
+    border: 3px solid #a855f7;
     transition: all 0.2s;
 }
 
@@ -1682,7 +1682,7 @@ tr.incompatible td {
     text-align: center;
     font-size: 1.4rem;
     font-weight: 600;
-    color: #667eea;
+    color: #a855f7;
     padding: 12px;
     background: white;
     border-radius: 10px;
@@ -1707,7 +1707,7 @@ tr.incompatible td {
 }
 
 .storage-input:focus {
-    border-color: #667eea;
+    border-color: #a855f7;
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
@@ -1734,7 +1734,7 @@ tr.incompatible td {
     width: 100%;
     height: 8px;
     border-radius: 5px;
-    background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(to right, #a855f7 0%, #ec4899 100%);
     outline: none;
     opacity: 0.9;
     transition: opacity 0.2s;
@@ -1754,7 +1754,7 @@ tr.incompatible td {
     background: white;
     cursor: pointer;
     box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
-    border: 3px solid #667eea;
+    border: 3px solid #a855f7;
     transition: all 0.2s;
 }
 
@@ -1774,7 +1774,7 @@ tr.incompatible td {
     background: white;
     cursor: pointer;
     box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
-    border: 3px solid #667eea;
+    border: 3px solid #a855f7;
     transition: all 0.2s;
 }
 
@@ -1797,7 +1797,7 @@ tr.incompatible td {
     padding: 15px;
     background: #f8f9fa;
     border-radius: 10px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #a855f7;
 }
 
 .performance-options {
@@ -1826,7 +1826,7 @@ tr.incompatible td {
 
 .performance-option-btn i {
     font-size: 2.5rem;
-    color: #667eea;
+    color: #a855f7;
     transition: all 0.3s;
 }
 
@@ -1843,7 +1843,7 @@ tr.incompatible td {
 }
 
 .performance-option-btn:hover {
-    border-color: #667eea;
+    border-color: #a855f7;
     transform: translateY(-5px);
     box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
 }
@@ -1853,8 +1853,8 @@ tr.incompatible td {
 }
 
 .performance-option-btn.selected {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    border-color: #a855f7;
     box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
 }
 
@@ -1916,7 +1916,7 @@ tr.incompatible td {
 }
 
 .budget-next-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     border: none;
     color: white;
     padding: 14px 28px;
