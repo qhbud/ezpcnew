@@ -4076,25 +4076,19 @@ class PartsDatabase {
     }
 
     shareBuild() {
-        // Create a compact representation of the build with only essential data
+        // Create a compact representation with only IDs (no names to avoid Unicode issues)
         const buildData = {};
 
         Object.entries(this.currentBuild).forEach(([type, component]) => {
             if (component !== null) {
-                // Store only the _id to keep URL short
-                buildData[type] = {
-                    id: component._id,
-                    name: component.title || component.name,
-                    price: component.currentPrice || component.price
-                };
+                // Store only the _id to keep URL short and avoid Unicode issues
+                buildData[type] = component._id;
             }
         });
 
-        // Encode the build data as a URL parameter (handle Unicode properly)
+        // Encode the build data as a URL parameter
         const jsonString = JSON.stringify(buildData);
-        const encodedBuild = btoa(encodeURIComponent(jsonString).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-            return String.fromCharCode(parseInt(p1, 16));
-        }));
+        const encodedBuild = btoa(jsonString);
         const shareURL = `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
 
         // Copy to clipboard
@@ -4117,20 +4111,15 @@ class PartsDatabase {
         }
 
         try {
-            // Decode the build data (handle Unicode properly)
-            const decodedString = atob(buildParam).split('').map(c => {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join('');
-            const buildData = JSON.parse(decodeURIComponent(decodedString));
+            // Decode the build data (simple base64 decode, IDs only)
+            const buildData = JSON.parse(atob(buildParam));
 
             console.log('Loading build from URL:', buildData);
 
             // Load each component by its ID
-            for (const [type, componentData] of Object.entries(buildData)) {
-                if (componentData && componentData.id) {
-                    // We need to find and add the component to the build
-                    // This will require fetching the component from the API
-                    await this.loadAndAddComponentById(type, componentData);
+            for (const [type, componentId] of Object.entries(buildData)) {
+                if (componentId) {
+                    await this.loadAndAddComponentById(type, componentId);
                 }
             }
 
@@ -4146,7 +4135,7 @@ class PartsDatabase {
         }
     }
 
-    async loadAndAddComponentById(type, componentData) {
+    async loadAndAddComponentById(type, componentId) {
         try {
             // Map component type to the appropriate array
             let componentArray;
@@ -4184,7 +4173,7 @@ class PartsDatabase {
             }
 
             // Find the component by ID in the already-loaded array
-            const component = componentArray.find(c => c._id === componentData.id);
+            const component = componentArray.find(c => c._id === componentId);
 
             if (component) {
                 // Add the component to the build
@@ -4194,7 +4183,7 @@ class PartsDatabase {
                 this.checkCompatibility();
                 this.updateBuildActions();
             } else {
-                console.warn(`Component not found: ${type} with ID ${componentData.id}`);
+                console.warn(`Component not found: ${type} with ID ${componentId}`);
             }
         } catch (error) {
             console.error(`Error loading ${type}:`, error);
