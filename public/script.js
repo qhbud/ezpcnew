@@ -4131,6 +4131,10 @@ class PartsDatabase {
                 }
             }
 
+            // Update plus button visibility to show additional storage/addon slots if needed
+            this.updateStoragePlusButtons();
+            this.updateAddonPlusButtons();
+
             // Show success message
             const componentCount = Object.keys(buildData).length;
             setTimeout(() => {
