@@ -1938,3 +1938,35 @@ tr.incompatible td {
 .budget-next-btn:active {
     transform: translateY(0);
 }
+
+/* Select Component Button (Add to Build) */
+.select-component-btn {
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    color: white;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+}
+
+.select-component-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+    background: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
+}
+
+.select-component-btn:active {
+    transform: translateY(0);
+}
+
+.select-component-btn i {
+    font-size: 1.1rem;
+}
