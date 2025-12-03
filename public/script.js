@@ -12,6 +12,7 @@ class PartsDatabase {
         this.activeBadgeFilters = new Set(); // Active badge filters (manufacturer, tier, value)
         this.minPrice = null; // Minimum price filter
         this.maxPrice = null; // Maximum price filter
+        this.searchTerm = ''; // Search term for component filtering
         this.cpuPerformanceMode = 'singleThread'; // 'singleThread' or 'multiThread' for CPU statistics
 
         // GPU Performance Benchmarks
@@ -114,6 +115,8 @@ class PartsDatabase {
 
         // Initialize addon plus buttons visibility
         this.updateAddonPlusButtons();
+
+        console.log('PartsDatabase initialized successfully');
     }
 
     initializeEventListeners() {
@@ -3343,6 +3346,8 @@ class PartsDatabase {
             this.updateTotalPrice();
             this.checkCompatibility();
             this.updateBuildActions();
+            console.log('About to call updateBuildStatistics from selectComponent');
+            this.updateBuildStatistics();
 
             // If a CPU was selected, re-render motherboards to show compatibility
             if (componentType === 'cpu' && this.currentTab === 'motherboard') {
@@ -3605,6 +3610,8 @@ class PartsDatabase {
         this.checkCompatibility();
         this.updateBuildActions();
         this.updateComponentPositions();
+        console.log('About to call updateBuildStatistics from removeBuilderComponent');
+        this.updateBuildStatistics();
     }
 
     addStorageSection() {
@@ -4051,6 +4058,578 @@ class PartsDatabase {
         }
     }
 
+    async updateBuildStatistics() {
+        const statisticsSection = document.getElementById('buildStatisticsSection');
+        if (!statisticsSection) {
+            console.log('Statistics section element not found');
+            return;
+        }
+
+        // Check if all required components are selected
+        const hasAllRequired = this.currentBuild.gpu &&
+                               this.currentBuild.cpu &&
+                               this.currentBuild.ram &&
+                               this.currentBuild.psu &&
+                               this.currentBuild.motherboard &&
+                               this.currentBuild.case &&
+                               this.currentBuild.storage;
+
+        console.log('Build Statistics Check:', {
+            hasAllRequired,
+            gpu: !!this.currentBuild.gpu,
+            cpu: !!this.currentBuild.cpu,
+            ram: !!this.currentBuild.ram,
+            psu: !!this.currentBuild.psu,
+            motherboard: !!this.currentBuild.motherboard,
+            case: !!this.currentBuild.case,
+            storage: !!this.currentBuild.storage
+        });
+
+        if (hasAllRequired) {
+            console.log('Showing statistics section');
+            statisticsSection.classList.remove('hidden');
+
+            // Render GPU statistics
+            console.log('Rendering GPU chart...');
+            await this.renderBuildStatisticsChart('gpu', 'buildGpuStatisticsCanvas', this.currentBuild.gpu, false);
+
+            // Render CPU Single-Thread statistics
+            console.log('Rendering CPU Single-Thread chart...');
+            await this.renderBuildStatisticsChart('cpu', 'buildCpuSingleStatisticsCanvas', this.currentBuild.cpu, false);
+
+            // Render CPU Multi-Thread statistics
+            console.log('Rendering CPU Multi-Thread chart...');
+            await this.renderBuildStatisticsChart('cpu', 'buildCpuMultiStatisticsCanvas', this.currentBuild.cpu, true);
+
+            // Render Price Distribution Pie Chart
+            console.log('Rendering Price Distribution chart...');
+            this.renderPriceDistributionChart();
+        } else {
+            console.log('Hiding statistics section - not all components selected');
+            statisticsSection.classList.add('hidden');
+        }
+    }
+
+    async renderBuildStatisticsChart(componentType, canvasId, selectedComponent, useMultiThread = false) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            console.error(`Canvas element ${canvasId} not found`);
+            return;
+        }
+
+        const isCpuMode = componentType === 'cpu';
+        const ctx = canvas.getContext('2d');
+        const width = 600;
+        const height = 400;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Show loading message
+        ctx.fillStyle = '#666';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        const loadingMessage = isCpuMode ? 'Loading CPUs...' : 'Loading GPUs...';
+        ctx.fillText(loadingMessage, width / 2, height / 2);
+
+        // Fetch all products
+        let allIndividualProducts = [];
+        try {
+            const endpoint = isCpuMode ? '/api/parts/cpus' : '/api/parts/gpus?groupByModel=false';
+            const response = await fetch(endpoint);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${componentType}: ${response.status}`);
+            }
+            allIndividualProducts = await response.json();
+        } catch (error) {
+            console.error(`Error fetching ${componentType}:`, error);
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillText(`Error loading ${componentType} data`, width / 2, height / 2);
+            return;
+        }
+
+        // Clear canvas again
+        ctx.clearRect(0, 0, width, height);
+
+        // Collect data points
+        const dataPoints = [];
+        allIndividualProducts.forEach(product => {
+            let performance;
+            if (isCpuMode) {
+                // Use multi-thread or single-thread performance based on parameter
+                performance = useMultiThread ? this.getCpuMultiThreadPerformance(product) : this.getCpuPerformance(product);
+            } else {
+                performance = this.getGpuPerformance(product);
+            }
+
+            const price = parseFloat(product.salePrice) || parseFloat(product.currentPrice) || parseFloat(product.basePrice) || parseFloat(product.price) || 0;
+
+            if (performance !== null && performance > 0 && price > 0) {
+                dataPoints.push({
+                    name: product.title || product.name || 'Unknown',
+                    performance: performance,
+                    price: price,
+                    product: product
+                });
+            }
+        });
+
+        if (dataPoints.length === 0) {
+            ctx.fillStyle = '#666';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`No ${componentType} performance data available`, width / 2, height / 2);
+            return;
+        }
+
+        // Set up padding and chart dimensions
+        const padding = { top: 20, right: 40, bottom: 60, left: 80 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+
+        // Find min/max values
+        const maxPerformance = Math.max(...dataPoints.map(p => p.performance));
+        const minPerformance = Math.min(...dataPoints.map(p => p.performance));
+        const maxPrice = Math.max(...dataPoints.map(p => p.price));
+        const minPrice = Math.min(...dataPoints.map(p => p.price));
+
+        // Round price range for cleaner axis
+        const priceRange = maxPrice - minPrice;
+        const priceStep = Math.ceil(priceRange / 5 / 100) * 100;
+        const roundedMinPrice = Math.floor(minPrice / 100) * 100;
+        const roundedMaxPrice = roundedMinPrice + (priceStep * 5);
+
+        // Draw grid lines and Y-axis labels (price)
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#666';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i <= 5; i++) {
+            const price = roundedMinPrice + (priceStep * i);
+            const y = height - padding.bottom - (chartHeight / 5) * i;
+
+            // Grid line
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+
+            // Y-axis label
+            ctx.fillStyle = '#666';
+            ctx.fillText('$' + price.toFixed(0), padding.left - 10, y);
+        }
+
+        // Draw grid lines and X-axis labels (performance)
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        for (let i = 0; i <= 5; i++) {
+            const performance = minPerformance + ((maxPerformance - minPerformance) / 5) * i;
+            const x = padding.left + (chartWidth / 5) * i;
+
+            // Grid line
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.moveTo(x, padding.top);
+            ctx.lineTo(x, height - padding.bottom);
+            ctx.stroke();
+
+            // X-axis label (show as percentage)
+            ctx.fillStyle = '#666';
+            ctx.fillText((performance * 100).toFixed(0) + '%', x, height - padding.bottom + 5);
+        }
+
+        // Draw axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, height - padding.bottom);
+        ctx.lineTo(width - padding.right, height - padding.bottom);
+        ctx.stroke();
+
+        // Draw points
+        dataPoints.forEach(point => {
+            const x = padding.left + ((point.performance - minPerformance) / (maxPerformance - minPerformance)) * chartWidth;
+            const y = height - padding.bottom - ((point.price - roundedMinPrice) / (roundedMaxPrice - roundedMinPrice)) * chartHeight;
+
+            // Color based on value proposition
+            const performancePerDollar = point.performance / point.price;
+            const maxPerformancePerDollar = Math.max(...dataPoints.map(p => p.performance / p.price));
+            const ratio = performancePerDollar / maxPerformancePerDollar;
+
+            const r = Math.round(255 * (1 - ratio));
+            const g = Math.round(255 * ratio);
+            const b = 100;
+
+            // Draw point
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        // Draw selected component with yellow star
+        if (selectedComponent) {
+            let selectedPerformance;
+            if (isCpuMode) {
+                // Use the same performance metric as the chart
+                selectedPerformance = useMultiThread ? this.getCpuMultiThreadPerformance(selectedComponent) : this.getCpuPerformance(selectedComponent);
+            } else {
+                selectedPerformance = this.getGpuPerformance(selectedComponent);
+            }
+
+            const selectedPrice = parseFloat(selectedComponent.salePrice) || parseFloat(selectedComponent.currentPrice) || parseFloat(selectedComponent.basePrice) || parseFloat(selectedComponent.price) || 0;
+
+            if (selectedPerformance !== null && selectedPerformance > 0 && selectedPrice > 0) {
+                const x = padding.left + ((selectedPerformance - minPerformance) / (maxPerformance - minPerformance)) * chartWidth;
+                const y = height - padding.bottom - ((selectedPrice - roundedMinPrice) / (roundedMaxPrice - roundedMinPrice)) * chartHeight;
+
+                // Draw yellow star
+                this.drawStar(ctx, x, y, 12, '#FFD700', '#FFA500');
+            }
+        }
+
+        // Draw axis labels
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        // X-axis label
+        ctx.fillText('Performance (%)', width / 2, height - 20);
+
+        // Y-axis label
+        ctx.save();
+        ctx.translate(20, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('Price (USD)', 0, 0);
+        ctx.restore();
+    }
+
+    drawStar(ctx, cx, cy, radius, fillColor, strokeColor) {
+        const spikes = 5;
+        const outerRadius = radius;
+        const innerRadius = radius / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+
+        for (let i = 0; i < spikes * 2; i++) {
+            const angle = (Math.PI / spikes) * i - Math.PI / 2;
+            const r = i % 2 === 0 ? outerRadius : innerRadius;
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+            ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    renderPriceDistributionChart() {
+        const canvas = document.getElementById('buildPriceDistributionCanvas');
+        if (!canvas) {
+            console.error('Price distribution canvas not found');
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const width = 550;
+        const height = 550;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Build data array with actual component names
+        const chartData = [];
+        let totalPrice = 0;
+
+        // Helper function to get component name
+        const getComponentName = (component) => {
+            return component.name || component.title || component.model || 'Unknown';
+        };
+
+        // GPU
+        if (this.currentBuild.gpu) {
+            const quantity = this.currentBuild.gpu.quantity || 1;
+            const price = (parseFloat(this.currentBuild.gpu.salePrice) || parseFloat(this.currentBuild.gpu.currentPrice) || parseFloat(this.currentBuild.gpu.basePrice) || 0) * quantity;
+            if (price > 0) {
+                const baseName = getComponentName(this.currentBuild.gpu);
+                const displayName = quantity > 1 ? `${baseName} (x${quantity})` : baseName;
+                chartData.push({
+                    name: displayName,
+                    value: price,
+                    color: '#FF6384', // Red/Pink
+                    type: 'GPU'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // CPU
+        if (this.currentBuild.cpu) {
+            const price = parseFloat(this.currentBuild.cpu.salePrice) || parseFloat(this.currentBuild.cpu.currentPrice) || parseFloat(this.currentBuild.cpu.basePrice) || 0;
+            if (price > 0) {
+                chartData.push({
+                    name: getComponentName(this.currentBuild.cpu),
+                    value: price,
+                    color: '#36A2EB', // Blue
+                    type: 'CPU'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // Motherboard
+        if (this.currentBuild.motherboard) {
+            const price = parseFloat(this.currentBuild.motherboard.salePrice) || parseFloat(this.currentBuild.motherboard.currentPrice) || parseFloat(this.currentBuild.motherboard.basePrice) || 0;
+            if (price > 0) {
+                chartData.push({
+                    name: getComponentName(this.currentBuild.motherboard),
+                    value: price,
+                    color: '#FFCE56', // Yellow
+                    type: 'Motherboard'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // RAM
+        if (this.currentBuild.ram) {
+            const quantity = this.currentBuild.ram.quantity || 1;
+            const price = (parseFloat(this.currentBuild.ram.salePrice) || parseFloat(this.currentBuild.ram.currentPrice) || parseFloat(this.currentBuild.ram.basePrice) || 0) * quantity;
+            if (price > 0) {
+                const baseName = getComponentName(this.currentBuild.ram);
+                const displayName = quantity > 1 ? `${baseName} (x${quantity})` : baseName;
+                chartData.push({
+                    name: displayName,
+                    value: price,
+                    color: '#4BC0C0', // Teal
+                    type: 'RAM'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // Cooler
+        if (this.currentBuild.cooler) {
+            const price = parseFloat(this.currentBuild.cooler.salePrice) || parseFloat(this.currentBuild.cooler.currentPrice) || parseFloat(this.currentBuild.cooler.basePrice) || 0;
+            if (price > 0) {
+                chartData.push({
+                    name: getComponentName(this.currentBuild.cooler),
+                    value: price,
+                    color: '#9966FF', // Purple
+                    type: 'Cooler'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // PSU
+        if (this.currentBuild.psu) {
+            const price = parseFloat(this.currentBuild.psu.salePrice) || parseFloat(this.currentBuild.psu.currentPrice) || parseFloat(this.currentBuild.psu.basePrice) || 0;
+            if (price > 0) {
+                chartData.push({
+                    name: getComponentName(this.currentBuild.psu),
+                    value: price,
+                    color: '#FF9F40', // Orange
+                    type: 'PSU'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // Case
+        if (this.currentBuild.case) {
+            const price = parseFloat(this.currentBuild.case.salePrice) || parseFloat(this.currentBuild.case.currentPrice) || parseFloat(this.currentBuild.case.basePrice) || 0;
+            if (price > 0) {
+                chartData.push({
+                    name: getComponentName(this.currentBuild.case),
+                    value: price,
+                    color: '#E91E63', // Pink
+                    type: 'Case'
+                });
+                totalPrice += price;
+            }
+        }
+
+        // Storage - combine all storage slots
+        const storageItems = [];
+        ['storage', 'storage2', 'storage3', 'storage4', 'storage5', 'storage6'].forEach(storageType => {
+            if (this.currentBuild[storageType]) {
+                const price = parseFloat(this.currentBuild[storageType].salePrice) || parseFloat(this.currentBuild[storageType].currentPrice) || parseFloat(this.currentBuild[storageType].basePrice) || 0;
+                if (price > 0) {
+                    storageItems.push({
+                        name: getComponentName(this.currentBuild[storageType]),
+                        price: price
+                    });
+                }
+            }
+        });
+
+        // Add each storage item separately
+        storageItems.forEach((item, index) => {
+            chartData.push({
+                name: item.name,
+                value: item.price,
+                color: index === 0 ? '#C9CBCF' : `hsl(${200 + index * 20}, 10%, ${70 - index * 5}%)`, // Gray shades
+                type: 'Storage'
+            });
+            totalPrice += item.price;
+        });
+
+        // Add-ons - combine all addon slots
+        const addonItems = [];
+        ['addon', 'addon2', 'addon3', 'addon4', 'addon5', 'addon6'].forEach(addonType => {
+            if (this.currentBuild[addonType]) {
+                const price = parseFloat(this.currentBuild[addonType].salePrice) || parseFloat(this.currentBuild[addonType].currentPrice) || parseFloat(this.currentBuild[addonType].basePrice) || 0;
+                if (price > 0) {
+                    addonItems.push({
+                        name: getComponentName(this.currentBuild[addonType]),
+                        price: price
+                    });
+                }
+            }
+        });
+
+        // Add each addon item separately
+        addonItems.forEach((item, index) => {
+            chartData.push({
+                name: item.name,
+                value: item.price,
+                color: index === 0 ? '#26C6DA' : `hsl(${180 + index * 15}, 60%, ${60 - index * 5}%)`, // Teal shades
+                type: 'Add-on'
+            });
+            totalPrice += item.price;
+        });
+
+        if (totalPrice === 0) {
+            ctx.fillStyle = '#666';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No price data available', width / 2, height / 2);
+            return;
+        }
+
+        // Draw title first
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Total Build Cost: $${totalPrice.toFixed(2)}`, width / 2, 25);
+
+        // Create D3 treemap layout
+        const padding = 40;
+        const titleHeight = 40;
+        const treemapWidth = width - (padding * 2);
+        const treemapHeight = height - (padding * 2) - titleHeight;
+
+        // Create hierarchy from data
+        const root = d3.hierarchy({ children: chartData })
+            .sum(d => d.value)
+            .sort((a, b) => b.value - a.value);
+
+        // Create treemap layout
+        const treemap = d3.treemap()
+            .size([treemapWidth, treemapHeight])
+            .padding(3)
+            .round(true);
+
+        // Compute the layout
+        treemap(root);
+
+        // Helper function to truncate text to fit width
+        const truncateText = (text, maxWidth, font) => {
+            ctx.font = font;
+            if (ctx.measureText(text).width <= maxWidth) {
+                return text;
+            }
+
+            // Try to truncate and add ellipsis
+            let truncated = text;
+            while (truncated.length > 0 && ctx.measureText(truncated + '...').width > maxWidth) {
+                truncated = truncated.slice(0, -1);
+            }
+            return truncated.length > 0 ? truncated + '...' : '';
+        };
+
+        // Draw rectangles using D3 computed layout
+        root.leaves().forEach(node => {
+            const rect = {
+                x: node.x0 + padding,
+                y: node.y0 + titleHeight + padding,
+                width: node.x1 - node.x0,
+                height: node.y1 - node.y0
+            };
+
+            // Draw rectangle
+            ctx.fillStyle = node.data.color;
+            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+            // Draw border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+
+            // Calculate percentage
+            const percentage = (node.data.value / totalPrice) * 100;
+
+            // Draw label and percentage if rectangle is large enough
+            if (rect.width > 80 && rect.height > 50) {
+                const centerX = rect.x + rect.width / 2;
+                const centerY = rect.y + rect.height / 2;
+
+                // Draw component label (truncated to fit)
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const truncatedName = truncateText(node.data.name, rect.width - 10, 'bold 14px sans-serif');
+                ctx.fillText(truncatedName, centerX, centerY - 16);
+
+                // Draw price and percentage on same line
+                ctx.font = 'bold 15px sans-serif';
+                const pricePercentText = `$${node.data.value.toFixed(0)} (${percentage.toFixed(1)}%)`;
+                ctx.fillText(pricePercentText, centerX, centerY + 2);
+
+                // Draw component type below in small text
+                ctx.font = '11px sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillText(node.data.type, centerX, centerY + 18);
+            } else if (rect.width > 60 && rect.height > 30) {
+                // Just show percentage for smaller rectangles
+                const centerX = rect.x + rect.width / 2;
+                const centerY = rect.y + rect.height / 2;
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${percentage.toFixed(0)}%`, centerX, centerY);
+            }
+        });
+    }
+
     clearBuild() {
         // Reset all components
         Object.keys(this.currentBuild).forEach(componentType => {
@@ -4219,22 +4798,38 @@ class PartsDatabase {
 
     async loadBuildFromURL() {
         const urlParams = new URLSearchParams(window.location.search);
-        const buildParam = urlParams.get('build');
+        let buildParam = urlParams.get('build');
 
         if (!buildParam) {
             return; // No build to load
         }
 
         try {
+            // Clean up the build parameter - remove any whitespace or invalid characters
+            buildParam = buildParam.trim().replace(/\s/g, '');
+
+            // Remove any trailing commas or other invalid characters that might have been added
+            buildParam = buildParam.replace(/[^A-Za-z0-9+/=]/g, '');
+
+            console.log('Raw build parameter length:', buildParam.length);
+            console.log('First 50 chars:', buildParam.substring(0, 50));
+            console.log('Last 10 chars:', buildParam.substring(buildParam.length - 10));
+
             // Decode the build data (simple base64 decode, IDs only)
             const buildData = JSON.parse(atob(buildParam));
 
             console.log('Loading build from URL:', buildData);
 
+            // Track failed components
+            const failedComponents = [];
+
             // Load each component by its ID
             for (const [type, componentId] of Object.entries(buildData)) {
                 if (componentId) {
-                    await this.loadAndAddComponentById(type, componentId);
+                    const success = await this.loadAndAddComponentById(type, componentId);
+                    if (!success) {
+                        failedComponents.push(type);
+                    }
                 }
             }
 
@@ -4279,13 +4874,39 @@ class PartsDatabase {
                 this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
             }
 
-            // Log success message
+            // If CPU has stock cooler and no cooler is selected, show stock cooler
+            if (this.currentBuild.cpu && this.currentBuild.cpu.coolerIncluded === true && !this.currentBuild.cooler) {
+                console.log('CPU includes stock cooler and no cooler selected, showing stock cooler');
+                this.showStockCooler(this.currentBuild.cpu);
+            }
+
+            // Update build statistics if all required components are present
+            this.updateBuildStatistics();
+
+            // Log success message and show warning if components failed
             const componentCount = Object.keys(buildData).length;
-            console.log(`✅ Build loaded successfully! ${componentCount} components restored from shared link.`);
+            const successCount = componentCount - failedComponents.length;
+
+            if (failedComponents.length > 0) {
+                console.warn(`⚠️ ${failedComponents.length} component(s) could not be loaded: ${failedComponents.join(', ')}`);
+                console.log(`✅ ${successCount} of ${componentCount} components loaded from shared link.`);
+
+                // Show user-friendly message
+                const failedList = failedComponents.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
+                alert(`Build loaded with warnings:\n\n${successCount} of ${componentCount} components were restored.\n\nThe following components could not be found and were skipped:\n${failedList}\n\nThese components may have been removed from the database.`);
+            } else {
+                console.log(`✅ Build loaded successfully! ${componentCount} components restored from shared link.`);
+            }
 
         } catch (error) {
             console.error('Error loading build from URL:', error);
-            alert('Failed to load build from link. The link may be invalid or corrupted.');
+            console.error('Build parameter that caused error:', buildParam);
+
+            if (error.name === 'InvalidCharacterError') {
+                alert('Failed to load build from link.\n\nThe share link appears to be corrupted or incomplete.\n\nPlease make sure you copied the entire link, including all characters.');
+            } else {
+                alert('Failed to load build from link. The link may be invalid or corrupted.\n\nError: ' + error.message);
+            }
         }
     }
 
@@ -4338,7 +4959,7 @@ class PartsDatabase {
                     break;
                 default:
                     console.error(`Unknown component type: ${type}`);
-                    return;
+                    return false;
             }
 
             // For GPUs, fetch individual GPU details from API to get full product info
@@ -4349,17 +4970,67 @@ class PartsDatabase {
                     const response = await fetch('/api/parts/gpus?groupByModel=false');
                     if (response.ok) {
                         const allIndividualGPUs = await response.json();
+                        console.log(`Fetched ${allIndividualGPUs.length} individual GPUs from API`);
+
+                        // Log all GPU IDs to help debug
+                        const gpuIds = allIndividualGPUs.map(g => g._id);
+                        console.log('Available GPU IDs:', gpuIds.slice(0, 10), '...(showing first 10)');
+
                         component = allIndividualGPUs.find(g => g._id === componentId);
                         if (component) {
                             console.log('✅ Found individual GPU from API with full details');
                         } else {
-                            console.log('⚠️ GPU ID not found in individual GPUs, trying grouped array');
+                            console.log('⚠️ GPU ID not found in individual GPUs API response');
+                            console.log(`Looking for: ${componentId}`);
+                            console.log(`Trying grouped array which has ${componentArray.length} GPUs`);
                             component = componentArray.find(c => c._id === componentId);
+                            if (component) {
+                                console.log('✅ Found GPU in grouped array');
+                            } else {
+                                console.log('❌ GPU not found in grouped array either');
+
+                                // Try fuzzy ID matching - find GPUs with IDs that differ by only 1-2 characters
+                                const potentialMatches = allIndividualGPUs.filter(g => {
+                                    const gId = g._id || '';
+                                    // Check if IDs are same length and differ by only a few characters
+                                    if (gId.length === componentId.length) {
+                                        let differences = 0;
+                                        for (let i = 0; i < gId.length; i++) {
+                                            if (gId[i] !== componentId[i]) differences++;
+                                        }
+                                        return differences <= 2; // Allow up to 2 character differences
+                                    }
+                                    return false;
+                                });
+
+                                if (potentialMatches.length > 0) {
+                                    console.log(`🔍 Found ${potentialMatches.length} GPU(s) with similar IDs:`);
+                                    potentialMatches.forEach(match => {
+                                        console.log(`  - ${match.title || match.name} (ID: ${match._id})`);
+                                    });
+
+                                    // Use the first fuzzy match as fallback
+                                    component = potentialMatches[0];
+                                    console.log(`✅ Using fuzzy match: ${component.title || component.name}`);
+                                } else {
+                                    // Try finding by title/name as last resort
+                                    const searchTerms = ['RTX 4090', 'ASUS TUF'];
+                                    for (const term of searchTerms) {
+                                        const match = allIndividualGPUs.find(g =>
+                                            (g.title && g.title.includes(term)) ||
+                                            (g.name && g.name.includes(term))
+                                        );
+                                        if (match) {
+                                            console.log(`Found potential match by name: ${match.title || match.name} (ID: ${match._id})`);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     } else {
+                        console.log(`⚠️ API fetch failed with status: ${response.status}`);
                         // Fallback to array lookup if API fails
                         component = componentArray.find(c => c._id === componentId);
-                        console.log('⚠️ API fetch failed, using GPU from allGPUs array');
                     }
                 } catch (error) {
                     console.error('Error fetching individual GPUs:', error);
@@ -4402,11 +5073,14 @@ class PartsDatabase {
                 this.updateTotalPrice();
                 this.checkCompatibility();
                 this.updateBuildActions();
+                return true; // Success
             } else {
                 console.warn(`Component not found: ${type} with ID ${componentId}`);
+                return false; // Component not found
             }
         } catch (error) {
             console.error(`Error loading ${type}:`, error);
+            return false; // Error occurred
         }
     }
 
@@ -4536,12 +5210,14 @@ class PartsDatabase {
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'cpu': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Single-Thread Performance', sort: 'performance', icon: true, style: 'width: 180px; min-width: 180px;' },
                 { text: 'Multi-Thread Performance', sort: 'multiThreadPerformance', icon: true, className: 'cpu-only-column', style: 'width: 180px; min-width: 180px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'motherboard': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Form Factor', sort: 'formFactor', icon: true },
                 { text: 'Socket', sort: 'socket', icon: true },
@@ -4553,6 +5229,7 @@ class PartsDatabase {
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'ram': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'memoryType', icon: true },
                 { text: 'Capacity', sort: 'capacity', icon: true },
@@ -4560,11 +5237,13 @@ class PartsDatabase {
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'cooler': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'coolerType', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'psu': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Wattage', sort: 'wattage', icon: true },
                 { text: 'Certification', sort: 'certification', icon: true },
@@ -4572,42 +5251,49 @@ class PartsDatabase {
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'case': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Form Factor', sort: 'formFactor', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'RGB', sort: 'hasRGB', icon: true, style: 'width: 80px; min-width: 80px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage2': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage3': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage4': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage5': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage6': [
+                { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
@@ -4747,6 +5433,7 @@ class PartsDatabase {
         this.currentSortColumn = 'name';
         this.currentSortDirection = 'asc';
         this.activeBadgeFilters.clear();
+        this.searchTerm = '';
 
         // Calculate great value GPUs if opening GPU modal
         if (componentType === 'gpu') {
@@ -5075,6 +5762,15 @@ class PartsDatabase {
 
         // Set up price range filters (only once)
         this.setupPriceRangeFilters();
+
+        // Set up search filter (only once)
+        this.setupSearchFilter();
+
+        // Clear search input
+        const searchInput = document.getElementById('componentSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
 
         // Add event listeners for sorting
         document.querySelectorAll('.sortable').forEach(header => {
@@ -5749,6 +6445,38 @@ class PartsDatabase {
             }
         }
 
+        // Apply search filter
+        if (this.searchTerm) {
+            filteredComponents = filteredComponents.filter(component => {
+                const name = (component.title || component.name || '').toLowerCase();
+                const manufacturer = (component.manufacturer || '').toLowerCase();
+                return name.includes(this.searchTerm) || manufacturer.includes(this.searchTerm);
+            });
+        }
+
+        // Check if no motherboards are compatible and display helpful message
+        if (componentType === 'motherboard' && filteredComponents.length === 0 &&
+            this.currentBuild && (this.currentBuild.cpu || this.currentBuild.ram)) {
+            const selectedRam = this.currentBuild.ram;
+            const ramDdrType = selectedRam ? (selectedRam.memoryType || '').toUpperCase() : '';
+
+            let errorMessage = 'No motherboards compatible with Ram and cpu chipset, try changing to ';
+            if (ramDdrType.includes('DDR5')) {
+                errorMessage += 'DDR4 Ram';
+            } else if (ramDdrType.includes('DDR4')) {
+                errorMessage += 'DDR5 Ram';
+            } else {
+                errorMessage += 'DDR4 or DDR5 Ram';
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="7" style="text-align: center; padding: 40px; color: #e74c3c; font-size: 16px;">
+                <i class="fas fa-exclamation-triangle" style="margin-right: 10px;"></i>${errorMessage}
+            </td>`;
+            tbody.appendChild(row);
+            return;
+        }
+
         filteredComponents.forEach((component) => {
             const originalIndex = allComponentsArray.indexOf(component);
             const isGreatValue = greatValueIds.has(component._id || component.title || component.name);
@@ -5886,6 +6614,22 @@ class PartsDatabase {
         });
 
         this.priceRangeFilterSetup = true;
+    }
+
+    setupSearchFilter() {
+        // Only set up once
+        if (this.searchFilterSetup) return;
+
+        const searchInput = document.getElementById('componentSearchInput');
+        if (!searchInput) return;
+
+        // Update filter on input change
+        searchInput.addEventListener('input', (e) => {
+            this.searchTerm = e.target.value.toLowerCase().trim();
+            this.populateComponentTable(this.currentModalType);
+        });
+
+        this.searchFilterSetup = true;
     }
 
     updateFilterBadgesDisplay() {
@@ -6265,6 +7009,7 @@ class PartsDatabase {
 
             // Truncate motherboard name to 60 characters
             const truncatedName = name.length > 60 ? name.substring(0, 60) + '...' : name;
+            const imageUrl = component.imageUrl || component.image || '';
 
             // Get slot counts
             const ramSlots = component.memorySlots || '-';
@@ -6277,6 +7022,9 @@ class PartsDatabase {
                 : (component.memoryType || '-');
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-memory" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6304,8 +7052,9 @@ class PartsDatabase {
                 </td>
             `;
         } else if (componentType === 'ram') {
-            // RAM rendering with DDR, Size, and Speed columns
+            // RAM rendering with Image, DDR, Size, and Speed columns
             const memoryType = component.memoryType || '-';
+            const imageUrl = component.imageUrl || component.image || '';
 
             // Format capacity as "2x16GB" if kitConfiguration exists, otherwise use capacity field
             let capacityDisplay = '-';
@@ -6322,6 +7071,9 @@ class PartsDatabase {
             const speed = component.speed ? (typeof component.speed === 'string' ? component.speed : `${component.speed} MHz`) : '-';
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-hdd" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6343,12 +7095,16 @@ class PartsDatabase {
                 </td>
             `;
         } else if (componentType === 'psu') {
-            // PSU rendering with Wattage, Certification, and Modularity columns
+            // PSU rendering with Image, Wattage, Certification, and Modularity columns
             const wattage = component.wattage ? `${component.wattage}W` : '-';
             const certification = component.certification || '-';
             const modularity = component.modularity || '-';
+            const imageUrl = component.imageUrl || component.image || '';
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-plug" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6371,8 +7127,9 @@ class PartsDatabase {
                 </td>
             `;
         } else if (componentType === 'cooler') {
-            // Cooler rendering with simplified Type column
+            // Cooler rendering with Image and simplified Type column
             let coolerType = component.coolerType || '-';
+            const imageUrl = component.imageUrl || component.image || '';
 
             // Simplify cooler type to just "Liquid" or "Air"
             if (coolerType !== '-') {
@@ -6384,6 +7141,9 @@ class PartsDatabase {
             }
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-snowflake" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6404,12 +7164,13 @@ class PartsDatabase {
                 </td>
             `;
         } else if (componentType === 'case') {
-            // Case rendering with Form Factor and RGB columns
+            // Case rendering with Image, Form Factor and RGB columns
             const formFactor = component.formFactor && Array.isArray(component.formFactor) && component.formFactor.length > 0
                 ? component.formFactor.join(', ')
                 : (component.formFactor || '-');
 
             const hasRGB = component.specifications?.hasRGB ? 'Yes' : 'No';
+            const imageUrl = component.imageUrl || component.image || '';
 
             // Generate compatibility badge if incompatible
             let compatibilityBadge = '';
@@ -6419,6 +7180,9 @@ class PartsDatabase {
             }
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-box" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6442,8 +7206,9 @@ class PartsDatabase {
             `;
         } else if (componentType === 'storage' || componentType === 'storage2' || componentType === 'storage3' ||
                    componentType === 'storage4' || componentType === 'storage5' || componentType === 'storage6') {
-            // Storage rendering with Type and Capacity columns
+            // Storage rendering with Image, Type and Capacity columns
             const storageType = component.type || '-';
+            const imageUrl = component.imageUrl || component.image || '';
 
             // Format capacity: convert to TB if >= 1000 GB
             let capacity = '-';
@@ -6456,6 +7221,9 @@ class PartsDatabase {
             }
 
             row.innerHTML = `
+                <td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-database" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -6525,7 +7293,13 @@ class PartsDatabase {
                 }
             }
 
+            const imageUrl = component.imageUrl || component.image || '';
+            const fallbackIcon = componentType === 'cpu' ? 'microchip' : 'image';
+
             row.innerHTML = `
+                ${componentType === 'cpu' ? `<td style="padding: 8px; text-align: center; width: 100px;">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-microchip" style="color: #ccc; font-size: 24px;"></i></div>'}
+                </td>` : ''}
                 <td>
                     <div class="component-name-wrapper">
                         ${expandIcon}
@@ -7155,6 +7929,8 @@ class PartsDatabase {
         this.updateTotalPrice();
         this.checkCompatibility();
         this.updateBuildActions();
+        console.log('About to call updateBuildStatistics from selectComponent');
+        this.updateBuildStatistics();
     }
 
     updateBuilderComponentDisplay(componentType, component) {
@@ -7348,6 +8124,9 @@ class PartsDatabase {
 
         // Update total price
         this.updateTotalPrice();
+
+        // Update build statistics (treemap)
+        this.updateBuildStatistics();
     }
 
     cycleGPUQuantity(componentType) {
@@ -7406,6 +8185,9 @@ class PartsDatabase {
 
         // Update total price
         this.updateTotalPrice();
+
+        // Update build statistics (treemap)
+        this.updateBuildStatistics();
     }
 
     showStockCooler(cpu) {
@@ -9590,11 +10372,16 @@ class PartsDatabase {
         const detailsPanel = document.getElementById('componentDetailsPanel');
         const statisticsBtn = document.getElementById('viewStatisticsBtn');
 
+        // Remove first-time glow animation on first click
+        if (statisticsBtn.classList.contains('first-time-glow')) {
+            statisticsBtn.classList.remove('first-time-glow');
+        }
+
         if (statisticsPanel.classList.contains('hidden')) {
             // Show statistics panel, hide details panel
             statisticsPanel.classList.remove('hidden');
             detailsPanel.classList.add('hidden');
-            statisticsBtn.innerHTML = '<i class="fas fa-times"></i> Hide Statistics';
+            statisticsBtn.innerHTML = '<i class="fas fa-times"></i> Hide Price Vs Performance';
             this.renderStatisticsScatterPlot();
 
             // Unround modal right corners
@@ -9612,7 +10399,7 @@ class PartsDatabase {
         const statisticsPanel = document.getElementById('statisticsPanel');
         const statisticsBtn = document.getElementById('viewStatisticsBtn');
         statisticsPanel.classList.add('hidden');
-        statisticsBtn.innerHTML = '<i class="fas fa-chart-scatter"></i> View Statistics';
+        statisticsBtn.innerHTML = '<i class="fas fa-chart-scatter"></i> View Price Vs Performance';
 
         // Remove panel-expanded class from all cards
         document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
