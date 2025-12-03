@@ -383,11 +383,14 @@ function getCPUTDP(cpu) {
     if (cpu.tdp) return cpu.tdp;
 
     // Estimate based on cores if no TDP specified
+    // Use realistic max turbo power values for modern CPUs
     const cores = cpu.cores || 8;
-    if (cores >= 16) return 170;
-    if (cores >= 12) return 125;
-    if (cores >= 8) return 95;
-    return 65;
+    if (cores >= 20) return 253; // High-end CPUs like i9-13900K/14900K
+    if (cores >= 16) return 241; // CPUs like i7-13700K/Ryzen 9 7900X
+    if (cores >= 12) return 180; // Mid-high CPUs like Ryzen 7 7700X
+    if (cores >= 8) return 142;  // Mid-range CPUs like i5-13600K
+    if (cores >= 6) return 125;  // Entry-level gaming CPUs
+    return 65;  // Budget CPUs
 }
 
 // Special handler for GPU collections
@@ -2162,39 +2165,33 @@ app.post('/api/ai-build', async (req, res) => {
 
         psuDebug.candidatesFound = psus.length;
 
-        // If no PSUs found in budget, try progressively lower wattage tiers to find affordable options
+        // If no PSUs found in budget, prioritize wattage over budget
+        // NEVER select a PSU below the recommended wattage
         if (psus.length === 0) {
-            // Try to find PSUs with reasonable wattage range (not massively oversized)
-            // This prevents selecting expensive high-wattage PSUs for modest builds
-            const wattageTiers = [
-                recommendedWattage,           // Exact recommendation
-                Math.max(500, recommendedWattage * 0.8), // 80% of recommendation or 500W minimum
-                500,                          // Standard 500W minimum
-                400                           // Absolute minimum
-            ];
+            // First try: Find PSUs that meet wattage requirement, ignore budget
+            psus = await db.collection('psus').find({
+                wattage: { $gte: recommendedWattage },
+                currentPrice: { $gt: 0 }
+            }).sort({ currentPrice: 1 }).limit(10).toArray();
 
-            for (const minWattage of wattageTiers) {
-                // Look for PSUs in reasonable range (minWattage to minWattage * 2)
+            if (psus.length > 0) {
+                psuDebug.searchCriteria = `Cheapest PSU >= ${recommendedWattage}W (exceeds budget allocation but necessary for system stability)`;
+                psuDebug.candidatesFound = psus.length;
+            } else {
+                // Last resort: If no PSU meets exact wattage, find closest match that's still adequate
+                // Use a reasonable range (90-110% of recommended)
+                const minAcceptable = Math.floor(recommendedWattage * 0.9);
+                const maxReasonable = Math.ceil(recommendedWattage * 1.5);
+
                 psus = await db.collection('psus').find({
-                    wattage: { $gte: minWattage, $lte: minWattage * 2 },
+                    wattage: { $gte: minAcceptable, $lte: maxReasonable },
                     currentPrice: { $gt: 0 }
                 }).sort({ currentPrice: 1 }).limit(10).toArray();
 
                 if (psus.length > 0) {
-                    psuDebug.searchCriteria = `Cheapest ${minWattage}W-${minWattage * 2}W PSU (budget tight)`;
+                    psuDebug.searchCriteria = `Cheapest PSU ${minAcceptable}W-${maxReasonable}W (closest match to ${recommendedWattage}W requirement)`;
                     psuDebug.candidatesFound = psus.length;
-                    break;
                 }
-            }
-
-            // Last resort: just get cheapest PSU available (any wattage >= 400W)
-            if (psus.length === 0) {
-                psus = await db.collection('psus').find({
-                    wattage: { $gte: 400 },
-                    currentPrice: { $gt: 0 }
-                }).sort({ currentPrice: 1 }).limit(10).toArray();
-                psuDebug.searchCriteria = `Cheapest PSU >= 400W (fallback)`;
-                psuDebug.candidatesFound = psus.length;
             }
         }
 
@@ -2281,9 +2278,11 @@ app.post('/api/ai-build', async (req, res) => {
         const budgetUtilization = totalCost / maxBudget;
         const coolerBudget = maxBudget * allocations.cooler;
 
-        // Check if CPU requires a cooler (K, KF, X suffix CPUs don't include stock coolers)
+        // Check if CPU requires a cooler based on the coolerIncluded field
         const cpuName = selectedParts.cpu ? (selectedParts.cpu.name || selectedParts.cpu.title || '') : '';
-        const cpuNeedsCooler = /-(K|KF|X|KS|X3D)\b/i.test(cpuName) || cpuName.includes('Threadripper');
+        // CPU needs a cooler if coolerIncluded is explicitly false OR if it matches patterns known to not include coolers
+        const cpuIncludesCooler = selectedParts.cpu && selectedParts.cpu.coolerIncluded === true;
+        const cpuNeedsCooler = !cpuIncludesCooler;
 
         // Cooler is MANDATORY if CPU doesn't include one, OPTIONAL otherwise
         const shouldSelectCooler = cpuNeedsCooler || (budgetUtilization < 0.85 && remainingBudgetBeforeCooler > 20);
