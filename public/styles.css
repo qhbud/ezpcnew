@@ -9,12 +9,26 @@ body {
     background: linear-gradient(135deg, #14181C 0%, #1a1f24 100%);
     min-height: 100vh;
     color: #e2e8f0;
+    position: relative;
+}
+
+/* Particles Canvas */
+#particles-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
+    position: relative;
+    z-index: 1;
 }
 
 header {
@@ -1410,6 +1424,16 @@ tr.incompatible td {
     font-size: 1.1rem;
 }
 
+/* Amazon Button Styling */
+#addToAmazonCartBtn {
+    background: linear-gradient(135deg, #FF9900 0%, #FF7F00 100%) !important;
+    box-shadow: 0 4px 15px rgba(255, 153, 0, 0.3) !important;
+}
+
+#addToAmazonCartBtn:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(255, 153, 0, 0.5) !important;
+}
+
 /* Compatibility Section */
 .compatibility-section {
     background: rgba(255, 255, 255, 0.05);
@@ -1592,7 +1616,7 @@ tr.incompatible td {
     display: block;
     font-size: 1.3rem;
     font-weight: 600;
-    color: #2d3748;
+    color: #ffffff;
     margin-bottom: 20px;
     text-align: center;
 }

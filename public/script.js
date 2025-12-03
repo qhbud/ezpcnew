@@ -541,6 +541,10 @@ class PartsDatabase {
             this.shareBuild();
         });
 
+        document.getElementById('addToAmazonCartBtn').addEventListener('click', () => {
+            this.addToAmazonCart();
+        });
+
         // Set initial button state
         this.updateBuildActions();
     }
@@ -4036,9 +4040,14 @@ class PartsDatabase {
     updateBuildActions() {
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
         const shareBtn = document.getElementById('shareBuildBtn');
+        const amazonBtn = document.getElementById('addToAmazonCartBtn');
 
         if (shareBtn) {
             shareBtn.disabled = !hasComponents;
+        }
+
+        if (amazonBtn) {
+            amazonBtn.disabled = !hasComponents;
         }
     }
 
@@ -4081,6 +4090,18 @@ class PartsDatabase {
 
         Object.entries(this.currentBuild).forEach(([type, component]) => {
             if (component !== null) {
+                // Debug GPU being saved
+                if (type === 'gpu') {
+                    console.log('=== SAVING GPU TO SHARE LINK ===');
+                    console.log('GPU Component:', {
+                        _id: component._id,
+                        title: component.title,
+                        name: component.name,
+                        manufacturer: component.manufacturer
+                    });
+                    console.log('================================');
+                }
+
                 // For RAM and GPU, save ID and quantity
                 if ((type === 'ram' || type === 'gpu') && component.quantity) {
                     buildData[type] = {
@@ -4093,6 +4114,8 @@ class PartsDatabase {
                 }
             }
         });
+
+        console.log('Build data being saved:', buildData);
 
         // Encode the build data as a URL parameter
         const jsonString = JSON.stringify(buildData);
@@ -4108,6 +4131,90 @@ class PartsDatabase {
             console.error('Failed to copy:', err);
             alert('Failed to copy link. Please try again.');
         });
+    }
+
+    addToAmazonCart() {
+        // Collect all components with their quantities
+        const cartItems = [];
+
+        Object.entries(this.currentBuild).forEach(([type, component]) => {
+            if (component !== null) {
+                const amazonUrl = component.sourceUrl || component.url || '';
+
+                // Extract ASIN from Amazon URL
+                const asin = this.extractASIN(amazonUrl);
+
+                if (asin) {
+                    // Get quantity for RAM and GPU, default to 1 for others
+                    const quantity = (type === 'ram' || type === 'gpu') ? (component.quantity || 1) : 1;
+
+                    cartItems.push({
+                        asin,
+                        quantity,
+                        name: component.name || component.title || 'Unknown',
+                        type
+                    });
+                    console.log(`Adding to cart: ${type} - ASIN: ${asin}, Qty: ${quantity}`);
+                } else {
+                    console.warn(`No ASIN found for ${type}:`, component.name || component.title);
+                }
+            }
+        });
+
+        if (cartItems.length === 0) {
+            alert('No Amazon products found in your build. Make sure your components have Amazon links.');
+            return;
+        }
+
+        console.log(`Preparing Amazon cart with ${cartItems.length} products, ${cartItems.reduce((sum, item) => sum + item.quantity, 0)} total items`);
+
+        // Build Amazon cart URL using official format
+        // Format: https://www.amazon.com/gp/aws/cart/add.html?AssociateTag=XXX&ASIN.1=XXX&Quantity.1=1&ASIN.2=YYY&Quantity.2=2
+        const params = new URLSearchParams();
+
+        // Add Amazon Associate Tag (required for add-to-cart functionality)
+        // TODO: Replace 'qhezpc-20' with your actual Amazon Associates tag
+        params.append('AssociateTag', 'qhezpc-20');
+
+        cartItems.forEach((item, index) => {
+            const itemNum = index + 1;
+            params.append(`ASIN.${itemNum}`, item.asin);
+            params.append(`Quantity.${itemNum}`, item.quantity);
+        });
+
+        const cartUrl = `https://www.amazon.com/gp/aws/cart/add.html?${params.toString()}`;
+
+        console.log('Amazon cart URL:', cartUrl);
+        console.log('Cart items:', cartItems);
+
+        // Open the cart URL in a new window
+        window.open(cartUrl, '_blank');
+    }
+
+    extractASIN(url) {
+        if (!url) return null;
+
+        // Amazon ASIN is typically 10 characters: uppercase letters and numbers
+        // Common URL patterns:
+        // https://www.amazon.com/dp/B08N5WRWNW
+        // https://www.amazon.com/gp/product/B08N5WRWNW
+        // https://www.amazon.com/Product-Name/dp/B08N5WRWNW
+
+        const patterns = [
+            /\/dp\/([A-Z0-9]{10})/,           // /dp/ASIN
+            /\/gp\/product\/([A-Z0-9]{10})/,  // /gp/product/ASIN
+            /\/product\/([A-Z0-9]{10})/,      // /product/ASIN
+            /[?&]th=([A-Z0-9]{10})/           // ?th=ASIN or &th=ASIN
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+
+        return null;
     }
 
     async loadBuildFromURL() {
@@ -4160,11 +4267,21 @@ class PartsDatabase {
             this.updateAddonPlusButtons();
             this.updateComponentPositions();
 
-            // Show success message
+            // Re-render GPU if it exists to show quantity badge (which requires motherboard to be loaded)
+            if (this.currentBuild.gpu && this.currentBuild.motherboard) {
+                console.log('Re-rendering GPU to display quantity badge');
+                this.updateBuilderComponentDisplay('gpu', this.currentBuild.gpu);
+            }
+
+            // Re-render RAM if it exists to ensure quantity badge displays correctly
+            if (this.currentBuild.ram) {
+                console.log('Re-rendering RAM to ensure quantity badge displays');
+                this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
+            }
+
+            // Log success message
             const componentCount = Object.keys(buildData).length;
-            setTimeout(() => {
-                alert(`✅ Build loaded successfully!\n\n${componentCount} components restored from shared link.`);
-            }, 500);
+            console.log(`✅ Build loaded successfully! ${componentCount} components restored from shared link.`);
 
         } catch (error) {
             console.error('Error loading build from URL:', error);
@@ -4224,8 +4341,35 @@ class PartsDatabase {
                     return;
             }
 
-            // Find the component by ID in the already-loaded array
-            const component = componentArray.find(c => c._id === componentId);
+            // For GPUs, fetch individual GPU details from API to get full product info
+            let component;
+            if (baseType === 'gpu') {
+                try {
+                    console.log(`Fetching individual GPUs to find ID: ${componentId}`);
+                    const response = await fetch('/api/parts/gpus?groupByModel=false');
+                    if (response.ok) {
+                        const allIndividualGPUs = await response.json();
+                        component = allIndividualGPUs.find(g => g._id === componentId);
+                        if (component) {
+                            console.log('✅ Found individual GPU from API with full details');
+                        } else {
+                            console.log('⚠️ GPU ID not found in individual GPUs, trying grouped array');
+                            component = componentArray.find(c => c._id === componentId);
+                        }
+                    } else {
+                        // Fallback to array lookup if API fails
+                        component = componentArray.find(c => c._id === componentId);
+                        console.log('⚠️ API fetch failed, using GPU from allGPUs array');
+                    }
+                } catch (error) {
+                    console.error('Error fetching individual GPUs:', error);
+                    // Fallback to array lookup
+                    component = componentArray.find(c => c._id === componentId);
+                }
+            } else {
+                // For non-GPU components, find by ID in the already-loaded array
+                component = componentArray.find(c => c._id === componentId);
+            }
 
             if (component) {
                 // Clone the component to avoid modifying the original
@@ -4238,13 +4382,16 @@ class PartsDatabase {
 
                 // Debug GPU data
                 if (type === 'gpu') {
+                    console.log('=== LOADING GPU FROM SHARE LINK ===');
                     console.log('GPU component data:', {
+                        _id: component._id,
                         title: component.title,
                         name: component.name,
                         imageUrl: component.imageUrl,
                         image: component.image,
                         manufacturer: component.manufacturer
                     });
+                    console.log('===================================');
                 }
 
                 // Add the component to the build
@@ -6903,6 +7050,20 @@ class PartsDatabase {
             }
         }
 
+        // Debug GPU selection
+        if (componentType === 'gpu') {
+            console.log('=== GPU SELECTION DEBUG ===');
+            console.log('Selecting GPU with data:', {
+                _id: component._id,
+                title: component.title,
+                name: component.name,
+                imageUrl: component.imageUrl,
+                image: component.image,
+                manufacturer: component.manufacturer
+            });
+            console.log('===========================');
+        }
+
         // Store the selected component
         this.currentBuild[componentType] = component;
 
@@ -7008,6 +7169,16 @@ class PartsDatabase {
         const imageUrl = component.imageUrl || component.image || '';
         const amazonUrl = component.sourceUrl || component.url || '';
         const manufacturer = component.manufacturer || '';
+
+        // Debug GPU display
+        if (componentType === 'gpu') {
+            console.log('=== DISPLAYING GPU IN BUILDER ===');
+            console.log('Component title:', component.title);
+            console.log('Component name:', component.name);
+            console.log('Display name (used):', name);
+            console.log('Name length:', name.length);
+            console.log('=================================');
+        }
 
         // Get quantity (for RAM and GPU)
         const quantity = (componentType === 'ram' || componentType === 'gpu') ? (component.quantity || 1) : 1;
@@ -11097,8 +11268,86 @@ function toggleCpuPerformanceMode() {
     }
 }
 
+// Particle System for Background Animation
+class ParticleSystem {
+    constructor() {
+        this.canvas = document.getElementById('particles-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = [];
+        this.particleCount = 50;
+        this.resize();
+        this.createParticles();
+        this.animate();
+
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    createParticles() {
+        for (let i = 0; i < this.particleCount; i++) {
+            this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                size: Math.random() * 3 + 1,
+                speedX: (Math.random() - 0.5) * 0.5,
+                speedY: (Math.random() - 0.5) * 0.5,
+                opacity: Math.random() * 0.5 + 0.2
+            });
+        }
+    }
+
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.particles.forEach(particle => {
+            // Update position
+            particle.x += particle.speedX;
+            particle.y += particle.speedY;
+
+            // Wrap around screen edges
+            if (particle.x < 0) particle.x = this.canvas.width;
+            if (particle.x > this.canvas.width) particle.x = 0;
+            if (particle.y < 0) particle.y = this.canvas.height;
+            if (particle.y > this.canvas.height) particle.y = 0;
+
+            // Draw particle
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            this.ctx.fillStyle = `rgba(96, 165, 250, ${particle.opacity})`;
+            this.ctx.fill();
+        });
+
+        // Draw connections between nearby particles
+        for (let i = 0; i < this.particles.length; i++) {
+            for (let j = i + 1; j < this.particles.length; j++) {
+                const dx = this.particles[i].x - this.particles[j].x;
+                const dy = this.particles[i].y - this.particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 150) {
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = `rgba(96, 165, 250, ${0.15 * (1 - distance / 150)})`;
+                    this.ctx.lineWidth = 1;
+                    this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
+                    this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
+                    this.ctx.stroke();
+                }
+            }
+        }
+
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
 // Initialize the parts database frontend when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     pcBuilder = new PartsDatabase();
     window.partsDatabase = pcBuilder; // Make it globally accessible
+
+    // Initialize particle system
+    new ParticleSystem();
 });
