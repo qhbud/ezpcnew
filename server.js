@@ -2767,6 +2767,106 @@ app.post('/api/ai-build', async (req, res) => {
     }
 });
 
+// Increment save count for components
+app.post('/api/components/increment-saves', async (req, res) => {
+    try {
+        const { components } = req.body;
+
+        if (!components || !Array.isArray(components)) {
+            return res.status(400).json({ error: 'Invalid request: components array required' });
+        }
+
+        const db = getDatabase();
+        const results = [];
+
+        // Map component types to collection names
+        const collectionMap = {
+            'gpu': 'gpus',
+            'cpu': 'cpus',
+            'motherboard': 'motherboards',
+            'ram': 'rams',
+            'psu': 'psus',
+            'cooler': 'coolers',
+            'case': 'cases',
+            'storage': 'storage',
+            'storage2': 'storage',
+            'storage3': 'storage',
+            'storage4': 'storage',
+            'storage5': 'storage',
+            'storage6': 'storage',
+            'addon': 'addons',
+            'addon2': 'addons',
+            'addon3': 'addons',
+            'addon4': 'addons',
+            'addon5': 'addons',
+            'addon6': 'addons'
+        };
+
+        // Process each component
+        for (const { type, id } of components) {
+            const collectionName = collectionMap[type];
+
+            if (!collectionName || !id) {
+                console.warn(`Invalid component: type=${type}, id=${id}`);
+                continue;
+            }
+
+            try {
+                // Check if it's a GPU collection (multiple GPU collections)
+                if (type === 'gpu') {
+                    // Try to find in any GPU collection
+                    const collections = await db.listCollections({ name: /^gpus/ }).toArray();
+                    let updated = false;
+
+                    for (const coll of collections) {
+                        const collection = db.collection(coll.name);
+                        const result = await collection.updateOne(
+                            { _id: id },
+                            { $inc: { saveCount: 1 } }
+                        );
+
+                        if (result.matchedCount > 0) {
+                            updated = true;
+                            results.push({ type, id, collection: coll.name, success: true });
+                            break;
+                        }
+                    }
+
+                    if (!updated) {
+                        console.warn(`GPU not found with ID: ${id}`);
+                    }
+                } else {
+                    // For non-GPU components
+                    const collection = db.collection(collectionName);
+                    const result = await collection.updateOne(
+                        { _id: id },
+                        { $inc: { saveCount: 1 } }
+                    );
+
+                    if (result.matchedCount > 0) {
+                        results.push({ type, id, collection: collectionName, success: true });
+                    } else {
+                        console.warn(`Component not found: ${type} with ID ${id}`);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error updating ${type} ${id}:`, error);
+            }
+        }
+
+        res.json({
+            success: true,
+            updated: results.length,
+            total: components.length,
+            results
+        });
+
+    } catch (error) {
+        console.error('Error incrementing save counts:', error);
+        res.status(500).json({ error: 'Failed to update save counts' });
+    }
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({ error: 'Route not found' });

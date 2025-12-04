@@ -14,6 +14,7 @@ class PartsDatabase {
         this.maxPrice = null; // Maximum price filter
         this.searchTerm = ''; // Search term for component filtering
         this.cpuPerformanceMode = 'singleThread'; // 'singleThread' or 'multiThread' for CPU statistics
+        this.debugMode = false; // Debug mode to show component popularity scores
 
         // GPU Performance Benchmarks
         this.gpuBenchmarks = {
@@ -3221,18 +3222,23 @@ class PartsDatabase {
     }
 
     formatComponentOption(component, componentType) {
-        const name = component.title || component.name || `Unknown ${componentType}`;
+        const name = component.title || component.name || '';
         const price = this.getComponentPrice(component);
         const discount = this.getComponentDiscount(component);
-        
+
         let optionText = name;
-        
+
+        // Add debug info (save count) if debug mode is enabled
+        if (this.debugMode) {
+            optionText += ` <span style="color: #fbbf24; font-weight: bold;">[${component.saveCount || 0} saves]</span>`;
+        }
+
         // Add key specs to option text
         const specs = this.getKeySpecs(component, componentType);
         if (specs) {
             optionText += ` (${specs})`;
         }
-        
+
         // Add pricing info
         if (price > 0) {
             if (discount > 0) {
@@ -3242,7 +3248,7 @@ class PartsDatabase {
                 optionText += ` - $${price.toFixed(2)}`;
             }
         }
-        
+
         return optionText;
     }
 
@@ -4367,7 +4373,7 @@ class PartsDatabase {
 
         // Helper function to get component name
         const getComponentName = (component) => {
-            return component.name || component.title || component.model || 'Unknown';
+            return component.name || component.title || component.model || '';
         };
 
         // GPU
@@ -4663,7 +4669,7 @@ class PartsDatabase {
         this.updateBuildActions();
     }
 
-    shareBuild() {
+    async shareBuild() {
         // Create a compact representation with IDs and quantities
         const buildData = {};
 
@@ -4696,6 +4702,9 @@ class PartsDatabase {
 
         console.log('Build data being saved:', buildData);
 
+        // Increment save counts for all components
+        await this.incrementComponentSaveCounts();
+
         // Encode the build data as a URL parameter
         const jsonString = JSON.stringify(buildData);
         const encodedBuild = btoa(jsonString);
@@ -4712,7 +4721,7 @@ class PartsDatabase {
         });
     }
 
-    addToAmazonCart() {
+    async addToAmazonCart() {
         // Collect all components with their quantities
         const cartItems = [];
 
@@ -4730,7 +4739,7 @@ class PartsDatabase {
                     cartItems.push({
                         asin,
                         quantity,
-                        name: component.name || component.title || 'Unknown',
+                        name: component.name || component.title || '',
                         type
                     });
                     console.log(`Adding to cart: ${type} - ASIN: ${asin}, Qty: ${quantity}`);
@@ -4746,6 +4755,9 @@ class PartsDatabase {
         }
 
         console.log(`Preparing Amazon cart with ${cartItems.length} products, ${cartItems.reduce((sum, item) => sum + item.quantity, 0)} total items`);
+
+        // Increment save counts for all components
+        await this.incrementComponentSaveCounts();
 
         // Build Amazon cart URL using official format
         // Format: https://www.amazon.com/gp/aws/cart/add.html?AssociateTag=XXX&ASIN.1=XXX&Quantity.1=1&ASIN.2=YYY&Quantity.2=2
@@ -4794,6 +4806,46 @@ class PartsDatabase {
         }
 
         return null;
+    }
+
+    async incrementComponentSaveCounts() {
+        try {
+            const components = [];
+
+            // Collect all components from currentBuild
+            Object.entries(this.currentBuild).forEach(([type, component]) => {
+                if (component !== null && component._id) {
+                    components.push({
+                        type: type,
+                        id: component._id
+                    });
+                }
+            });
+
+            if (components.length === 0) {
+                console.log('No components to increment save counts for');
+                return;
+            }
+
+            console.log(`Incrementing save counts for ${components.length} components:`, components);
+
+            const response = await fetch('/api/components/increment-saves', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ components })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Updated save counts for ${result.updated} of ${result.total} components`);
+            } else {
+                console.error('Failed to update save counts:', response.status);
+            }
+        } catch (error) {
+            console.error('Error incrementing save counts:', error);
+        }
     }
 
     async loadBuildFromURL() {
@@ -6704,8 +6756,8 @@ class PartsDatabase {
         const componentId = component._id || component.title || `${componentType}_${index}`;
         row.setAttribute('data-component-id', componentId);
 
-        const name = component.title || component.name || 'Unknown';
-        const manufacturer = component.manufacturer || 'Unknown';
+        const name = component.title || component.name || '';
+        const manufacturer = component.manufacturer || '';
 
         // Handle different price field structures (GPUs use basePrice/salePrice, CPUs use price/currentPrice)
         const basePrice = parseFloat(component.basePrice) || parseFloat(component.price) || 0;
@@ -7029,6 +7081,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name" title="${name}">${truncatedName}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                         ${compatibilityBadge}
                     </div>
@@ -7078,6 +7131,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                 </td>
@@ -7109,6 +7163,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
@@ -7148,6 +7203,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
@@ -7187,6 +7243,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                         ${compatibilityBadge}
                     </div>
@@ -7228,6 +7285,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
@@ -7265,6 +7323,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${addonSpecsText ? '<div class="component-specs">' + addonSpecsText + '</div>' : ''}
@@ -7304,6 +7363,7 @@ class PartsDatabase {
                     <div class="component-name-wrapper">
                         ${expandIcon}
                         <span class="component-name">${name}</span>
+                        ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                         ${perfTier ? `<span class="performance-tier-badge clickable-badge" data-filter-type="tier" data-filter-value="${perfTier}" style="display: inline-block; margin-left: 6px; padding: 2px 8px; background: ${perfTierBgColor}; color: ${perfTierColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${perfTier}</span>` : ''}
                         ${isGreatValue ? `<span class="great-value-badge clickable-badge" data-filter-type="value" data-filter-value="Great Value" style="display: inline-block; margin-left: 6px; padding: 2px 8px; background: rgba(34, 197, 94, 0.15); color: #16a34a; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">Great Value</span>` : ''}
@@ -7941,7 +8001,7 @@ class PartsDatabase {
 
         if (!selectedDiv || !selectBtn || !removeBtn) return;
 
-        const name = component.title || component.name || 'Unknown';
+        const name = component.title || component.name || '';
         const imageUrl = component.imageUrl || component.image || '';
         const amazonUrl = component.sourceUrl || component.url || '';
         const manufacturer = component.manufacturer || '';
@@ -10410,6 +10470,36 @@ class PartsDatabase {
         const modalContent = document.querySelector('.modal-content');
         if (modalContent) {
             modalContent.style.setProperty('border-radius', '12px', 'important');
+        }
+    }
+
+    toggleDebugMode() {
+        // Toggle debug mode
+        this.debugMode = !this.debugMode;
+
+        // Update button appearance
+        const debugBtn = document.getElementById('debugBtn');
+        if (this.debugMode) {
+            debugBtn.classList.add('active');
+            console.log('🐛 Debug mode enabled - showing component save counts');
+        } else {
+            debugBtn.classList.remove('active');
+            console.log('🐛 Debug mode disabled');
+        }
+
+        // Re-render all component selectors to show/hide save counts
+        this.sortAndFilterBuilderComponents('cpu');
+        this.sortAndFilterBuilderComponents('motherboard');
+        this.sortAndFilterBuilderComponents('ram');
+        this.sortAndFilterBuilderComponents('cooler');
+        this.sortAndFilterBuilderComponents('psu');
+        this.sortAndFilterBuilderComponents('storage');
+        this.sortAndFilterBuilderComponents('case');
+        this.sortAndFilterBuilderComponents('addon');
+
+        // Also re-render modal if open
+        if (this.currentModalType) {
+            this.openComponentModal(this.currentModalType);
         }
     }
 
