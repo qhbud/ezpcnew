@@ -495,11 +495,13 @@ async function handleGPURequest(req, res) {
                         cheapestPrice: isAvailable ? price : Infinity,
                         totalCards: 1,
                         availableCards: isAvailable ? 1 : 0,
-                        manufacturer: gpu.manufacturer || 'Unknown'
+                        manufacturer: gpu.manufacturer || 'Unknown',
+                        totalSaveCount: gpu.saveCount || 0
                     });
                 } else {
                     const modelData = modelMap.get(modelName);
                     modelData.totalCards++;
+                    modelData.totalSaveCount += (gpu.saveCount || 0);
 
                     if (isAvailable) {
                         modelData.availableCards++;
@@ -532,6 +534,7 @@ async function handleGPURequest(req, res) {
                     updatedAt: card.updatedAt,
                     totalCards: modelData.totalCards,
                     availableCards: modelData.availableCards,
+                    saveCount: modelData.totalSaveCount, // Sum of all variants' save counts
                     category: 'gpus',
                     collection: card.collection
                 };
