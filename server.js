@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const { ObjectId } = require('mongodb');
 const { connectToDatabase, getDatabase } = require('./config/database');
 
 // Function to detect and filter out desktop/laptop systems
@@ -2820,8 +2821,19 @@ app.post('/api/components/increment-saves', async (req, res) => {
 
                     for (const coll of collections) {
                         const collection = db.collection(coll.name);
+
+                        // Convert string ID to ObjectId
+                        let queryId = id;
+                        try {
+                            if (ObjectId.isValid(id)) {
+                                queryId = new ObjectId(id);
+                            }
+                        } catch (e) {
+                            // If conversion fails, use original string ID
+                        }
+
                         const result = await collection.updateOne(
-                            { _id: id },
+                            { _id: queryId },
                             { $inc: { saveCount: 1 } }
                         );
 
@@ -2838,8 +2850,19 @@ app.post('/api/components/increment-saves', async (req, res) => {
                 } else {
                     // For non-GPU components
                     const collection = db.collection(collectionName);
+
+                    // Convert string ID to ObjectId
+                    let queryId = id;
+                    try {
+                        if (ObjectId.isValid(id)) {
+                            queryId = new ObjectId(id);
+                        }
+                    } catch (e) {
+                        // If conversion fails, use original string ID
+                    }
+
                     const result = await collection.updateOne(
-                        { _id: id },
+                        { _id: queryId },
                         { $inc: { saveCount: 1 } }
                     );
 
