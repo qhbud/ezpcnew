@@ -2847,8 +2847,41 @@ app.post('/api/components/increment-saves', async (req, res) => {
                     if (!updated) {
                         console.warn(`GPU not found with ID: ${id}`);
                     }
+                } else if (type === 'cpu') {
+                    // Try to find in any CPU collection (cpus, cpus_intel_core_i9, cpus_amd_ryzen_7, etc.)
+                    const collections = await db.listCollections({ name: /^cpus/ }).toArray();
+                    let updated = false;
+
+                    for (const coll of collections) {
+                        const collection = db.collection(coll.name);
+
+                        // Convert string ID to ObjectId
+                        let queryId = id;
+                        try {
+                            if (ObjectId.isValid(id)) {
+                                queryId = new ObjectId(id);
+                            }
+                        } catch (e) {
+                            // If conversion fails, use original string ID
+                        }
+
+                        const result = await collection.updateOne(
+                            { _id: queryId },
+                            { $inc: { saveCount: 1 } }
+                        );
+
+                        if (result.matchedCount > 0) {
+                            updated = true;
+                            results.push({ type, id, collection: coll.name, success: true });
+                            break;
+                        }
+                    }
+
+                    if (!updated) {
+                        console.warn(`CPU not found with ID: ${id}`);
+                    }
                 } else {
-                    // For non-GPU components
+                    // For non-GPU/CPU components
                     const collection = db.collection(collectionName);
 
                     // Convert string ID to ObjectId
