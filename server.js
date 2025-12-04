@@ -2813,24 +2813,25 @@ app.post('/api/components/increment-saves', async (req, res) => {
             }
 
             try {
+                // Convert string ID to ObjectId ONCE at the beginning
+                let queryId = id;
+                try {
+                    if (ObjectId.isValid(id)) {
+                        queryId = new ObjectId(id);
+                    }
+                } catch (e) {
+                    console.error(`Error converting ID to ObjectId: ${id}`, e);
+                }
+
                 // Check if it's a GPU collection (multiple GPU collections)
                 if (type === 'gpu') {
                     // Try to find in any GPU collection
-                    const collections = await db.listCollections({ name: /^gpus/ }).toArray();
+                    const allCollections = await db.listCollections().toArray();
+                    const gpuCollections = allCollections.filter(c => c.name.startsWith('gpus'));
                     let updated = false;
 
-                    for (const coll of collections) {
+                    for (const coll of gpuCollections) {
                         const collection = db.collection(coll.name);
-
-                        // Convert string ID to ObjectId
-                        let queryId = id;
-                        try {
-                            if (ObjectId.isValid(id)) {
-                                queryId = new ObjectId(id);
-                            }
-                        } catch (e) {
-                            // If conversion fails, use original string ID
-                        }
 
                         const result = await collection.updateOne(
                             { _id: queryId },
@@ -2849,21 +2850,12 @@ app.post('/api/components/increment-saves', async (req, res) => {
                     }
                 } else if (type === 'cpu') {
                     // Try to find in any CPU collection (cpus, cpus_intel_core_i9, cpus_amd_ryzen_7, etc.)
-                    const collections = await db.listCollections({ name: /^cpus/ }).toArray();
+                    const allCollections = await db.listCollections().toArray();
+                    const cpuCollections = allCollections.filter(c => c.name.startsWith('cpus'));
                     let updated = false;
 
-                    for (const coll of collections) {
+                    for (const coll of cpuCollections) {
                         const collection = db.collection(coll.name);
-
-                        // Convert string ID to ObjectId
-                        let queryId = id;
-                        try {
-                            if (ObjectId.isValid(id)) {
-                                queryId = new ObjectId(id);
-                            }
-                        } catch (e) {
-                            // If conversion fails, use original string ID
-                        }
 
                         const result = await collection.updateOne(
                             { _id: queryId },
@@ -2883,16 +2875,6 @@ app.post('/api/components/increment-saves', async (req, res) => {
                 } else {
                     // For non-GPU/CPU components
                     const collection = db.collection(collectionName);
-
-                    // Convert string ID to ObjectId
-                    let queryId = id;
-                    try {
-                        if (ObjectId.isValid(id)) {
-                            queryId = new ObjectId(id);
-                        }
-                    } catch (e) {
-                        // If conversion fails, use original string ID
-                    }
 
                     const result = await collection.updateOne(
                         { _id: queryId },
