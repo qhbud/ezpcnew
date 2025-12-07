@@ -12,7 +12,7 @@ function isDesktopOrLaptop(title) {
 
 // Function to check if a component has a valid price (not $0 or null)
 function hasValidPrice(item) {
-    const price = parseFloat(item.price || item.currentPrice);
+    const price = parseFloat(item.price || item.currentPrice || item.basePrice);
     return !isNaN(price) && price > 0;
 }
 
@@ -535,6 +535,7 @@ async function handleGPURequest(req, res) {
                     totalCards: modelData.totalCards,
                     availableCards: modelData.availableCards,
                     saveCount: modelData.totalSaveCount, // Sum of all variants' save counts
+                    releaseYear: card.releaseYear,
                     category: 'gpus',
                     collection: card.collection
                 };

@@ -1634,6 +1634,7 @@ class PartsDatabase {
                     ${specs.boostClock ? `<div class="spec"><span class="spec-label">Boost Clock:</span> <span class="spec-value">${specs.boostClock}GHz</span></div>` : ''}
                     ${cpu.socket ? `<div class="spec"><span class="spec-label">Socket:</span> <span class="spec-value">${cpu.socket}</span></div>` : ''}
                     ${specs.tdp ? `<div class="spec"><span class="spec-label">TDP:</span> <span class="spec-value">${specs.tdp}W</span></div>` : ''}
+                    ${cpu.releaseYear ? `<div class="spec"><span class="spec-label">Release:</span> <span class="spec-value">${cpu.releaseYear}</span></div>` : ''}
                     ${cpu.singleThreadScore ? `<div class="spec"><span class="spec-label">Single Thread:</span> <span class="spec-value">${cpu.singleThreadScore}%</span></div>` : ''}
                     ${cpu.multiThreadScore ? `<div class="spec"><span class="spec-label">Multi Thread:</span> <span class="spec-value">${cpu.multiThreadScore}%</span></div>` : ''}
                 </div>
@@ -3199,7 +3200,12 @@ class PartsDatabase {
                 
                 case 'efficiency': // PSU efficiency
                     return (a.certification || '').localeCompare(b.certification || '');
-                
+
+                case 'releaseYear': // CPU release year
+                    const yearA = parseInt(a.releaseYear) || 0;
+                    const yearB = parseInt(b.releaseYear) || 0;
+                    return yearB - yearA; // Newer first
+
                 default:
                     return 0;
             }
@@ -3524,8 +3530,8 @@ class PartsDatabase {
     getCpuPerformance(component) {
         // Use the singleCorePerformance field from the database
         if (component.singleCorePerformance) {
-            // Normalize the score (divide by max value of 98 - Intel Core i9-13900K/KF)
-            const maxScore = 98;
+            // Normalize the score (divide by max value of 100 - Intel Core Ultra 9)
+            const maxScore = 100;
             return component.singleCorePerformance / maxScore;
         }
         return null; // No performance data available
@@ -5257,6 +5263,7 @@ class PartsDatabase {
             'gpu': [
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'VRAM', sort: 'memorySize', icon: true, style: 'width: 140px; min-width: 140px;' },
+                { text: 'Release Year', sort: 'releaseYear', icon: true, style: 'width: 120px; min-width: 120px; text-align: center;' },
                 { text: 'Performance', sort: 'performance', icon: true, style: 'width: 150px; min-width: 150px;' },
                 { text: 'Multi-Thread Performance', sort: 'multiThreadPerformance', icon: true, className: 'cpu-only-column', style: 'display: none;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
@@ -5264,6 +5271,7 @@ class PartsDatabase {
             'cpu': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Release Year', sort: 'releaseYear', icon: true, style: 'width: 120px; min-width: 120px; text-align: center;' },
                 { text: 'Single-Thread Performance', sort: 'performance', icon: true, style: 'width: 180px; min-width: 180px;' },
                 { text: 'Multi-Thread Performance', sort: 'multiThreadPerformance', icon: true, className: 'cpu-only-column', style: 'width: 180px; min-width: 180px;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
@@ -5933,6 +5941,14 @@ class PartsDatabase {
                                   name.includes('travel');
 
                 return hasPrice && !isExternal;
+            });
+        }
+
+        // Filter out Threadripper CPUs from the frontend
+        if (componentType === 'cpu') {
+            components = components.filter(component => {
+                const name = (component.name || component.title || '').toLowerCase();
+                return !name.includes('threadripper');
             });
         }
 
@@ -7372,6 +7388,10 @@ class PartsDatabase {
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
                 </td>
                 ${componentType === 'gpu' ? `<td>${vramDisplay}</td>` : ''}
+                ${componentType === 'gpu' ? `<td style="text-align: center;">${component.releaseYear || '-'}</td>` : ''}
+                <td class="cpu-only-column" style="display: ${componentType === 'cpu' ? '' : 'none'}; text-align: center;">
+                    ${component.releaseYear || '-'}
+                </td>
                 <td class="performance-cell">
                     ${performanceScore !== null ? '<span class="performance-score" style="background: ' + this.getPerformanceColor(performanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block;">' + (performanceScore * 100).toFixed(1) + '%</span>' : '-'}
                 </td>
@@ -8643,6 +8663,10 @@ class PartsDatabase {
                 case 'capacityGB':
                     aVal = parseFloat(a.capacityGB) || 0;
                     bVal = parseFloat(b.capacityGB) || 0;
+                    break;
+                case 'releaseYear':
+                    aVal = parseInt(a.releaseYear) || 0;
+                    bVal = parseInt(b.releaseYear) || 0;
                     break;
                 default:
                     aVal = 0;
