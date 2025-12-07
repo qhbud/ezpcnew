@@ -2776,6 +2776,7 @@ app.post('/api/ai-build', async (req, res) => {
 app.post('/api/components/increment-saves', async (req, res) => {
     try {
         const { components } = req.body;
+        console.log(`📊 Increment saves request received for ${components?.length || 0} components`);
 
         if (!components || !Array.isArray(components)) {
             return res.status(400).json({ error: 'Invalid request: components array required' });
@@ -2837,20 +2838,34 @@ app.post('/api/components/increment-saves', async (req, res) => {
                     for (const coll of gpuCollections) {
                         const collection = db.collection(coll.name);
 
-                        const result = await collection.updateOne(
-                            { _id: queryId },
-                            { $inc: { saveCount: 1 } }
-                        );
+                        // Get the document before updating
+                        const beforeDoc = await collection.findOne({ _id: queryId });
 
-                        if (result.matchedCount > 0) {
-                            updated = true;
-                            results.push({ type, id, collection: coll.name, success: true });
-                            break;
+                        if (beforeDoc) {
+                            const beforeCount = beforeDoc.saveCount || 0;
+                            const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown GPU';
+
+                            const result = await collection.updateOne(
+                                { _id: queryId },
+                                { $inc: { saveCount: 1 } }
+                            );
+
+                            if (result.matchedCount > 0) {
+                                // Get the document after updating
+                                const afterDoc = await collection.findOne({ _id: queryId });
+                                const afterCount = afterDoc.saveCount || 0;
+
+                                console.log(`  📈 GPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
+
+                                updated = true;
+                                results.push({ type, id, collection: coll.name, success: true, beforeCount, afterCount });
+                                break;
+                            }
                         }
                     }
 
                     if (!updated) {
-                        console.warn(`GPU not found with ID: ${id}`);
+                        console.warn(`  ⚠️  GPU not found with ID: ${id}`);
                     }
                 } else if (type === 'cpu') {
                     // Try to find in any CPU collection (cpus, cpus_intel_core_i9, cpus_amd_ryzen_7, etc.)
@@ -2861,40 +2876,70 @@ app.post('/api/components/increment-saves', async (req, res) => {
                     for (const coll of cpuCollections) {
                         const collection = db.collection(coll.name);
 
+                        // Get the document before updating
+                        const beforeDoc = await collection.findOne({ _id: queryId });
+
+                        if (beforeDoc) {
+                            const beforeCount = beforeDoc.saveCount || 0;
+                            const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown CPU';
+
+                            const result = await collection.updateOne(
+                                { _id: queryId },
+                                { $inc: { saveCount: 1 } }
+                            );
+
+                            if (result.matchedCount > 0) {
+                                // Get the document after updating
+                                const afterDoc = await collection.findOne({ _id: queryId });
+                                const afterCount = afterDoc.saveCount || 0;
+
+                                console.log(`  📈 CPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
+
+                                updated = true;
+                                results.push({ type, id, collection: coll.name, success: true, beforeCount, afterCount });
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!updated) {
+                        console.warn(`  ⚠️  CPU not found with ID: ${id}`);
+                    }
+                } else {
+                    // For non-GPU/CPU components
+                    const collection = db.collection(collectionName);
+
+                    // Get the document before updating
+                    const beforeDoc = await collection.findOne({ _id: queryId });
+
+                    if (beforeDoc) {
+                        const beforeCount = beforeDoc.saveCount || 0;
+                        const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || `Unknown ${type}`;
+
                         const result = await collection.updateOne(
                             { _id: queryId },
                             { $inc: { saveCount: 1 } }
                         );
 
                         if (result.matchedCount > 0) {
-                            updated = true;
-                            results.push({ type, id, collection: coll.name, success: true });
-                            break;
+                            // Get the document after updating
+                            const afterDoc = await collection.findOne({ _id: queryId });
+                            const afterCount = afterDoc.saveCount || 0;
+
+                            console.log(`  📈 ${type.toUpperCase()}: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
+
+                            results.push({ type, id, collection: collectionName, success: true, beforeCount, afterCount });
                         }
-                    }
-
-                    if (!updated) {
-                        console.warn(`CPU not found with ID: ${id}`);
-                    }
-                } else {
-                    // For non-GPU/CPU components
-                    const collection = db.collection(collectionName);
-
-                    const result = await collection.updateOne(
-                        { _id: queryId },
-                        { $inc: { saveCount: 1 } }
-                    );
-
-                    if (result.matchedCount > 0) {
-                        results.push({ type, id, collection: collectionName, success: true });
                     } else {
-                        console.warn(`Component not found: ${type} with ID ${id}`);
+                        console.warn(`  ⚠️  Component not found: ${type} with ID ${id}`);
                     }
                 }
             } catch (error) {
                 console.error(`Error updating ${type} ${id}:`, error);
             }
         }
+
+        console.log(`✅ Successfully updated ${results.length} of ${components.length} components`);
 
         res.json({
             success: true,
