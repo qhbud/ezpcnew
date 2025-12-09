@@ -333,11 +333,29 @@ header p {
     font-size: 1.1rem;
 }
 
+/* Mobile-first: Single column by default */
 .parts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    display: grid !important;
+    grid-template-columns: 1fr !important;
     gap: 25px;
     margin-bottom: 30px;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#partsGrid {
+    grid-template-columns: 1fr !important;
+}
+
+/* Desktop: 2-3 columns on large screens only */
+@media (min-width: 1024px) {
+    .parts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)) !important;
+    }
+
+    #partsGrid {
+        grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)) !important;
+    }
 }
 
 .part-card {
@@ -595,46 +613,46 @@ tr.incompatible td {
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .container {
         padding: 15px;
     }
-    
+
     header h1 {
         font-size: 2rem;
     }
-    
+
     .category-nav {
         gap: 8px;
     }
-    
+
     .nav-btn {
         padding: 10px 16px;
         font-size: 0.8rem;
     }
-    
+
     .search-section {
         flex-direction: column;
         align-items: center;
     }
-    
+
     .search-input {
         max-width: 100%;
     }
-    
+
     .filters {
         justify-content: center;
     }
-    
+
     .parts-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: 20px;
     }
-    
+
     .part-card {
         padding: 20px;
     }
-    
+
     .part-specs {
         grid-template-columns: 1fr;
     }
@@ -1082,43 +1100,43 @@ tr.incompatible td {
     justify-content: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .gpu-selector {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .gpu-card-large {
         grid-template-columns: 1fr;
         text-align: center;
         gap: 15px;
     }
-    
+
     .gpu-image {
         justify-self: center;
     }
-    
+
     .main-nav {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .main-tab {
         padding: 12px 20px;
         font-size: 0.9rem;
     }
-    
+
     .cpu-selector {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .cpu-card-large {
         grid-template-columns: 1fr;
         text-align: center;
         gap: 15px;
     }
-    
+
     .cpu-image {
         justify-self: center;
     }
@@ -2085,4 +2103,39 @@ tr.incompatible td {
 
 .modal-content-wrapper:has(.component-details-panel.hidden) .modal-content {
     border-radius: 12px !important;
+}
+
+/* ===========================
+   CONTACT EMAIL BOX
+   =========================== */
+.contact-email-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.contact-email-box:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.contact-email-box i {
+    font-size: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .contact-email-box {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+    }
 }

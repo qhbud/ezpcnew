@@ -33,7 +33,17 @@ node scripts/updateAllComponentPrices.js
 
 echo.
 echo ======================================================================
-echo   Update Complete!
+echo   Price Update Complete!
+echo ======================================================================
+echo.
+echo Now purging components without valid pricing...
+echo.
+
+node scripts/removeAllComponentsWithoutPrices.js
+
+echo.
+echo ======================================================================
+echo   All Operations Complete!
 echo ======================================================================
 echo.
 pause
