@@ -1487,6 +1487,16 @@ class PartsDatabase {
         const partsGrid = document.getElementById('partsGrid');
         partsGrid.innerHTML = '';
 
+        // Force single column on mobile
+        const isMobile = window.innerWidth <= 1200;
+        console.log(`Mobile detection: width=${window.innerWidth}, isMobile=${isMobile}`);
+        if (isMobile) {
+            partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+            console.log('Applied single column grid to mobile (with !important)');
+        } else {
+            partsGrid.style.gridTemplateColumns = '';
+        }
+
         const currentParts = this.currentTab === 'gpu' ? this.filteredGPUs : this.filteredParts;
 
         if (currentParts.length === 0) {
@@ -1517,6 +1527,14 @@ class PartsDatabase {
                 partsGrid.appendChild(coolerCard);
             }
         });
+
+        // Re-apply mobile grid after parts are rendered
+        if (isMobile) {
+            setTimeout(() => {
+                partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+                console.log('✓ Re-applied single column grid after parts rendered (with !important)');
+            }, 100);
+        }
     }
 
     renderGPUs() {
@@ -2159,10 +2177,14 @@ class PartsDatabase {
     // GPU Selector Methods
     async populateGpuSelector() {
         const gpuSelect = document.getElementById('gpuSelect');
+
+        // Preserve the currently selected value before clearing
+        const currentSelectedValue = gpuSelect.value;
+
         gpuSelect.innerHTML = '<option value="">Choose a GPU...</option>';
-        
+
         if (this.allGPUs.length === 0) return;
-        
+
         // Group GPUs by model for better organization
         const gpuModels = {};
         this.allGPUs.forEach(gpu => {
@@ -2172,35 +2194,60 @@ class PartsDatabase {
             }
             gpuModels[modelName].push(gpu);
         });
-        
+
         // Sort models and add to selector
         const sortedModels = Object.keys(gpuModels).sort((a, b) => {
             // Sort NVIDIA first, then AMD, then others
             const aManufacturer = this.getManufacturerFromModel(a);
             const bManufacturer = this.getManufacturerFromModel(b);
-            
+
             if (aManufacturer === bManufacturer) {
                 return a.localeCompare(b);
             }
-            
+
             if (aManufacturer === 'NVIDIA') return -1;
             if (bManufacturer === 'NVIDIA') return 1;
             if (aManufacturer === 'AMD') return -1;
             if (bManufacturer === 'AMD') return 1;
-            
+
             return a.localeCompare(b);
         });
-        
+
         sortedModels.forEach(model => {
             const gpus = gpuModels[model];
             const avgPrice = gpus.reduce((sum, gpu) => sum + (gpu.price || 0), 0) / gpus.length;
             const priceText = avgPrice > 0 ? ` - ~$${Math.round(avgPrice)}` : '';
-            
+
             const option = document.createElement('option');
             option.value = JSON.stringify(gpus[0]); // Use first GPU as representative
             option.textContent = `${model}${priceText} (${gpus.length} available)`;
             gpuSelect.appendChild(option);
         });
+
+        // Restore the previously selected value if it exists in the new options
+        // Also restore if we have a selectedGPU stored
+        if (this.selectedGPU && currentSelectedValue) {
+            // Try to find the option with matching value
+            const options = Array.from(gpuSelect.options);
+            const matchingOption = options.find(opt => {
+                if (!opt.value) return false;
+                try {
+                    const optGpu = JSON.parse(opt.value);
+                    const selectedModel = this.extractModelName(this.selectedGPU);
+                    const optModel = this.extractModelName(optGpu);
+                    return selectedModel === optModel;
+                } catch (e) {
+                    return false;
+                }
+            });
+
+            if (matchingOption) {
+                gpuSelect.value = matchingOption.value;
+            }
+        } else if (currentSelectedValue) {
+            // Just restore the exact value if it still exists
+            gpuSelect.value = currentSelectedValue;
+        }
     }
 
     extractModelName(gpu) {
@@ -2322,10 +2369,53 @@ class PartsDatabase {
         document.querySelector('.gpu-selector').style.display = 'flex';
         document.querySelector('.gpu-selector-section p').textContent = 'Select a GPU to build your PC around';
         document.getElementById('selectedGpu').classList.add('hidden');
-        
-        // Reset selector
-        document.getElementById('gpuSelect').value = '';
-        document.getElementById('selectGpuBtn').disabled = true;
+
+        const gpuSelect = document.getElementById('gpuSelect');
+
+        // If we have a selected GPU, keep it selected in the dropdown
+        if (this.selectedGPU) {
+            // The dropdown should already have the correct value from populateGpuSelector
+            // Just make sure the button is enabled
+            document.getElementById('selectGpuBtn').disabled = false;
+        } else {
+            // Reset selector only if no GPU is selected
+            gpuSelect.value = '';
+            document.getElementById('selectGpuBtn').disabled = true;
+        }
+
+        // Scroll to the GPU selector section
+        const gpuSelectorSection = document.querySelector('.gpu-selector-section');
+        if (gpuSelectorSection) {
+            gpuSelectorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // After scrolling to the section, scroll the selected option into view within the dropdown
+        if (this.selectedGPU && gpuSelect.value) {
+            // Small delay to allow the section scroll to complete first
+            setTimeout(() => {
+                const selectedIndex = gpuSelect.selectedIndex;
+                if (selectedIndex > 0) {
+                    // Convert select to a list box temporarily to enable scrolling
+                    const originalSize = gpuSelect.size;
+                    gpuSelect.size = 10; // Show 10 items at once
+
+                    // Calculate the scroll position to center the selected option
+                    const optionHeight = 30; // Approximate height of each option
+                    const scrollTop = Math.max(0, (selectedIndex - 5) * optionHeight);
+
+                    // Scroll to the selected option
+                    gpuSelect.scrollTop = scrollTop;
+
+                    // Focus to make it visible
+                    gpuSelect.focus();
+
+                    // Revert back to dropdown after a moment
+                    setTimeout(() => {
+                        gpuSelect.size = originalSize || 0;
+                    }, 100);
+                }
+            }, 600); // 600ms delay to let the section scroll animation finish
+        }
     }
 
     buildAroundGPU() {
@@ -4101,6 +4191,12 @@ class PartsDatabase {
             console.log('Showing statistics section');
             statisticsSection.classList.remove('hidden');
 
+            // Hide contact info from build box, show in stats box
+            const buildBoxContactInfo = document.getElementById('buildBoxContactInfo');
+            const statsBoxContactInfo = document.getElementById('statsBoxContactInfo');
+            if (buildBoxContactInfo) buildBoxContactInfo.style.display = 'none';
+            if (statsBoxContactInfo) statsBoxContactInfo.style.display = 'block';
+
             // Render GPU statistics
             console.log('Rendering GPU chart...');
             await this.renderBuildStatisticsChart('gpu', 'buildGpuStatisticsCanvas', this.currentBuild.gpu, false);
@@ -4119,6 +4215,12 @@ class PartsDatabase {
         } else {
             console.log('Hiding statistics section - not all components selected');
             statisticsSection.classList.add('hidden');
+
+            // Show contact info in build box, hide from stats box
+            const buildBoxContactInfo = document.getElementById('buildBoxContactInfo');
+            const statsBoxContactInfo = document.getElementById('statsBoxContactInfo');
+            if (buildBoxContactInfo) buildBoxContactInfo.style.display = 'block';
+            if (statsBoxContactInfo) statsBoxContactInfo.style.display = 'none';
         }
     }
 
@@ -5561,6 +5663,10 @@ class PartsDatabase {
         const ramTypeCompatInfo = document.getElementById('ramTypeCompatInfo');
 
         if (componentType === 'motherboard' && this.currentBuild && (this.currentBuild.cpu || this.currentBuild.ram || this.currentBuild.case)) {
+            // Hide PSU wattage container for motherboard selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
             // Show the main compatibility container
             if (compatibilityInfoContainer) {
                 compatibilityInfoContainer.style.display = 'block';
@@ -5619,6 +5725,10 @@ class PartsDatabase {
                 });
             }
         } else if (componentType === 'cpu' && this.currentBuild && this.currentBuild.motherboard) {
+            // Hide PSU wattage container for CPU selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
             // Show CPU socket compatibility if motherboard is selected
             if (compatibilityInfoContainer) {
                 compatibilityInfoContainer.style.display = 'block';
@@ -5654,6 +5764,10 @@ class PartsDatabase {
                 });
             }
         } else if (componentType === 'ram' && this.currentBuild && this.currentBuild.motherboard) {
+            // Hide PSU wattage container for RAM selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
             // Show RAM compatibility if motherboard is selected
             if (compatibilityInfoContainer) {
                 compatibilityInfoContainer.style.display = 'block';
@@ -5703,6 +5817,10 @@ class PartsDatabase {
                 });
             }
         } else if (componentType === 'cooler' && this.currentBuild && this.currentBuild.cpu) {
+            // Hide PSU wattage container for cooler selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
             // Show cooler socket compatibility if CPU is selected
             if (compatibilityInfoContainer) {
                 compatibilityInfoContainer.style.display = 'block';
@@ -5853,8 +5971,41 @@ class PartsDatabase {
                 // Wait a bit for the table to render
                 setTimeout(() => {
                     this.showSingleComponentDetails(selectedComponent, componentType, 0);
+
+                    // Scroll to the selected component row after table is fully rendered
+                    setTimeout(() => {
+                        this.scrollToSelectedComponent(selectedComponent);
+                    }, 200);
                 }, 100);
             }
+        }
+    }
+
+    scrollToSelectedComponent(selectedComponent) {
+        // Find the selected row in the modal table (not the builder display)
+        const modalBody = document.querySelector('.modal-body');
+        if (!modalBody) return;
+
+        // Find the component-selected row that is inside the modal
+        const selectedRow = modalBody.querySelector('.component-selected');
+
+        if (selectedRow) {
+            // Get the position of the row relative to the modal body
+            const rowRect = selectedRow.getBoundingClientRect();
+            const modalRect = modalBody.getBoundingClientRect();
+
+            // Calculate how much to scroll to center the row
+            const rowRelativeTop = rowRect.top - modalRect.top + modalBody.scrollTop;
+            const rowHeight = selectedRow.offsetHeight;
+            const modalHeight = modalBody.clientHeight;
+
+            // Center the row in the modal
+            const scrollPosition = rowRelativeTop - (modalHeight / 2) + (rowHeight / 2);
+
+            modalBody.scrollTo({
+                top: Math.max(0, scrollPosition),
+                behavior: 'smooth'
+            });
         }
     }
 
@@ -7997,7 +8148,15 @@ class PartsDatabase {
             const coolerDiv = document.getElementById('selectedBuilderCooler');
             if (coolerDiv && coolerDiv.getAttribute('data-stock-cooler') === 'true') {
                 this.showStockCooler(component);
+            } else {
+                // Custom cooler is selected, update the "Use Stock Cooler" button visibility
+                this.updateStockCoolerButton();
             }
+        }
+
+        // If selecting a CPU, update the stock cooler button visibility
+        if (componentType === 'cpu') {
+            this.updateStockCoolerButton();
         }
 
         // If removing a CPU with included cooler, remove stock cooler display
@@ -8104,12 +8263,20 @@ class PartsDatabase {
             `;
         }
 
+        // Create stock cooler button HTML for cooler components
+        const stockCoolerBtn = componentType === 'cooler' ? `
+            <button id="useStockCoolerBtn" style="display: none; position: absolute; top: 54px; left: 12px; background: #ef4444; color: white; border: none; border-radius: 6px; width: 36px; height: 36px; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);" onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(239, 68, 68, 0.3)';" onclick="pcBuilder.useStockCooler()" title="Use Stock Cooler">
+                <i class="fas fa-times" style="font-size: 14px;"></i>
+            </button>
+        ` : '';
+
         // Create detailed component card similar to details panel
         const detailsHTML = `
             <div class="builder-component-card">
                 <button class="swap-component-btn" onclick="pcBuilder.swapComponent('${componentType}')" title="Swap Component">
                     <i class="fas fa-exchange-alt"></i>
                 </button>
+                ${stockCoolerBtn}
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
                     <div class="detail-image-container" style="position: relative;">
                         ${imageUrl ?
@@ -8155,6 +8322,13 @@ class PartsDatabase {
 
         // Add class to indicate component is selected
         selectedDiv.classList.add('component-selected');
+
+        // If this is a cooler component, clear the stock cooler flag and update button visibility
+        if (componentType === 'cooler') {
+            // Remove stock cooler attribute since this is a custom cooler
+            selectedDiv.removeAttribute('data-stock-cooler');
+            this.updateStockCoolerButton();
+        }
 
         // Note: updateComponentPositions() is not needed here - it's only called when
         // sections are added/removed/closed, not when selecting components
@@ -8337,6 +8511,60 @@ class PartsDatabase {
         if (selectedDiv && selectedDiv.getAttribute('data-stock-cooler') === 'true') {
             selectedDiv.removeAttribute('data-stock-cooler');
         }
+    }
+
+    updateStockCoolerButton() {
+        const useStockCoolerBtn = document.getElementById('useStockCoolerBtn');
+        console.log('updateStockCoolerButton called, button found:', !!useStockCoolerBtn);
+
+        if (!useStockCoolerBtn) {
+            console.log('useStockCoolerBtn element not found in DOM');
+            return;
+        }
+
+        // Show the button only if:
+        // 1. A CPU is selected
+        // 2. The CPU includes a cooler (coolerIncluded === true)
+        // 3. A custom cooler is selected (not a stock cooler)
+        const cpu = this.currentBuild.cpu;
+        const coolerDiv = document.getElementById('selectedBuilderCooler');
+        const isStockCooler = coolerDiv && coolerDiv.getAttribute('data-stock-cooler') === 'true';
+        const coolerDisplayed = coolerDiv && coolerDiv.style.display !== 'none';
+
+        console.log('Stock cooler button check:', {
+            hasCPU: !!cpu,
+            cpuIncludesCooler: cpu?.coolerIncluded,
+            coolerDisplayed: coolerDisplayed,
+            isStockCooler: isStockCooler
+        });
+
+        // Show button if CPU has stock cooler AND a custom (non-stock) cooler is displayed
+        if (cpu && cpu.coolerIncluded === true && coolerDisplayed && !isStockCooler) {
+            console.log('Showing use stock cooler button');
+            useStockCoolerBtn.style.display = 'inline-block';
+        } else {
+            console.log('Hiding use stock cooler button');
+            useStockCoolerBtn.style.display = 'none';
+        }
+    }
+
+    useStockCooler() {
+        // Remove the custom cooler
+        this.currentBuild.cooler = null;
+
+        // Show the stock cooler
+        if (this.currentBuild.cpu && this.currentBuild.cpu.coolerIncluded === true) {
+            this.showStockCooler(this.currentBuild.cpu);
+        }
+
+        // Update prices and compatibility
+        this.updateTotalPrice();
+        this.checkCompatibility();
+        this.updateBuildActions();
+        this.updateBuildStatistics();
+
+        // Hide the "Use Stock Cooler" button
+        this.updateStockCoolerButton();
     }
 
     updateComponentPositions() {
@@ -12251,4 +12479,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize particle system
     new ParticleSystem();
+
+    // Debug: Check initial window dimensions
+    console.log(`=== PAGE LOAD DEBUG ===`);
+    console.log(`Window dimensions: ${window.innerWidth}x${window.innerHeight}`);
+    console.log(`Screen dimensions: ${screen.width}x${screen.height}`);
+    console.log(`Device pixel ratio: ${window.devicePixelRatio}`);
+    console.log(`Is mobile (≤1200px): ${window.innerWidth <= 1200}`);
+
+    // Immediately apply mobile grid if needed - multiple attempts
+    const applyMobileGrid = () => {
+        const partsGrid = document.getElementById('partsGrid');
+        const title = document.querySelector('.hero-content h1');
+        console.log(`Grid setup attempt - partsGrid exists: ${!!partsGrid}, title exists: ${!!title}`);
+        if (partsGrid) {
+            const isMobile = window.innerWidth <= 1200;
+            const currentStyle = window.getComputedStyle(partsGrid).gridTemplateColumns;
+            console.log(`  Current grid-template-columns: ${currentStyle}`);
+            console.log(`  Width: ${window.innerWidth}, isMobile: ${isMobile}`);
+            if (isMobile) {
+                // Visual indicator - turn title red on mobile
+                if (title) {
+                    title.style.setProperty('color', 'red', 'important');
+                    console.log('  ✓ Title set to RED (mobile detected)');
+                } else {
+                    console.log('  ✗ Title element not found!');
+                }
+                // Use cssText to force !important
+                partsGrid.style.cssText += 'grid-template-columns: 1fr !important;';
+                const newStyle = window.getComputedStyle(partsGrid).gridTemplateColumns;
+                console.log(`  ✓ Applied 1fr with cssText, new computed style: ${newStyle}`);
+            } else {
+                // Desktop - keep title white
+                if (title) {
+                    title.style.setProperty('color', 'white', 'important');
+                }
+            }
+        } else {
+            console.log(`  ✗ partsGrid element not found!`);
+        }
+    };
+
+    setTimeout(applyMobileGrid, 500);
+    setTimeout(applyMobileGrid, 1000);
+    setTimeout(applyMobileGrid, 2000);
+    setTimeout(applyMobileGrid, 3000);
+
+    // Add resize listener to update grid layout on mobile
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const partsGrid = document.getElementById('partsGrid');
+            if (partsGrid) {
+                const isMobile = window.innerWidth <= 1200;
+                console.log(`Resize detected: width=${window.innerWidth}, isMobile=${isMobile}`);
+                if (isMobile) {
+                    partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+                } else {
+                    partsGrid.style.gridTemplateColumns = '';
+                }
+            }
+        }, 100);
+    });
 });
