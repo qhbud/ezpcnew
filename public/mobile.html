@@ -34,6 +34,13 @@
 
     <!-- Mobile Override Styles - Force single column on mobile -->
     <style>
+        /* Mobile: Red title indicator */
+        @media (max-width: 1200px) {
+            header h1 {
+                color: red !important;
+            }
+        }
+
         /* Mobile: Force single column for performance buttons */
         @media (max-width: 1200px) {
             .performance-options {
@@ -145,7 +152,7 @@
 </head>
 <body>
     <canvas id="particles-canvas"></canvas>
-    <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode" style="display: none;">
+    <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode">
         <i class="fas fa-bug"></i>
     </button>
     <div class="container">
@@ -2003,47 +2010,15 @@
             width: 100%;
         }
 
-        /* ============================================
-           SINGLE COLUMN LAYOUT (layout-single class)
-           ============================================ */
-        .component-selectors.layout-single .component-row {
+        .component-row {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 24px;
-            width: 100%;
-        }
-
-        .component-selectors.layout-single .component-section {
-            width: 303.75px;
-            min-height: 175px;
-            position: relative;
-        }
-
-        .component-selectors.layout-single .component-select-btn {
-            width: 303.75px !important;
-            height: 141.75px !important;
-            font-size: 0.9rem !important;
-        }
-
-        .component-selectors.layout-single .component-select-btn i {
-            font-size: 1.2rem;
-        }
-
-        /* ============================================
-           DOUBLE COLUMN LAYOUT (layout-double class)
-           ============================================ */
-        .component-selectors.layout-double .component-row {
-            display: flex;
-            flex-direction: row;
             gap: 120px;
             margin-bottom: 24px;
             justify-content: flex-start;
             padding-left: calc((100% - (607.5px * 2 + 120px)) / 2);
         }
 
-        .component-selectors.layout-double .component-section {
+        .component-section {
             flex: 0 0 607.5px;
             width: 607.5px;
             min-width: 607.5px;
@@ -2052,22 +2027,6 @@
             position: relative;
         }
 
-        /* ============================================
-           SHARED STYLES (Both layouts)
-           ============================================ */
-        .component-section {
-            position: relative;
-        }
-
-        .component-select-btn {
-            width: 607.5px !important;
-            height: 283.5px !important;
-            min-height: unset;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-        }
 
         .component-section-full {
             flex: 0 0 607.5px;
@@ -2081,6 +2040,16 @@
             align-items: center;
             justify-content: center;
             margin-top: 12px;
+        }
+
+        .component-select-btn {
+            width: 607.5px !important;
+            height: 283.5px !important;
+            min-height: unset;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
         }
 
         .component-section {
@@ -2513,7 +2482,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=3"></script>
     <script>
         // Budget Modal Functions
         let isUnlimited = false;
