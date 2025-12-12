@@ -86,6 +86,8 @@ header h1 {
     margin-bottom: 10px;
 }
 
+/* Mobile indicator removed - header title stays white on all devices */
+
 header h1 i {
     color: #60a5fa;
     margin-right: 15px;
@@ -335,23 +337,61 @@ header p {
 
 /* Mobile-first: Single column by default */
 .parts-grid {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
     gap: 25px;
     margin-bottom: 30px;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 #partsGrid {
-    grid-template-columns: 1fr;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+}
+
+/* Maximum specificity override */
+div#partsGrid.parts-grid {
+    grid-template-columns: 1fr !important;
+}
+
+/* Force single column on mobile with maximum specificity */
+#partsGrid.mobile-single-column,
+.parts-grid.mobile-single-column {
+    grid-template-columns: 1fr !important;
+    display: grid !important;
+}
+
+/* Enforce single column on mobile/tablet (≤1200px) */
+@media (max-width: 1200px) {
+    .parts-grid,
+    #partsGrid,
+    div#partsGrid,
+    div#partsGrid.parts-grid,
+    div.parts-grid#partsGrid {
+        grid-template-columns: 1fr !important;
+        display: grid !important;
+    }
+
+    .performance-options {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .performance-option-btn {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
 }
 
 /* Desktop: 2-3 columns on large screens only (desktop monitors 1440px+) */
-@media (min-width: 1440px) {
-    .parts-grid {
+@media (min-width: 1201px) {
+    .parts-grid:not(.mobile-single-column) {
         grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
     }
 
-    #partsGrid {
+    #partsGrid:not(.mobile-single-column) {
         grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
     }
 }
@@ -642,7 +682,11 @@ tr.incompatible td {
         justify-content: center;
     }
 
-    .parts-grid {
+    .parts-grid,
+    #partsGrid,
+    div#partsGrid,
+    div#partsGrid.parts-grid,
+    div.parts-grid#partsGrid {
         grid-template-columns: 1fr !important;
         gap: 20px;
     }
@@ -1922,7 +1966,16 @@ tr.incompatible td {
     gap: 15px;
     justify-content: center;
     flex-wrap: wrap;
+    flex-direction: row;
     margin-top: 30px;
+}
+
+@media (max-width: 1200px) {
+    .performance-options {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+    }
 }
 
 .performance-option-btn {
@@ -1939,6 +1992,15 @@ tr.incompatible td {
     flex-direction: column;
     align-items: center;
     gap: 12px;
+}
+
+@media (max-width: 1200px) {
+    .performance-option-btn {
+        min-width: 100% !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        flex: none !important;
+    }
 }
 
 .performance-option-btn i {
@@ -2137,85 +2199,6 @@ tr.incompatible td {
         font-size: 0.9rem;
     }
 
-    /* Mobile Budget Wizard Modal - Make it smaller */
-    .budget-modal-content {
-        max-width: 400px;
-        width: 95%;
-    }
-
-    .budget-modal-header {
-        padding: 20px;
-    }
-
-    .budget-modal-header h2 {
-        font-size: 1.3rem;
-    }
-
-    .wizard-question-counter {
-        padding: 4px 10px;
-        font-size: 0.8rem;
-    }
-
-    .budget-modal-close {
-        width: 32px;
-        height: 32px;
-        font-size: 1.2rem;
-    }
-
-    .budget-modal-body {
-        padding: 25px;
-    }
-
-    .question-label {
-        font-size: 1.1rem;
-        margin-bottom: 15px;
-    }
-
-    .question-description {
-        font-size: 0.85rem;
-        margin-bottom: 20px;
-    }
-
-    .budget-input {
-        font-size: 1.3rem;
-        padding: 15px 20px 15px 50px;
-    }
-
-    .currency-symbol {
-        font-size: 1.2rem;
-        left: 18px;
-    }
-
-    .performance-option-btn {
-        padding: 18px;
-    }
-
-    .performance-option-btn .option-title {
-        font-size: 1rem;
-    }
-
-    .performance-option-btn .option-subtitle {
-        font-size: 0.8rem;
-    }
-
-    .performance-option-btn i {
-        font-size: 1.8rem;
-    }
-
-    .budget-slider-container,
-    .storage-slider-container {
-        margin-top: 15px;
-    }
-
-    .slider-value-display {
-        font-size: 1rem;
-    }
-
-    .navigation-buttons button {
-        padding: 12px 24px;
-        font-size: 0.95rem;
-    }
-
     /* Budget Modal Footer - Mobile responsive */
     .budget-modal-footer {
         display: flex;
@@ -2237,12 +2220,369 @@ tr.incompatible td {
     .budget-next-btn {
         padding: 10px 16px;
         font-size: 0.85rem;
-        flex: 1 1 0;
-        min-width: 0;
+        flex: 0 1 auto;
+        min-width: 90px;
+        max-width: 140px;
     }
 
     .budget-back-btn i,
     .budget-next-btn i {
         font-size: 0.8rem;
+    }
+
+    /* Performance option buttons - smaller on mobile */
+    .performance-option-btn {
+        padding: 12px;
+        min-height: 80px;
+    }
+
+    .performance-option-btn i {
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+    }
+
+    .performance-option-btn .option-title {
+        font-size: 0.9rem;
+        margin-bottom: 3px;
+    }
+
+    .performance-option-btn .option-subtitle {
+        font-size: 0.7rem;
+    }
+
+    /* Build Summary - Mobile */
+    .build-summary {
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .summary-item {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+
+    .summary-label {
+        font-size: 0.8rem;
+    }
+
+    .summary-value {
+        font-size: 0.9rem;
+    }
+
+    /* Build Components List - Mobile */
+    .build-components {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .build-component-card {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+
+    .component-card-header {
+        font-size: 0.75rem;
+        margin-bottom: 4px;
+    }
+
+    .component-type {
+        font-size: 0.7rem;
+    }
+
+    .component-price {
+        font-size: 0.8rem;
+    }
+
+    .component-name {
+        font-size: 0.75rem;
+        line-height: 1.2;
+        margin-bottom: 4px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .component-specs {
+        font-size: 0.65rem;
+        gap: 3px;
+    }
+
+    .spec-badge {
+        font-size: 0.6rem;
+        padding: 2px 5px;
+    }
+
+    /* Limit the overall build result modal height */
+    .budget-modal-body {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    /* Accept Build button - don't stretch */
+    .budget-next-btn[onclick*="acceptBuild"] {
+        flex: 0 1 auto;
+        align-self: center;
+        max-width: 180px;
+        margin: 0 auto;
+    }
+
+    /* Center single buttons in footer */
+    .budget-modal-footer:has(.budget-next-btn:only-of-type) {
+        justify-content: center;
+    }
+
+    /* Builder Component Cards - Mobile - Scale proportionally */
+    .builder-component-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        transform: scale(1.0);
+        transform-origin: center top;
+        margin: 0 !important;
+    }
+
+    /* Alternative: If transform causes issues, use this instead */
+    .selected-component {
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Price Range Container - Mobile */
+    #priceRangeContainer {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 0 0 12px 0 !important;
+    }
+
+    #priceRangeContainer label {
+        font-size: 11px !important;
+        flex-basis: 100%;
+    }
+
+    #priceRangeContainer input[type="number"] {
+        width: 70px !important;
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+    }
+
+    #priceRangeContainer span {
+        font-size: 11px !important;
+    }
+
+    #clearPriceRangeBtn {
+        padding: 5px 10px !important;
+        font-size: 11px !important;
+        white-space: nowrap;
+    }
+
+    /* Mobile details panel toggle button - Stays on right, chevron changes direction */
+    .mobile-details-toggle {
+        position: fixed;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 60px;
+        background: rgba(59, 130, 246, 0.95);
+        border: none;
+        border-radius: 8px 0 0 8px;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        z-index: 1300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease;
+    }
+
+    .mobile-details-toggle:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+
+    /* Modal wrapper - allow overflow on mobile for slide animation */
+    .modal-content-wrapper {
+        overflow-x: hidden !important;
+    }
+
+    /* Component details panel - slide in from right */
+    .component-details-panel {
+        position: absolute !important;
+        right: 0 !important;
+        top: 0 !important;
+        height: 100% !important;
+        transform: translateX(0) !important;
+        transition: transform 0.3s ease-out !important;
+        z-index: 1200 !important;
+        background: white;
+    }
+
+    .component-details-panel.hidden {
+        transform: translateX(100%) !important;
+        display: flex !important;
+    }
+
+    /* Fade and darken component selection when details panel is visible */
+    .modal-content-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0);
+        backdrop-filter: blur(0px);
+        pointer-events: none;
+        z-index: 1100;
+        transition: all 0.3s ease-out;
+    }
+
+    .modal-content-wrapper:has(.component-details-panel:not(.hidden))::before {
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(3px);
+    }
+
+    /* Hide toggle on desktop */
+    @media (min-width: 1025px) {
+        .mobile-details-toggle {
+            display: none !important;
+        }
+    }
+
+}
+
+/* Incompatibility warning overlay - top left corner of image */
+.image-incompatibility-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 50;
+    max-width: 50%;
+    filter: none !important;
+}
+
+.incompatibility-warning-badge {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.3;
+    text-align: left;
+    filter: none !important;
+}
+
+/* Grayscale incompatible components */
+.incompatible-component {
+    filter: grayscale(1) brightness(0.95);
+    opacity: 0.85;
+}
+
+.incompatible-component img {
+    filter: grayscale(1) brightness(0.95);
+}
+
+.incompatible-component .detail-image-container {
+    filter: grayscale(1) brightness(0.95);
+}
+
+/* Incompatible button styling - yellow warning */
+.select-component-btn.incompatible-button {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    border-color: #d97706 !important;
+}
+
+.select-component-btn.incompatible-button:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    border-color: #b45309 !important;
+}
+
+/* Incompatible build component card styling */
+.incompatible-build-card {
+    border: 2px solid #f59e0b !important;
+    background: rgba(245, 158, 11, 0.05) !important;
+}
+
+.incompatible-build-component {
+    filter: grayscale(1) brightness(0.9);
+    opacity: 0.75;
+}
+
+.incompatible-build-component img {
+    filter: grayscale(1) brightness(0.9);
+}
+
+/* Yellow error symbol in center of incompatible component */
+.incompatibility-overlay-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: rgba(245, 158, 11, 0.95);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 15;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+}
+
+.incompatibility-overlay-center i {
+    font-size: 40px;
+    color: white;
+}
+
+/* Incompatibility text below image */
+.incompatibility-text-overlay {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    background: rgba(245, 158, 11, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    z-index: 15;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+    line-height: 1.3;
+}
+
+/* Incompatible swap button - yellow */
+.swap-component-btn.incompatible-swap-btn {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+}
+
+.swap-component-btn.incompatible-swap-btn:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+}
+
+/* Incompatible badge - yellow */
+.image-manufacturer-badge.incompatible-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+}
+
+/* FINAL OVERRIDE - Mobile single column - Nuclear option */
+@media (max-width: 1200px) {
+    div#partsGrid,
+    #partsGrid,
+    .parts-grid,
+    div.parts-grid,
+    div#partsGrid.parts-grid {
+        grid-template-columns: 1fr !important;
+        display: grid !important;
     }
 }

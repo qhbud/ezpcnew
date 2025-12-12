@@ -1582,26 +1582,161 @@ app.post('/api/ai-build', async (req, res) => {
 
         debugLog.selections.push(cpuDebug);
 
-        // 3. Select Motherboard (compatible with CPU) - CRITICAL: Must always have a motherboard
+        // 3. Select RAM (prioritize 32GB for multi, 16GB for single)
+        // Skip if RAM was already pre-selected for budget build
+        if (selectedParts.ram) {
+            console.log(`✓ Skipping RAM selection - already pre-selected for budget build`);
+        } else {
+            const ramBudget = maxBudget * allocations.ram;
+            const preferredCapacity = performance === 'multi' ? '32GB' : '16GB';
+
+        const ramDebug = {
+            component: 'RAM',
+            budget: `$${ramBudget.toFixed(2)}`,
+            searchCriteria: `Price: $0 - $${(ramBudget * 1.3).toFixed(2)} (30% buffer)`,
+            preferredCapacity: preferredCapacity,
+            candidatesFound: 0,
+            topCandidates: []
+        };
+
+        // Build query without memory type requirement (motherboard not selected yet)
+        // Extract numeric capacity from preferredCapacity (e.g., "16GB" -> 16)
+        const numericCapacity = parseInt(preferredCapacity);
+
+        const ramQuery = {
+            currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
+            capacity: { $gte: numericCapacity } // Search for capacity as number, not string
+        };
+
+        let rams = await db.collection('rams').find(ramQuery)
+            .sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
+
+        // Filter out laptop RAM by checking product name
+        rams = rams.filter(ram => {
+            const name = (ram.name || ram.title || '').toLowerCase();
+            const formFactor = (ram.formFactor || '').toLowerCase();
+
+            // Check formFactor if it exists (prioritize this)
+            if (formFactor) {
+                // Exclude SODIMM (laptop RAM)
+                if (formFactor.includes('sodimm')) return false;
+                // Include DIMM (desktop RAM)
+                if (formFactor.includes('dimm')) return true;
+            }
+
+            // Fallback: Check product name for laptop keywords
+            const laptopKeywords = ['laptop', 'notebook', 'sodimm', 'so-dimm'];
+            for (const keyword of laptopKeywords) {
+                if (name.includes(keyword)) return false;
+            }
+
+            // If no laptop keywords found, assume it's desktop RAM
+            return true;
+        });
+
+        ramDebug.candidatesFound = rams.length;
+
+        // Fallback 1: Try without capacity filter
+        if (rams.length === 0) {
+            ramDebug.fallbackSearch = 'Removed capacity filter';
+            let allRams = await db.collection('rams').find({
+                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 }
+            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
+
+            // Filter out laptop RAM
+            rams = allRams.filter(ram => {
+                const name = (ram.name || ram.title || '').toLowerCase();
+                const formFactor = (ram.formFactor || '').toLowerCase();
+                if (formFactor && formFactor.includes('sodimm')) return false;
+                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
+                return !laptopKeywords.some(kw => name.includes(kw));
+            });
+            ramDebug.candidatesFound = rams.length;
+        }
+
+        // Fallback 2: Try DDR4 specifically (usually more affordable)
+        if (rams.length === 0) {
+            ramDebug.fallbackSearch = 'Trying DDR4 specifically';
+
+            let allRams = await db.collection('rams').find({
+                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
+                memoryType: { $regex: 'DDR4', $options: 'i' }
+            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
+
+            // Filter out laptop RAM
+            rams = allRams.filter(ram => {
+                const name = (ram.name || ram.title || '').toLowerCase();
+                const formFactor = (ram.formFactor || '').toLowerCase();
+                if (formFactor && formFactor.includes('sodimm')) return false;
+                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
+                return !laptopKeywords.some(kw => name.includes(kw));
+            });
+
+            ramDebug.candidatesFound = rams.length;
+        }
+
+        ramDebug.topCandidates = rams.slice(0, 5).map(ram => ({
+            name: ram.name || ram.title,
+            price: `$${parseFloat(ram.currentPrice || ram.price).toFixed(2)}`,
+            capacity: ram.capacity,
+            speed: ram.speed,
+            memoryType: ram.memoryType
+        }));
+
+        if (rams.length > 0) {
+            selectedParts.ram = rams[0];
+            const ramPrice = parseFloat(selectedParts.ram.currentPrice || selectedParts.ram.price);
+            totalCost += ramPrice;
+
+            // Set ramMemoryType for motherboard compatibility filtering
+            if (Array.isArray(selectedParts.ram.memoryType)) {
+                ramMemoryType = selectedParts.ram.memoryType[0];
+            } else {
+                ramMemoryType = selectedParts.ram.memoryType;
+            }
+
+            ramDebug.selected = {
+                name: selectedParts.ram.name || selectedParts.ram.title,
+                price: `$${ramPrice.toFixed(2)}`,
+                capacity: selectedParts.ram.capacity,
+                speed: selectedParts.ram.speed,
+                memoryType: selectedParts.ram.memoryType,
+                reason: ramDebug.fallbackSearch
+                    ? `Best RAM available (${ramDebug.fallbackSearch})`
+                    : `Best ${preferredCapacity} RAM within budget`
+            };
+            console.log(`Selected RAM: ${selectedParts.ram.name || selectedParts.ram.title} (${ramMemoryType})`);
+        } else {
+            ramDebug.selected = null;
+            ramDebug.reason = 'No RAM found within budget';
+        }
+
+            debugLog.selections.push(ramDebug);
+        } // End of RAM selection else block
+
+        // 4. Select Motherboard (compatible with CPU and RAM) - CRITICAL: Must always have a motherboard
         const motherboardBudget = maxBudget * allocations.motherboard;
         const motherboardDebug = {
             component: 'Motherboard',
             budget: `$${motherboardBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(motherboardBudget * 1.5).toFixed(2)} (50% buffer)`,
+            searchCriteria: `Price: $0 - $${(motherboardBudget * 1.5).toFixed(2)} (50% buffer), RAM Type: ${ramMemoryType || 'Any'}`,
             attempts: []
         };
 
         let selectedMotherboard = null;
         let compatibleCPU = selectedParts.cpu;
 
-        // First attempt: Try to find motherboard compatible with selected CPU
+        // First attempt: Try to find motherboard compatible with selected CPU and RAM
         if (compatibleCPU) {
             const attempt1 = {
                 attemptNumber: 1,
-                strategy: 'Find motherboard compatible with selected CPU',
+                strategy: 'Find motherboard compatible with CPU and RAM',
                 cpuRequirements: {
                     chipset: compatibleCPU.chipset || 'N/A',
                     socket: compatibleCPU.socket || 'N/A'
+                },
+                ramRequirements: {
+                    memoryType: ramMemoryType || 'N/A'
                 }
             };
 
@@ -1609,7 +1744,7 @@ app.post('/api/ai-build', async (req, res) => {
                 currentPrice: { $gt: 0, $lte: motherboardBudget * 1.5 }
             };
 
-            // CRITICAL: If RAM was pre-selected (budget build), filter motherboards by RAM type
+            // CRITICAL: Filter motherboards by RAM type (RAM is now selected before motherboard)
             if (ramMemoryType) {
                 motherboardFilter.$and = motherboardFilter.$and || [];
                 motherboardFilter.$and.push({
@@ -1618,7 +1753,7 @@ app.post('/api/ai-build', async (req, res) => {
                         { memory_type: { $regex: ramMemoryType, $options: 'i' } }
                     ]
                 });
-                console.log(`🔒 Filtering motherboards for ${ramMemoryType} compatibility`);
+                console.log(`🔒 Filtering motherboards for ${ramMemoryType} compatibility (RAM selected first)`);
             }
 
             // Try to match by chipset or socket
@@ -1701,7 +1836,7 @@ app.post('/api/ai-build', async (req, res) => {
                 currentPrice: { $gt: 0, $lte: motherboardBudget * 1.5 }
             };
 
-            // CRITICAL: Also filter by RAM type if pre-selected
+            // CRITICAL: Filter by RAM type (RAM is always selected before motherboard)
             if (ramMemoryType) {
                 fallbackFilter.$and = fallbackFilter.$and || [];
                 fallbackFilter.$and.push({
@@ -1710,7 +1845,7 @@ app.post('/api/ai-build', async (req, res) => {
                         { memory_type: { $regex: ramMemoryType, $options: 'i' } }
                     ]
                 });
-                console.log(`🔒 Fallback motherboard search also filtering for ${ramMemoryType}`);
+                console.log(`🔒 Fallback motherboard search filtering for ${ramMemoryType} (RAM selected first)`);
             }
 
             const allMotherboards = await db.collection('motherboards').find(fallbackFilter).sort({ currentPrice: 1, price: 1 }).toArray(); // Sort by lowest price first
@@ -1810,163 +1945,6 @@ app.post('/api/ai-build', async (req, res) => {
         }
 
         debugLog.selections.push(motherboardDebug);
-
-        // 4. Select RAM (prioritize 32GB for multi, 16GB for single, MUST match motherboard DDR type)
-        // Skip if RAM was already pre-selected for budget build
-        if (selectedParts.ram) {
-            console.log(`✓ Skipping RAM selection - already pre-selected for budget build`);
-        } else {
-            const ramBudget = maxBudget * allocations.ram;
-            const preferredCapacity = performance === 'multi' ? '32GB' : '16GB';
-
-        // Get motherboard's memory type for compatibility
-        let motherboardMemoryType = null;
-        if (selectedParts.motherboard && selectedParts.motherboard.memoryType) {
-            // memoryType can be an array like ["DDR5"] or ["DDR4"]
-            if (Array.isArray(selectedParts.motherboard.memoryType)) {
-                motherboardMemoryType = selectedParts.motherboard.memoryType[0];
-            } else {
-                motherboardMemoryType = selectedParts.motherboard.memoryType;
-            }
-        }
-
-        const ramDebug = {
-            component: 'RAM',
-            budget: `$${ramBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(ramBudget * 1.3).toFixed(2)} (30% buffer)`,
-            preferredCapacity: preferredCapacity,
-            requiredMemoryType: motherboardMemoryType || 'Any (no motherboard selected)',
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        // Build query with memory type compatibility
-        const ramQuery = {
-            currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-            capacity: { $regex: preferredCapacity, $options: 'i' }
-        };
-
-        // Add memory type filter if motherboard specifies it
-        if (motherboardMemoryType) {
-            ramQuery.memoryType = { $regex: motherboardMemoryType, $options: 'i' };
-        }
-
-        let rams = await db.collection('rams').find(ramQuery)
-            .sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-        // Filter out laptop RAM by checking product name
-        rams = rams.filter(ram => {
-            const name = (ram.name || ram.title || '').toLowerCase();
-            const formFactor = (ram.formFactor || '').toLowerCase();
-
-            // Check formFactor if it exists (prioritize this)
-            if (formFactor) {
-                // Exclude SODIMM (laptop RAM)
-                if (formFactor.includes('sodimm')) return false;
-                // Include DIMM (desktop RAM)
-                if (formFactor.includes('dimm')) return true;
-            }
-
-            // Fallback: Check product name for laptop keywords
-            const laptopKeywords = ['laptop', 'notebook', 'sodimm', 'so-dimm'];
-            for (const keyword of laptopKeywords) {
-                if (name.includes(keyword)) return false;
-            }
-
-            // If no laptop keywords found, assume it's desktop RAM
-            return true;
-        });
-
-        ramDebug.candidatesFound = rams.length;
-
-        // Fallback 1: Try without capacity filter but keep memory type
-        if (rams.length === 0 && motherboardMemoryType) {
-            ramDebug.fallbackSearch = 'Removed capacity filter, kept memory type';
-            let allRams = await db.collection('rams').find({
-                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-                memoryType: { $regex: motherboardMemoryType, $options: 'i' }
-            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-            // Filter out laptop RAM
-            rams = allRams.filter(ram => {
-                const name = (ram.name || ram.title || '').toLowerCase();
-                const formFactor = (ram.formFactor || '').toLowerCase();
-                if (formFactor && formFactor.includes('sodimm')) return false;
-                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
-                return !laptopKeywords.some(kw => name.includes(kw));
-            });
-            ramDebug.candidatesFound = rams.length;
-        }
-
-        // Fallback 2: Try ANY compatible memory type, but prioritize DDR5 then DDR4
-        if (rams.length === 0) {
-            ramDebug.fallbackSearch = 'Trying all memory types, prioritizing DDR5';
-
-            // First try DDR5
-            let allRams = await db.collection('rams').find({
-                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-                memoryType: { $regex: 'DDR5', $options: 'i' }
-            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-            // Filter out laptop RAM
-            rams = allRams.filter(ram => {
-                const name = (ram.name || ram.title || '').toLowerCase();
-                const formFactor = (ram.formFactor || '').toLowerCase();
-                if (formFactor && formFactor.includes('sodimm')) return false;
-                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
-                return !laptopKeywords.some(kw => name.includes(kw));
-            });
-
-            // If DDR5 not found, try DDR4 ONLY if motherboard supports it
-            if (rams.length === 0 && (!motherboardMemoryType || motherboardMemoryType.includes('DDR4'))) {
-                ramDebug.fallbackSearch = 'No DDR5 found, trying DDR4';
-                allRams = await db.collection('rams').find({
-                    currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-                    memoryType: { $regex: 'DDR4', $options: 'i' }
-                }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-                rams = allRams.filter(ram => {
-                    const name = (ram.name || ram.title || '').toLowerCase();
-                    const formFactor = (ram.formFactor || '').toLowerCase();
-                    if (formFactor && formFactor.includes('sodimm')) return false;
-                    const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
-                    return !laptopKeywords.some(kw => name.includes(kw));
-                });
-            }
-
-            ramDebug.candidatesFound = rams.length;
-        }
-
-        ramDebug.topCandidates = rams.slice(0, 5).map(ram => ({
-            name: ram.name || ram.title,
-            price: `$${parseFloat(ram.currentPrice || ram.price).toFixed(2)}`,
-            capacity: ram.capacity,
-            speed: ram.speed,
-            memoryType: ram.memoryType
-        }));
-
-        if (rams.length > 0) {
-            selectedParts.ram = rams[0];
-            const ramPrice = parseFloat(selectedParts.ram.currentPrice || selectedParts.ram.price);
-            totalCost += ramPrice;
-            ramDebug.selected = {
-                name: selectedParts.ram.name || selectedParts.ram.title,
-                price: `$${ramPrice.toFixed(2)}`,
-                capacity: selectedParts.ram.capacity,
-                speed: selectedParts.ram.speed,
-                memoryType: selectedParts.ram.memoryType,
-                reason: ramDebug.fallbackSearch
-                    ? `Best RAM available (${ramDebug.fallbackSearch})`
-                    : `Best ${preferredCapacity} ${motherboardMemoryType || ''} RAM within budget`
-            };
-            console.log(`Selected RAM: ${selectedParts.ram.name || selectedParts.ram.title} (${selectedParts.ram.memoryType})`);
-        } else {
-            ramDebug.selected = null;
-            ramDebug.reason = 'No RAM found within budget';
-        }
-
-            debugLog.selections.push(ramDebug);
-        } // End of RAM selection else block
 
         // 5. Select Storage (CRITICAL: Always include SSD boot drive + evaluate HDD for additional storage)
         const storageBudget = maxBudget * allocations.storage;
