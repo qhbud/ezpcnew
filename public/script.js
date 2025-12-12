@@ -4,6 +4,9 @@ class PartsDatabase {
         this.currentCategory = 'gpus';
         this.currentManufacturer = '';
 
+        // Layout mode: 'single' or 'double'
+        this.layoutMode = 'double'; // Change to 'single' for 1-column layout
+
         // Modal state
         this.currentModalType = '';
         this.currentSortColumn = 'name';
@@ -1492,9 +1495,11 @@ class PartsDatabase {
         console.log(`Mobile detection: width=${window.innerWidth}, isMobile=${isMobile}`);
         if (isMobile) {
             partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+            partsGrid.classList.add('mobile-single-column');
             console.log('Applied single column grid to mobile (with !important)');
         } else {
             partsGrid.style.gridTemplateColumns = '';
+            partsGrid.classList.remove('mobile-single-column');
         }
 
         const currentParts = this.currentTab === 'gpu' ? this.filteredGPUs : this.filteredParts;
@@ -1532,6 +1537,7 @@ class PartsDatabase {
         if (isMobile) {
             setTimeout(() => {
                 partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+                partsGrid.classList.add('mobile-single-column');
                 console.log('✓ Re-applied single column grid after parts rendered (with !important)');
             }, 100);
         }
@@ -6287,41 +6293,54 @@ class PartsDatabase {
                         const caseFormFactors = selectedCase.formFactor || [];
                         const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
                         const motherboardFormFactor = component.formFactor || '';
-                        const moboFFUpper = motherboardFormFactor.toUpperCase();
 
-                        let isCaseCompatible = false;
+                        if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                            let isCaseCompatible = false;
 
-                        // Check if motherboard fits in the case
-                        for (const caseFF of caseFormFactorArray) {
-                            const caseFFUpper = caseFF.toUpperCase();
+                            // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                            const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
 
-                            if (caseFFUpper.includes('E-ATX') || caseFFUpper.includes('EATX')) {
+                            // Check motherboard type (order matters: check more specific first)
+                            const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                            const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                            const isMoboEATX = moboFFUpper.includes('EATX');
+                            const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                            // Check if motherboard fits in the case
+                            for (const caseFF of caseFormFactorArray) {
+                                const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                                // Check case type (order matters: check more specific first)
+                                const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                                const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                                const isCaseEATX = caseFFUpper.includes('EATX');
+                                const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
                                 // E-ATX case accepts all motherboards
-                                isCaseCompatible = true;
-                                break;
-                            } else if (caseFFUpper.includes('ATX') && !caseFFUpper.includes('MATX') && !caseFFUpper.includes('M-ATX')) {
-                                // ATX case: accepts ATX, mATX, ITX
-                                if (moboFFUpper.includes('ATX') || moboFFUpper.includes('ITX')) {
+                                if (isCaseEATX) {
                                     isCaseCompatible = true;
                                     break;
                                 }
-                            } else if (caseFFUpper.includes('MATX') || caseFFUpper.includes('M-ATX') || caseFFUpper.includes('MICRO ATX')) {
-                                // mATX case: accepts mATX, ITX
-                                if (moboFFUpper.includes('MATX') || moboFFUpper.includes('M-ATX') || moboFFUpper.includes('MICRO ATX') || moboFFUpper.includes('ITX')) {
+                                // ATX case: compatible with ATX, mATX, ITX
+                                else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
                                     isCaseCompatible = true;
                                     break;
                                 }
-                            } else if (caseFFUpper.includes('ITX')) {
-                                // ITX case: accepts ITX only
-                                if (moboFFUpper.includes('ITX')) {
+                                // mATX/Micro ATX case: compatible with mATX, ITX
+                                else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                                    isCaseCompatible = true;
+                                    break;
+                                }
+                                // ITX case: compatible with ITX only
+                                else if (isCaseITX && isMoboITX) {
                                     isCaseCompatible = true;
                                     break;
                                 }
                             }
-                        }
 
-                        if (!isCaseCompatible) {
-                            isCompatible = false;
+                            if (!isCaseCompatible) {
+                                isCompatible = false;
+                            }
                         }
                     }
 
@@ -7092,9 +7111,9 @@ class PartsDatabase {
                         isMotherboardCaseCompatible = true;
                         break;
                     }
-                } else if (caseFFUpper.includes('MATX') || caseFFUpper.includes('M-ATX') || caseFFUpper.includes('MICRO ATX')) {
+                } else if (caseFFUpper.includes('MATX') || caseFFUpper.includes('M-ATX') || caseFFUpper.includes('MICRO ATX') || caseFFUpper.includes('MICRO-ATX')) {
                     // mATX case: accepts mATX, ITX
-                    if (moboFFUpper.includes('MATX') || moboFFUpper.includes('M-ATX') || moboFFUpper.includes('MICRO ATX') || moboFFUpper.includes('ITX')) {
+                    if (moboFFUpper.includes('MATX') || moboFFUpper.includes('M-ATX') || moboFFUpper.includes('MICRO ATX') || moboFFUpper.includes('MICRO-ATX') || moboFFUpper.includes('ITX')) {
                         isMotherboardCaseCompatible = true;
                         break;
                     }
@@ -7138,9 +7157,9 @@ class PartsDatabase {
                         isCaseCompatible = true;
                         break;
                     }
-                } else if (caseFFUpper.includes('MATX') || caseFFUpper.includes('M-ATX') || caseFFUpper.includes('MICRO ATX')) {
+                } else if (caseFFUpper.includes('MATX') || caseFFUpper.includes('M-ATX') || caseFFUpper.includes('MICRO ATX') || caseFFUpper.includes('MICRO-ATX')) {
                     // mATX case: compatible with mATX, ITX
-                    if (moboFFUpper.includes('MATX') || moboFFUpper.includes('M-ATX') || moboFFUpper.includes('MICRO ATX') || moboFFUpper.includes('ITX')) {
+                    if (moboFFUpper.includes('MATX') || moboFFUpper.includes('M-ATX') || moboFFUpper.includes('MICRO ATX') || moboFFUpper.includes('MICRO-ATX') || moboFFUpper.includes('ITX')) {
                         isCaseCompatible = true;
                         break;
                     }
@@ -7544,10 +7563,10 @@ class PartsDatabase {
                     ${component.releaseYear || '-'}
                 </td>
                 <td class="performance-cell">
-                    ${performanceScore !== null ? '<span class="performance-score" style="background: ' + this.getPerformanceColor(performanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block;">' + (performanceScore * 100).toFixed(1) + '%</span>' : '-'}
+                    ${performanceScore !== null ? '<span class="performance-score" title="Performance based on data from https://www.tomshardware.com/" style="background: ' + this.getPerformanceColor(performanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block; cursor: help;">' + (performanceScore * 100).toFixed(1) + '%</span>' : '-'}
                 </td>
                 <td class="cpu-only-column" style="display: ${componentType === 'cpu' ? '' : 'none'};">
-                    ${multiThreadPerformanceScore !== null ? '<span class="performance-score" style="background: ' + this.getPerformanceColor(multiThreadPerformanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block;">' + (multiThreadPerformanceScore * 100).toFixed(1) + '%</span>' : '-'}
+                    ${multiThreadPerformanceScore !== null ? '<span class="performance-score" title="Performance based on data from https://www.tomshardware.com/" style="background: ' + this.getPerformanceColor(multiThreadPerformanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block; cursor: help;">' + (multiThreadPerformanceScore * 100).toFixed(1) + '%</span>' : '-'}
                 </td>
                 <td class="price-cell">
                     ${isOnSale ? `
@@ -7671,6 +7690,9 @@ class PartsDatabase {
         const panel = document.getElementById('componentDetailsPanel');
         panel.classList.remove('hidden');
 
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
+
         // Unround modal right corners
         const modalContent = document.querySelector('.modal-content');
         console.log('showSingleComponentDetails - Found modal-content:', modalContent);
@@ -7679,6 +7701,44 @@ class PartsDatabase {
             modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
             console.log('After:', modalContent.style.borderRadius);
             console.log('Computed style:', window.getComputedStyle(modalContent).borderRadius);
+        }
+    }
+
+    createMobileDetailsToggle() {
+        // Only on mobile
+        if (window.innerWidth > 1024) return;
+
+        // Check if already exists
+        let toggleBtn = document.getElementById('mobileDetailsToggle');
+        if (!toggleBtn) {
+            // Create the button
+            toggleBtn = document.createElement('button');
+            toggleBtn.id = 'mobileDetailsToggle';
+            toggleBtn.className = 'mobile-details-toggle panel-visible';
+            toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            toggleBtn.onclick = () => this.toggleMobileDetails();
+            document.body.appendChild(toggleBtn);
+        } else {
+            // Update button state
+            toggleBtn.classList.add('panel-visible');
+            toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        }
+    }
+
+    toggleMobileDetails() {
+        const panel = document.getElementById('componentDetailsPanel');
+        const toggleBtn = document.getElementById('mobileDetailsToggle');
+
+        if (panel.classList.contains('hidden')) {
+            // Show panel - button moves to left side, chevron points right (away)
+            panel.classList.remove('hidden');
+            toggleBtn.classList.add('panel-visible');
+            toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        } else {
+            // Hide panel - button on right side, chevron points left (away)
+            panel.classList.add('hidden');
+            toggleBtn.classList.remove('panel-visible');
+            toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
         }
     }
 
@@ -8139,6 +8199,29 @@ class PartsDatabase {
         // Update the UI
         this.updateBuilderComponentDisplay(componentType, component);
 
+        // Update related components to refresh their compatibility status
+        if (componentType === 'cpu' && this.currentBuild.motherboard) {
+            // CPU was selected, refresh motherboard to check compatibility
+            this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+        } else if (componentType === 'ram' && this.currentBuild.motherboard) {
+            // RAM was selected, refresh motherboard to check compatibility
+            this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+        } else if (componentType === 'motherboard') {
+            // Motherboard was selected, refresh CPU, RAM, and case to check compatibility
+            if (this.currentBuild.cpu) {
+                this.updateBuilderComponentDisplay('cpu', this.currentBuild.cpu);
+            }
+            if (this.currentBuild.ram) {
+                this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
+            }
+            if (this.currentBuild.case) {
+                this.updateBuilderComponentDisplay('case', this.currentBuild.case);
+            }
+        } else if (componentType === 'case' && this.currentBuild.motherboard) {
+            // Case was selected, refresh motherboard to check compatibility
+            this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+        }
+
         // If selecting a CPU with included cooler, show stock cooler if no cooler selected
         if (componentType === 'cpu' && component.coolerIncluded === true && !this.currentBuild.cooler) {
             this.showStockCooler(component);
@@ -8263,6 +8346,219 @@ class PartsDatabase {
             `;
         }
 
+        // Check compatibility with motherboard
+        let isCompatible = true;
+        let incompatibilityMessage = '';
+        let incompatibilityMessages = []; // Array to collect multiple issues
+
+        if (this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+
+            // Check CPU socket compatibility
+            if (componentType === 'cpu') {
+                const motherboardSocket = selectedMotherboard.socket || selectedMotherboard.socketType;
+                const cpuSocket = component.socket || component.socketType;
+
+                if (motherboardSocket && cpuSocket) {
+                    const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                    const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                    isCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                    if (!isCompatible) {
+                        incompatibilityMessage = `Incompatible Socket: ${cpuSocket} (Requires ${motherboardSocket})`;
+                    }
+                }
+            }
+
+            // Check RAM memory type compatibility
+            if (componentType === 'ram') {
+                const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
+                const ramMemoryType = component.memoryType;
+
+                const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+                if (memoryTypesArray.length > 0 && ramMemoryType) {
+                    const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                    isCompatible = memoryTypesArray.some(mbType => {
+                        const normalizedMbType = mbType.toString().trim().toUpperCase();
+                        return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                    });
+
+                    if (!isCompatible) {
+                        const mbTypesStr = memoryTypesArray.join('/');
+                        incompatibilityMessage = `Incompatible Memory: ${ramMemoryType} (Requires ${mbTypesStr})`;
+                    }
+                }
+            }
+
+            // Check motherboard compatibility with CPU and RAM
+            if (componentType === 'motherboard') {
+                // Check if motherboard socket is compatible with selected CPU
+                if (this.currentBuild.cpu) {
+                    const selectedCpu = this.currentBuild.cpu;
+                    const motherboardSocket = component.socket || component.socketType;
+                    const cpuSocket = selectedCpu.socket || selectedCpu.socketType;
+
+                    if (motherboardSocket && cpuSocket) {
+                        const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                        const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                        const cpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                        if (!cpuCompatible) {
+                            isCompatible = false;
+                            incompatibilityMessages.push(`CPU Socket Mismatch: ${motherboardSocket} (CPU has ${cpuSocket})`);
+                        }
+                    }
+                }
+
+                // Check if motherboard memory type is compatible with selected RAM
+                if (this.currentBuild.ram) {
+                    const selectedRam = this.currentBuild.ram;
+                    const motherboardMemoryTypes = component.memoryType || [];
+                    const ramMemoryType = selectedRam.memoryType;
+
+                    const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+                    if (memoryTypesArray.length > 0 && ramMemoryType) {
+                        const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                        const ramCompatible = memoryTypesArray.some(mbType => {
+                            const normalizedMbType = mbType.toString().trim().toUpperCase();
+                            return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                        });
+
+                        if (!ramCompatible) {
+                            isCompatible = false;
+                            const mbTypesStr = memoryTypesArray.join('/');
+                            incompatibilityMessages.push(`RAM Type Mismatch: ${mbTypesStr} (RAM is ${ramMemoryType})`);
+                        }
+                    }
+                }
+
+                // Check if motherboard fits in selected case
+                if (this.currentBuild.case) {
+                    const selectedCase = this.currentBuild.case;
+                    const caseFormFactors = selectedCase.formFactor || [];
+                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+                    const motherboardFormFactor = component.formFactor || '';
+
+                    if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                        let caseCompatible = false;
+
+                        // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                        const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                        // Check motherboard type (order matters: check more specific first)
+                        const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                        const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                        const isMoboEATX = moboFFUpper.includes('EATX');
+                        const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                        for (const caseFF of caseFormFactorArray) {
+                            const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                            // Check case type (order matters: check more specific first)
+                            const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                            const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                            const isCaseEATX = caseFFUpper.includes('EATX');
+                            const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                            // E-ATX case accepts all motherboards
+                            if (isCaseEATX) {
+                                caseCompatible = true;
+                                break;
+                            }
+                            // ATX case: compatible with ATX, mATX, ITX
+                            else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
+                                caseCompatible = true;
+                                break;
+                            }
+                            // mATX/Micro ATX case: compatible with mATX, ITX
+                            else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                                caseCompatible = true;
+                                break;
+                            }
+                            // ITX case: compatible with ITX only
+                            else if (isCaseITX && isMoboITX) {
+                                caseCompatible = true;
+                                break;
+                            }
+                        }
+
+                        if (!caseCompatible) {
+                            isCompatible = false;
+                            const caseFFDisplay = caseFormFactorArray.join('/');
+                            incompatibilityMessages.push(`Too Large for Case: ${motherboardFormFactor} won't fit in ${caseFFDisplay} case`);
+                        }
+                    }
+                }
+
+                // Combine multiple incompatibility messages
+                if (incompatibilityMessages.length > 0) {
+                    incompatibilityMessage = incompatibilityMessages.join(' | ');
+                }
+            }
+
+            // Check case compatibility with motherboard
+            if (componentType === 'case' && this.currentBuild.motherboard) {
+                const selectedMotherboard = this.currentBuild.motherboard;
+                const motherboardFormFactor = selectedMotherboard.formFactor || '';
+                const caseFormFactors = component.formFactor || [];
+                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                    let caseCompatible = false;
+
+                    // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                    const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                    // Check motherboard type (order matters: check more specific first)
+                    const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                    const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                    const isMoboEATX = moboFFUpper.includes('EATX');
+                    const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                    for (const caseFF of caseFormFactorArray) {
+                        const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                        // Check case type (order matters: check more specific first)
+                        const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                        const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                        const isCaseEATX = caseFFUpper.includes('EATX');
+                        const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                        // E-ATX case accepts all motherboards
+                        if (isCaseEATX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ATX case: compatible with ATX, mATX, ITX
+                        else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // mATX/Micro ATX case: compatible with mATX, ITX
+                        else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ITX case: compatible with ITX only
+                        else if (isCaseITX && isMoboITX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                    }
+
+                    if (!caseCompatible) {
+                        isCompatible = false;
+                        const caseFFDisplay = caseFormFactorArray.join('/');
+                        incompatibilityMessage = `Too Small for Motherboard: ${caseFFDisplay} case won't fit ${motherboardFormFactor} motherboard`;
+                    }
+                }
+            }
+        }
+
         // Create stock cooler button HTML for cooler components
         const stockCoolerBtn = componentType === 'cooler' ? `
             <button id="useStockCoolerBtn" style="display: none; position: absolute; top: 54px; left: 12px; background: #ef4444; color: white; border: none; border-radius: 6px; width: 36px; height: 36px; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);" onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.4)';" onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(239, 68, 68, 0.3)';" onclick="pcBuilder.useStockCooler()" title="Use Stock Cooler">
@@ -8272,20 +8568,28 @@ class PartsDatabase {
 
         // Create detailed component card similar to details panel
         const detailsHTML = `
-            <div class="builder-component-card">
-                <button class="swap-component-btn" onclick="pcBuilder.swapComponent('${componentType}')" title="Swap Component">
+            <div class="builder-component-card ${!isCompatible ? 'incompatible-build-card' : ''}">
+                <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Swap Component">
                     <i class="fas fa-exchange-alt"></i>
                 </button>
                 ${stockCoolerBtn}
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
-                    <div class="detail-image-container" style="position: relative;">
+                    <div class="detail-image-container ${!isCompatible ? 'incompatible-build-component' : ''}" style="position: relative;">
                         ${imageUrl ?
                             `<img src="${imageUrl}" alt="${name}" class="detail-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-microchip\\' style=\\'font-size: 48px; color: #ddd;\\'></i></div>';">` :
                             `<div class="detail-image-placeholder"><i class="fas fa-microchip" style="font-size: 48px; color: #ddd;"></i></div>`
                         }
+                        ${!isCompatible ? `
+                            <div class="incompatibility-overlay-center">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="incompatibility-text-overlay">
+                                ${incompatibilityMessage}
+                            </div>
+                        ` : ''}
                         ${ramBadge}
                         ${gpuBadge}
-                        ${manufacturer && !componentType.startsWith('addon') ? `<div class="image-manufacturer-badge">${manufacturer}</div>` : ''}
+                        ${manufacturer && !componentType.startsWith('addon') ? `<div class="image-manufacturer-badge ${!isCompatible ? 'incompatible-badge' : ''}">${manufacturer}</div>` : ''}
                         ${isOnSale && discount > 0 ? `
                             <div class="image-price-overlay">
                                 <div class="overlay-sale-price">$${currentPrice.toFixed(2)}</div>
@@ -9270,6 +9574,204 @@ class PartsDatabase {
             }
         }
 
+        // Check CPU compatibility with selected motherboard
+        let isCpuCompatible = true;
+        let incompatibilityMessage = '';
+        if (componentType === 'cpu' && this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardSocket = selectedMotherboard.socket || selectedMotherboard.socketType;
+            const cpuSocket = component.socket || component.socketType;
+
+            console.log('=== COMPATIBILITY CHECK ===');
+            console.log('Current CPU being displayed:', component.title || component.name);
+            console.log('CPU Socket:', cpuSocket);
+            console.log('Motherboard Socket:', motherboardSocket);
+
+            if (motherboardSocket && cpuSocket) {
+                const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                isCpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                console.log('Normalized CPU Socket:', normalizedCpuSocket);
+                console.log('Normalized Motherboard Socket:', normalizedMotherboardSocket);
+                console.log('Is Compatible:', isCpuCompatible);
+
+                if (!isCpuCompatible) {
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${motherboardSocket} socket required, this CPU has ${cpuSocket})`;
+                }
+            }
+            console.log('===========================');
+        }
+
+        // Check RAM compatibility with selected motherboard
+        let isRamCompatible = true;
+        if (componentType === 'ram' && this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
+            const ramMemoryType = component.memoryType;
+
+            console.log('=== RAM COMPATIBILITY CHECK ===');
+            console.log('Current RAM being displayed:', component.title || component.name);
+            console.log('RAM Memory Type:', ramMemoryType);
+            console.log('Motherboard Memory Types:', motherboardMemoryTypes);
+
+            // Ensure motherboardMemoryTypes is an array
+            const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+            if (memoryTypesArray.length > 0 && ramMemoryType) {
+                const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                // Check if RAM type matches any of the motherboard's supported types
+                isRamCompatible = memoryTypesArray.some(mbType => {
+                    const normalizedMbType = mbType.toString().trim().toUpperCase();
+                    return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                });
+
+                console.log('Normalized RAM Type:', normalizedRamType);
+                console.log('Is Compatible:', isRamCompatible);
+
+                if (!isRamCompatible) {
+                    const mbTypesStr = memoryTypesArray.join('/');
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${mbTypesStr} required, this RAM is ${ramMemoryType})`;
+                }
+            }
+            console.log('===========================');
+        }
+
+        // Check motherboard compatibility with selected CPU and RAM
+        let isMotherboardCompatible = true;
+        let motherboardIncompatibilityMessages = [];
+        if (componentType === 'motherboard' && this.currentBuild) {
+            console.log('=== MOTHERBOARD COMPATIBILITY CHECK ===');
+            console.log('Current Motherboard being displayed:', component.title || component.name);
+
+            // Check CPU socket compatibility
+            if (this.currentBuild.cpu) {
+                const selectedCpu = this.currentBuild.cpu;
+                const motherboardSocket = component.socket || component.socketType;
+                const cpuSocket = selectedCpu.socket || selectedCpu.socketType;
+
+                console.log('CPU Socket:', cpuSocket);
+                console.log('Motherboard Socket:', motherboardSocket);
+
+                if (motherboardSocket && cpuSocket) {
+                    const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                    const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                    const cpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                    console.log('CPU Socket Compatible:', cpuCompatible);
+
+                    if (!cpuCompatible) {
+                        isMotherboardCompatible = false;
+                        motherboardIncompatibilityMessages.push(`CPU Socket Mismatch: ${motherboardSocket} (CPU has ${cpuSocket})`);
+                    }
+                }
+            }
+
+            // Check RAM memory type compatibility
+            if (this.currentBuild.ram) {
+                const selectedRam = this.currentBuild.ram;
+                const motherboardMemoryTypes = component.memoryType || [];
+                const ramMemoryType = selectedRam.memoryType;
+
+                console.log('RAM Memory Type:', ramMemoryType);
+                console.log('Motherboard Memory Types:', motherboardMemoryTypes);
+
+                const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+                if (memoryTypesArray.length > 0 && ramMemoryType) {
+                    const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                    const ramCompatible = memoryTypesArray.some(mbType => {
+                        const normalizedMbType = mbType.toString().trim().toUpperCase();
+                        return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                    });
+
+                    console.log('RAM Type Compatible:', ramCompatible);
+
+                    if (!ramCompatible) {
+                        isMotherboardCompatible = false;
+                        const mbTypesStr = memoryTypesArray.join('/');
+                        motherboardIncompatibilityMessages.push(`RAM Type Mismatch: ${mbTypesStr} (RAM is ${ramMemoryType})`);
+                    }
+                }
+            }
+
+            // Check case/motherboard form factor compatibility
+            if (this.currentBuild.case) {
+                const selectedCase = this.currentBuild.case;
+                const caseFormFactors = selectedCase.formFactor || [];
+                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+                const motherboardFormFactor = component.formFactor || '';
+
+                console.log('Case Form Factors:', caseFormFactorArray);
+                console.log('Motherboard Form Factor:', motherboardFormFactor);
+
+                if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                    let caseCompatible = false;
+
+                    // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                    const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                    // Check motherboard type (order matters: check more specific first)
+                    const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                    const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                    const isMoboEATX = moboFFUpper.includes('EATX');
+                    const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                    for (const caseFF of caseFormFactorArray) {
+                        const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                        // Check case type (order matters: check more specific first)
+                        const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                        const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                        const isCaseEATX = caseFFUpper.includes('EATX');
+                        const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                        // E-ATX case accepts all motherboards
+                        if (isCaseEATX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ATX case: compatible with ATX, mATX, ITX
+                        else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // mATX/Micro ATX case: compatible with mATX, ITX
+                        else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ITX case: compatible with ITX only
+                        else if (isCaseITX && isMoboITX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                    }
+
+                    console.log('Case Compatible:', caseCompatible);
+
+                    if (!caseCompatible) {
+                        isMotherboardCompatible = false;
+                        const caseFFDisplay = caseFormFactorArray.join('/');
+                        motherboardIncompatibilityMessages.push(`Too Large for Case: ${motherboardFormFactor} won't fit in ${caseFFDisplay} case`);
+                    }
+                }
+            }
+
+            // Set incompatibility message for motherboard
+            if (motherboardIncompatibilityMessages.length > 0) {
+                incompatibilityMessage = `⚠️ ${motherboardIncompatibilityMessages.join(' | ')}`;
+            }
+
+            console.log('Motherboard Is Compatible:', isMotherboardCompatible);
+            console.log('===========================');
+        }
+
+        // Set overall compatibility flag
+        const isCompatible = (componentType === 'cpu' ? isCpuCompatible : (componentType === 'ram' ? isRamCompatible : (componentType === 'motherboard' ? isMotherboardCompatible : true)));
+
         // Cycling controls
         const showCyclingControls = this.comparisonComponents.length > 1;
         const componentTypeLabel = componentType === 'gpu' ? 'GPUs' : componentType === 'cpu' ? 'CPUs' : 'Components';
@@ -9293,11 +9795,11 @@ class PartsDatabase {
         let detailsHTML = `
             ${cyclingControlsHTML}
 
-            <div class="image-title-box">
+            <div class="image-title-box ${!isCompatible ? 'incompatible-component' : ''}">
                 <div class="title-box-text">${name}</div>
             </div>
-            <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">
-                <div class="detail-image-container">
+            <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isCompatible ? 'incompatible-component' : ''}">
+                <div class="detail-image-container ${!isCompatible ? 'incompatible-component' : ''}">
                     ${imageUrl ? `
                         <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-microchip\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
                     ` : `
@@ -9306,6 +9808,13 @@ class PartsDatabase {
                         </div>
                     `}
                     <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
+                    ${!isCompatible ? `
+                        <div class="image-incompatibility-overlay">
+                            <div class="incompatibility-warning-badge">
+                                ${incompatibilityMessage}
+                            </div>
+                        </div>
+                    ` : ''}
                     ${vram ? `
                         <div class="image-vram-overlay">
                             <div class="overlay-vram-text">${vram}</div>
@@ -9325,8 +9834,8 @@ class PartsDatabase {
                 </div>
             </a>
 
-            <button class="select-component-btn" onclick="pcBuilder.addToBuildFromDetails()" style="width: 100%; margin: 8px 0;">
-                <i class="fas fa-check"></i> ${this.modalContext === 'cpu-tab' ? 'Select This CPU' : 'Add to Build'}
+            <button class="select-component-btn ${!isCompatible ? 'incompatible-button' : ''}" onclick="pcBuilder.addToBuildFromDetails()" style="width: 100%; margin: 8px 0;">
+                <i class="fas ${!isCompatible ? 'fa-exclamation-triangle' : 'fa-check'}"></i> ${this.modalContext === 'cpu-tab' ? 'Select This CPU' : 'Add to Build'}
             </button>
 
             ${this.createComparisonGraph()}
@@ -10324,6 +10833,218 @@ class PartsDatabase {
             this.initializeComparisonLegendHover();
         }
 
+        // Check CPU compatibility with selected motherboard and update warning
+        let isCpuCompatible = true;
+        let incompatibilityMessage = '';
+        if (componentType === 'cpu' && this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardSocket = selectedMotherboard.socket || selectedMotherboard.socketType;
+            const cpuSocket = component.socket || component.socketType;
+
+            if (motherboardSocket && cpuSocket) {
+                const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                isCpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                if (!isCpuCompatible) {
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${motherboardSocket} socket required, this CPU has ${cpuSocket})`;
+                }
+            }
+        }
+
+        // Check RAM compatibility with selected motherboard
+        let isRamCompatible = true;
+        if (componentType === 'ram' && this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
+            const ramMemoryType = component.memoryType;
+
+            // Ensure motherboardMemoryTypes is an array
+            const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+            if (memoryTypesArray.length > 0 && ramMemoryType) {
+                const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                // Check if RAM type matches any of the motherboard's supported types
+                isRamCompatible = memoryTypesArray.some(mbType => {
+                    const normalizedMbType = mbType.toString().trim().toUpperCase();
+                    return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                });
+
+                if (!isRamCompatible) {
+                    const mbTypesStr = memoryTypesArray.join('/');
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${mbTypesStr} required, this RAM is ${ramMemoryType})`;
+                }
+            }
+        }
+
+        // Check motherboard compatibility with selected CPU and RAM
+        let isMotherboardCompatible = true;
+        let motherboardIncompatibilityMessages = [];
+        if (componentType === 'motherboard' && this.currentBuild) {
+            // Check CPU socket compatibility
+            if (this.currentBuild.cpu) {
+                const selectedCpu = this.currentBuild.cpu;
+                const motherboardSocket = component.socket || component.socketType;
+                const cpuSocket = selectedCpu.socket || selectedCpu.socketType;
+
+                if (motherboardSocket && cpuSocket) {
+                    const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                    const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                    const cpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                    if (!cpuCompatible) {
+                        isMotherboardCompatible = false;
+                        motherboardIncompatibilityMessages.push(`CPU Socket Mismatch: ${motherboardSocket} (CPU has ${cpuSocket})`);
+                    }
+                }
+            }
+
+            // Check RAM memory type compatibility
+            if (this.currentBuild.ram) {
+                const selectedRam = this.currentBuild.ram;
+                const motherboardMemoryTypes = component.memoryType || [];
+                const ramMemoryType = selectedRam.memoryType;
+
+                const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+                if (memoryTypesArray.length > 0 && ramMemoryType) {
+                    const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                    const ramCompatible = memoryTypesArray.some(mbType => {
+                        const normalizedMbType = mbType.toString().trim().toUpperCase();
+                        return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                    });
+
+                    if (!ramCompatible) {
+                        isMotherboardCompatible = false;
+                        const mbTypesStr = memoryTypesArray.join('/');
+                        motherboardIncompatibilityMessages.push(`RAM Type Mismatch: ${mbTypesStr} (RAM is ${ramMemoryType})`);
+                    }
+                }
+            }
+
+            // Check case/motherboard form factor compatibility
+            if (this.currentBuild.case) {
+                const selectedCase = this.currentBuild.case;
+                const caseFormFactors = selectedCase.formFactor || [];
+                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+                const motherboardFormFactor = component.formFactor || '';
+
+                if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                    let caseCompatible = false;
+
+                    // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                    const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                    // Check motherboard type (order matters: check more specific first)
+                    const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                    const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                    const isMoboEATX = moboFFUpper.includes('EATX');
+                    const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                    for (const caseFF of caseFormFactorArray) {
+                        const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                        // Check case type (order matters: check more specific first)
+                        const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                        const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                        const isCaseEATX = caseFFUpper.includes('EATX');
+                        const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                        // E-ATX case accepts all motherboards
+                        if (isCaseEATX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ATX case: compatible with ATX, mATX, ITX
+                        else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // mATX/Micro ATX case: compatible with mATX, ITX
+                        else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                            caseCompatible = true;
+                            break;
+                        }
+                        // ITX case: compatible with ITX only
+                        else if (isCaseITX && isMoboITX) {
+                            caseCompatible = true;
+                            break;
+                        }
+                    }
+
+                    if (!caseCompatible) {
+                        isMotherboardCompatible = false;
+                        const caseFFDisplay = caseFormFactorArray.join('/');
+                        motherboardIncompatibilityMessages.push(`Too Large for Case: ${motherboardFormFactor} won't fit in ${caseFFDisplay} case`);
+                    }
+                }
+            }
+
+            // Set incompatibility message for motherboard
+            if (motherboardIncompatibilityMessages.length > 0) {
+                incompatibilityMessage = `⚠️ ${motherboardIncompatibilityMessages.join(' | ')}`;
+            }
+        }
+
+        // Set overall compatibility flag
+        const isCompatible = (componentType === 'cpu' ? isCpuCompatible : (componentType === 'ram' ? isRamCompatible : (componentType === 'motherboard' ? isMotherboardCompatible : true)));
+
+        // Update or add/remove incompatibility warning overlay
+        // Reuse imageContainer already declared above
+        if (imageContainer) {
+            let incompatibilityOverlay = imageContainer.querySelector('.image-incompatibility-overlay');
+
+            if (!isCompatible) {
+                // Add or update warning
+                if (!incompatibilityOverlay) {
+                    incompatibilityOverlay = document.createElement('div');
+                    incompatibilityOverlay.className = 'image-incompatibility-overlay';
+                    imageContainer.appendChild(incompatibilityOverlay);
+                }
+                incompatibilityOverlay.innerHTML = `
+                    <div class="incompatibility-warning-badge">
+                        ${incompatibilityMessage}
+                    </div>
+                `;
+            } else if (incompatibilityOverlay) {
+                // Remove warning if component is compatible
+                incompatibilityOverlay.remove();
+            }
+
+            // Update grayscale class on image container and related elements
+            const titleBox = detailsPanel.querySelector('.image-title-box');
+            const productLink = detailsPanel.querySelector('.detail-product-link');
+
+            if (!isCompatible) {
+                imageContainer.classList.add('incompatible-component');
+                if (titleBox) titleBox.classList.add('incompatible-component');
+                if (productLink) productLink.classList.add('incompatible-component');
+            } else {
+                imageContainer.classList.remove('incompatible-component');
+                if (titleBox) titleBox.classList.remove('incompatible-component');
+                if (productLink) productLink.classList.remove('incompatible-component');
+            }
+        }
+
+        // Update the "Add to Build" button styling and icon
+        const addButton = detailsPanel.querySelector('.select-component-btn');
+        if (addButton) {
+            const icon = addButton.querySelector('i');
+            if (!isCompatible) {
+                addButton.classList.add('incompatible-button');
+                if (icon) {
+                    icon.className = 'fas fa-exclamation-triangle';
+                }
+            } else {
+                addButton.classList.remove('incompatible-button');
+                if (icon) {
+                    icon.className = 'fas fa-check';
+                }
+            }
+        }
+
         // Update counter text with correct component type label
         const counterElement = detailsPanel.querySelector('.comparison-counter');
         if (counterElement) {
@@ -10731,11 +11452,73 @@ class PartsDatabase {
 
         // Update button appearance
         const debugBtn = document.getElementById('debugBtn');
+        const body = document.body;
+        const partsGrid = document.getElementById('partsGrid');
+        const title = document.querySelector('header h1');
+
+        const debugSection = document.getElementById('debugSection');
+
         if (this.debugMode) {
             debugBtn.classList.add('active');
-            console.log('🐛 Debug mode enabled - showing component save counts');
+            body.classList.add('debug-single-column');
+
+            // Show debug information section
+            if (debugSection) {
+                debugSection.style.display = 'block';
+            }
+
+            // Force single column styles with EXTREME PREJUDICE
+            if (partsGrid) {
+                partsGrid.classList.add('force-single-column');
+                partsGrid.setAttribute('style', 'display: grid !important; grid-template-columns: 1fr !important;');
+            }
+
+            // Force performance buttons to single column
+            const performanceOptions = document.querySelectorAll('.performance-options');
+            performanceOptions.forEach(container => {
+                container.setAttribute('style', 'display: flex !important; flex-direction: column !important; flex-wrap: nowrap !important;');
+            });
+
+            const performanceBtns = document.querySelectorAll('.performance-option-btn');
+            performanceBtns.forEach(btn => {
+                btn.setAttribute('style', 'width: 100% !important; max-width: 100% !important; min-width: 100% !important; flex: none !important;');
+            });
+
+            console.log('🐛 Debug mode enabled - FORCED SINGLE COLUMN MODE');
+            console.log('  partsGrid classes:', partsGrid?.className);
+            console.log('  partsGrid inline style:', partsGrid?.getAttribute('style'));
+            console.log('  partsGrid computed columns:', window.getComputedStyle(partsGrid)?.gridTemplateColumns);
         } else {
             debugBtn.classList.remove('active');
+            body.classList.remove('debug-single-column');
+
+            // Hide debug information section
+            if (debugSection) {
+                debugSection.style.display = 'none';
+            }
+
+            // Remove forced styles
+            if (partsGrid) {
+                partsGrid.classList.remove('force-single-column');
+                partsGrid.removeAttribute('style');
+            }
+
+            // Remove forced button styles
+            const performanceOptions = document.querySelectorAll('.performance-options');
+            performanceOptions.forEach(container => {
+                container.removeAttribute('style');
+            });
+
+            const performanceBtns = document.querySelectorAll('.performance-option-btn');
+            performanceBtns.forEach(btn => {
+                btn.removeAttribute('style');
+            });
+
+            // Restore white title
+            if (title) {
+                title.removeAttribute('style');
+            }
+
             console.log('🐛 Debug mode disabled');
         }
 
@@ -11132,6 +11915,40 @@ class PartsDatabase {
             const scaledPrice = priceToScale(point.price);
             const y = height - padding.bottom - ((scaledPrice - roundedMinPrice) / (roundedMaxPrice - roundedMinPrice)) * chartHeight;
 
+            // Check CPU compatibility with selected motherboard
+            let isCompatible = true;
+            if (isCpuMode && this.currentBuild && this.currentBuild.motherboard) {
+                const selectedMotherboard = this.currentBuild.motherboard;
+                const motherboardSocket = selectedMotherboard.socket || selectedMotherboard.socketType;
+                const cpuSocket = point.product.socket || point.product.socketType;
+
+                if (motherboardSocket && cpuSocket) {
+                    const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                    const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                    isCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+                }
+            }
+
+            // Check RAM compatibility with selected motherboard
+            if (isRamMode && this.currentBuild && this.currentBuild.motherboard) {
+                const selectedMotherboard = this.currentBuild.motherboard;
+                const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
+                const ramMemoryType = point.product.memoryType;
+
+                // Ensure motherboardMemoryTypes is an array
+                const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+                if (memoryTypesArray.length > 0 && ramMemoryType) {
+                    const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                    // Check if RAM type matches any of the motherboard's supported types
+                    isCompatible = memoryTypesArray.some(mbType => {
+                        const normalizedMbType = mbType.toString().trim().toUpperCase();
+                        return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                    });
+                }
+            }
+
             // Color based on value proposition (performance per dollar)
             const performancePerDollar = point.performance / point.price;
             const maxPerformancePerDollar = Math.max(...dataPoints.map(p => p.performance / p.price));
@@ -11142,12 +11959,13 @@ class PartsDatabase {
             const g = Math.round(255 * ratio);
             const b = 100;
 
-            // Draw point
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            // Draw point with reduced opacity if incompatible
+            const opacity = isCompatible ? 1.0 : 0.15;
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
             ctx.beginPath();
             ctx.arc(x, y, 5, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.5})`;
             ctx.lineWidth = 1;
             ctx.stroke();
 
@@ -11156,7 +11974,8 @@ class PartsDatabase {
                 x: x,
                 y: y,
                 data: point,
-                color: `rgb(${r}, ${g}, ${b})`
+                color: `rgb(${r}, ${g}, ${b})`,
+                isCompatible: isCompatible
             });
         });
 
@@ -11474,19 +12293,45 @@ class PartsDatabase {
         // Store the selected CPU for comparison
         this.selectedScatterCpu = cpu;
 
+        // Check CPU compatibility with selected motherboard
+        let isCpuCompatible = true;
+        let incompatibilityMessage = '';
+        if (this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardSocket = selectedMotherboard.socket || selectedMotherboard.socketType;
+            const cpuSocket = cpu.socket || cpu.socketType;
+
+            if (motherboardSocket && cpuSocket) {
+                const normalizedCpuSocket = cpuSocket.toString().trim().toUpperCase();
+                const normalizedMotherboardSocket = motherboardSocket.toString().trim().toUpperCase();
+                isCpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
+
+                if (!isCpuCompatible) {
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${motherboardSocket} socket required, this CPU has ${cpuSocket})`;
+                }
+            }
+        }
+
         // Style it exactly like component details panel
         let html = `
-            <div class="image-title-box">
+            <div class="image-title-box ${!isCpuCompatible ? 'incompatible-component' : ''}">
                 <div class="title-box-text">${name}</div>
             </div>
         `;
 
         if (imageUrl) {
             html += `
-                <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">
-                    <div class="detail-image-container">
+                <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isCpuCompatible ? 'incompatible-component' : ''}">
+                    <div class="detail-image-container ${!isCpuCompatible ? 'incompatible-component' : ''}">
                         <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
+                        ${!isCpuCompatible ? `
+                            <div class="image-incompatibility-overlay">
+                                <div class="incompatibility-warning-badge">
+                                    ${incompatibilityMessage}
+                                </div>
+                            </div>
+                        ` : ''}
                         ${isOnSale ? `
                             <div class="image-price-overlay">
                                 <div class="overlay-sale-price">$${salePrice.toFixed(2)}</div>
@@ -11505,10 +12350,10 @@ class PartsDatabase {
             html += `<p style="color: #999; font-style: italic; text-align: center; padding: 20px;">No image available</p>`;
         }
 
-        // Add compare button
+        // Add compare button with incompatibility styling if needed
         html += `
-            <button class="select-component-btn" onclick="pcBuilder.compareToSimilarCPUs()" style="width: 100%; margin-top: 15px;">
-                <i class="fas fa-chart-line"></i> Compare to Similar CPUs
+            <button class="select-component-btn ${!isCpuCompatible ? 'incompatible-button' : ''}" onclick="pcBuilder.compareToSimilarCPUs()" style="width: 100%; margin-top: 15px;">
+                <i class="fas ${!isCpuCompatible ? 'fa-exclamation-triangle' : 'fa-chart-line'}"></i> Compare to Similar CPUs
             </button>
         `;
 
@@ -11695,19 +12540,53 @@ class PartsDatabase {
         // Store the selected RAM for comparison
         this.selectedScatterRam = ram;
 
+        // Check RAM compatibility with selected motherboard
+        let isRamCompatible = true;
+        let incompatibilityMessage = '';
+        if (this.currentBuild && this.currentBuild.motherboard) {
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
+            const ramMemoryType = ram.memoryType;
+
+            // Ensure motherboardMemoryTypes is an array
+            const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
+
+            if (memoryTypesArray.length > 0 && ramMemoryType) {
+                const normalizedRamType = ramMemoryType.toString().trim().toUpperCase();
+
+                // Check if RAM type matches any of the motherboard's supported types
+                isRamCompatible = memoryTypesArray.some(mbType => {
+                    const normalizedMbType = mbType.toString().trim().toUpperCase();
+                    return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
+                });
+
+                if (!isRamCompatible) {
+                    const mbTypesStr = memoryTypesArray.join('/');
+                    incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${mbTypesStr} required, this RAM is ${ramMemoryType})`;
+                }
+            }
+        }
+
         // Style it exactly like component details panel
         let html = `
-            <div class="image-title-box">
+            <div class="image-title-box ${!isRamCompatible ? 'incompatible-component' : ''}">
                 <div class="title-box-text">${name}</div>
             </div>
         `;
 
         if (imageUrl) {
             html += `
-                <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">
-                    <div class="detail-image-container">
+                <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isRamCompatible ? 'incompatible-component' : ''}">
+                    <div class="detail-image-container ${!isRamCompatible ? 'incompatible-component' : ''}">
                         <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
+                        ${!isRamCompatible ? `
+                            <div class="image-incompatibility-overlay">
+                                <div class="incompatibility-warning-badge">
+                                    ${incompatibilityMessage}
+                                </div>
+                            </div>
+                        ` : ''}
                         <div class="image-vram-overlay">
                             <div class="overlay-vram-text">${memoryType} ${capacity} @ ${speed}</div>
                         </div>
@@ -11729,10 +12608,10 @@ class PartsDatabase {
             html += `<p style="color: #999; font-style: italic; text-align: center; padding: 20px;">No image available</p>`;
         }
 
-        // Add compare button
+        // Add compare button with incompatibility styling if needed
         html += `
-            <button class="select-component-btn" onclick="pcBuilder.compareToSimilarRAM()" style="width: 100%; margin-top: 15px;">
-                <i class="fas fa-chart-line"></i> Compare to Similar RAM
+            <button class="select-component-btn ${!isRamCompatible ? 'incompatible-button' : ''}" onclick="pcBuilder.compareToSimilarRAM()" style="width: 100%; margin-top: 15px;">
+                <i class="fas ${!isRamCompatible ? 'fa-exclamation-triangle' : 'fa-chart-line'}"></i> Compare to Similar RAM
             </button>
         `;
 
@@ -12477,6 +13356,35 @@ document.addEventListener('DOMContentLoaded', () => {
     pcBuilder = new PartsDatabase();
     window.partsDatabase = pcBuilder; // Make it globally accessible
 
+    // Detect mobile device and override layout mode
+    const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 1024;
+    if (isMobileOrTablet) {
+        pcBuilder.layoutMode = 'single';
+        console.log('Mobile/Tablet device detected - forcing single column layout');
+    }
+
+    // Apply layout mode class to component-selectors
+    const componentSelectors = document.querySelector('.component-selectors');
+    if (componentSelectors) {
+        switch (pcBuilder.layoutMode) {
+            case 'single':
+                componentSelectors.classList.add('layout-single');
+                componentSelectors.classList.remove('layout-double');
+                console.log('Applied single column layout');
+                break;
+            case 'double':
+                componentSelectors.classList.add('layout-double');
+                componentSelectors.classList.remove('layout-single');
+                console.log('Applied double column layout');
+                break;
+            default:
+                console.warn('Unknown layout mode:', pcBuilder.layoutMode);
+                // Default to single column
+                componentSelectors.classList.add('layout-single');
+                componentSelectors.classList.remove('layout-double');
+        }
+    }
+
     // Initialize particle system
     new ParticleSystem();
 
@@ -12490,7 +13398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Immediately apply mobile grid if needed - multiple attempts
     const applyMobileGrid = () => {
         const partsGrid = document.getElementById('partsGrid');
-        const title = document.querySelector('.hero-content h1');
+        const title = document.querySelector('header h1');
         console.log(`Grid setup attempt - partsGrid exists: ${!!partsGrid}, title exists: ${!!title}`);
         if (partsGrid) {
             const isMobile = window.innerWidth <= 1200;
@@ -12498,22 +13406,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`  Current grid-template-columns: ${currentStyle}`);
             console.log(`  Width: ${window.innerWidth}, isMobile: ${isMobile}`);
             if (isMobile) {
-                // Visual indicator - turn title red on mobile
-                if (title) {
-                    title.style.setProperty('color', 'red', 'important');
-                    console.log('  ✓ Title set to RED (mobile detected)');
-                } else {
-                    console.log('  ✗ Title element not found!');
-                }
-                // Use cssText to force !important
-                partsGrid.style.cssText += 'grid-template-columns: 1fr !important;';
+                // Force single column with max specificity
+                partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+                partsGrid.style.setProperty('display', 'grid', 'important');
+                partsGrid.classList.add('mobile-single-column');
                 const newStyle = window.getComputedStyle(partsGrid).gridTemplateColumns;
-                console.log(`  ✓ Applied 1fr with cssText, new computed style: ${newStyle}`);
+                console.log(`  ✓ Applied 1fr with setProperty, new computed style: ${newStyle}`);
             } else {
                 // Desktop - keep title white
                 if (title) {
                     title.style.setProperty('color', 'white', 'important');
                 }
+                partsGrid.classList.remove('mobile-single-column');
             }
         } else {
             console.log(`  ✗ partsGrid element not found!`);
@@ -12525,19 +13429,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(applyMobileGrid, 2000);
     setTimeout(applyMobileGrid, 3000);
 
+    // Add keypress listener to show debug button when ` (backtick) is pressed
+    document.addEventListener('keydown', (e) => {
+        if (e.key === '`' || e.key === '~') {
+            const debugBtn = document.getElementById('debugBtn');
+            if (debugBtn) {
+                debugBtn.style.display = 'flex';
+                console.log('Debug button revealed with ` key');
+            }
+        }
+    });
+
     // Add resize listener to update grid layout on mobile
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
             const partsGrid = document.getElementById('partsGrid');
+            const title = document.querySelector('header h1');
             if (partsGrid) {
                 const isMobile = window.innerWidth <= 1200;
                 console.log(`Resize detected: width=${window.innerWidth}, isMobile=${isMobile}`);
                 if (isMobile) {
                     partsGrid.style.setProperty('grid-template-columns', '1fr', 'important');
+                    partsGrid.classList.add('mobile-single-column');
                 } else {
                     partsGrid.style.gridTemplateColumns = '';
+                    partsGrid.classList.remove('mobile-single-column');
                 }
             }
         }, 100);

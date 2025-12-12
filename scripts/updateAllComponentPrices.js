@@ -170,25 +170,34 @@ class AllComponentPriceUpdater {
         const allCollections = await this.db.listCollections().toArray();
         const collectionNames = allCollections.map(col => col.name);
 
+        // Filter out system collections (those starting with 'system.')
+        const componentCollectionNames = collectionNames.filter(name =>
+            !name.startsWith('system.')
+        );
+
         // Get all CPU collections (main + sub-collections)
-        const cpuCollections = collectionNames.filter(name =>
+        const cpuCollections = componentCollectionNames.filter(name =>
             name === 'cpus' || name.startsWith('cpus_')
         );
 
         // Get all GPU collections (all gpus_* collections)
-        const gpuCollections = collectionNames.filter(name =>
+        const gpuCollections = componentCollectionNames.filter(name =>
             name === 'gpus' || name.startsWith('gpus_')
         );
 
         // Get other component collections, prioritizing addons and cases
-        const priorityCollections = ['addons', 'cases'].filter(name => collectionNames.includes(name));
-        const otherCollections = ['motherboards', 'rams', 'psus', 'coolers', 'storages']
-            .filter(name => collectionNames.includes(name));
+        const priorityCollections = ['addons', 'cases'].filter(name => componentCollectionNames.includes(name));
+        const otherCollections = componentCollectionNames.filter(name =>
+            !name.startsWith('cpus') &&
+            !name.startsWith('gpus') &&
+            name !== 'addons' &&
+            name !== 'cases'
+        );
 
         // Combine all collections with priority order: addons/cases first, then CPUs, GPUs, then others
         COMPONENT_COLLECTIONS = [...priorityCollections, ...cpuCollections, ...gpuCollections, ...otherCollections];
 
-        console.log(`✅ Found ${COMPONENT_COLLECTIONS.length} collections to update`.green);
+        console.log(`✅ Found ${COMPONENT_COLLECTIONS.length} collections to update (ALL collections)`.green);
         console.log(`   🔥 Priority collections: ${priorityCollections.length} (${priorityCollections.join(', ')})`.yellow.bold);
         console.log(`   CPU collections: ${cpuCollections.length}`.gray);
         console.log(`   GPU collections: ${gpuCollections.length}`.gray);
