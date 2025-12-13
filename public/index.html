@@ -1557,7 +1557,8 @@
         .component-details-panel {
             background: white;
             border-radius: 0 12px 12px 0;
-            width: 400px;
+            width: 100%;
+            max-width: 400px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -1567,6 +1568,13 @@
 
         .component-details-panel.hidden {
             display: none;
+        }
+
+        /* Make statistics panel flexible to match modal-content width */
+        #statisticsPanel {
+            width: 100%;
+            max-width: 400px;
+            flex: 1;
         }
 
         @keyframes slideInRight {
