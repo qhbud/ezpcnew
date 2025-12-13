@@ -7708,6 +7708,19 @@ class PartsDatabase {
         // Only on mobile
         if (window.innerWidth > 1024) return;
 
+        // Determine which panel is currently open
+        const detailsPanel = document.getElementById('componentDetailsPanel');
+        const statisticsPanel = document.getElementById('statisticsPanel');
+        const isDetailsVisible = detailsPanel && !detailsPanel.classList.contains('hidden');
+        const isStatisticsVisible = statisticsPanel && !statisticsPanel.classList.contains('hidden');
+
+        // Set the active panel for toggle function
+        if (isStatisticsVisible) {
+            this.lastActiveMobilePanel = 'statistics';
+        } else if (isDetailsVisible) {
+            this.lastActiveMobilePanel = 'details';
+        }
+
         // Check if already exists
         let toggleBtn = document.getElementById('mobileDetailsToggle');
         if (!toggleBtn) {
@@ -7726,19 +7739,39 @@ class PartsDatabase {
     }
 
     toggleMobileDetails() {
-        const panel = document.getElementById('componentDetailsPanel');
+        const detailsPanel = document.getElementById('componentDetailsPanel');
+        const statisticsPanel = document.getElementById('statisticsPanel');
         const toggleBtn = document.getElementById('mobileDetailsToggle');
 
-        if (panel.classList.contains('hidden')) {
-            // Show panel - button moves to left side, chevron points right (away)
-            panel.classList.remove('hidden');
-            toggleBtn.classList.add('panel-visible');
-            toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        // Determine which panel is currently visible
+        const isDetailsVisible = !detailsPanel.classList.contains('hidden');
+        const isStatisticsVisible = !statisticsPanel.classList.contains('hidden');
+
+        // Toggle whichever panel is visible, or the last active one if both are hidden
+        if (isStatisticsVisible || (!isDetailsVisible && this.lastActiveMobilePanel === 'statistics')) {
+            // Toggle statistics panel
+            if (statisticsPanel.classList.contains('hidden')) {
+                statisticsPanel.classList.remove('hidden');
+                toggleBtn.classList.add('panel-visible');
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            } else {
+                statisticsPanel.classList.add('hidden');
+                toggleBtn.classList.remove('panel-visible');
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            }
+            this.lastActiveMobilePanel = 'statistics';
         } else {
-            // Hide panel - button on right side, chevron points left (away)
-            panel.classList.add('hidden');
-            toggleBtn.classList.remove('panel-visible');
-            toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            // Toggle details panel (default if nothing else)
+            if (detailsPanel.classList.contains('hidden')) {
+                detailsPanel.classList.remove('hidden');
+                toggleBtn.classList.add('panel-visible');
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            } else {
+                detailsPanel.classList.add('hidden');
+                toggleBtn.classList.remove('panel-visible');
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            }
+            this.lastActiveMobilePanel = 'details';
         }
     }
 
@@ -7893,6 +7926,8 @@ class PartsDatabase {
                 this.renderComparisonView();
                 const panel = document.getElementById('componentDetailsPanel');
                 panel.classList.remove('hidden');
+                // Create mobile toggle button if on mobile
+                this.createMobileDetailsToggle();
             }
 
             // Update the expanded row with actual variants (after setting comparison components)
@@ -8077,6 +8112,8 @@ class PartsDatabase {
             if (this.comparisonComponents.length > 0) {
                 this.renderComparisonView();
                 document.getElementById('componentDetailsPanel').classList.remove('hidden');
+                // Create mobile toggle button if on mobile
+                this.createMobileDetailsToggle();
             } else {
                 this.closeDetailsPanel();
             }
@@ -9394,6 +9431,8 @@ class PartsDatabase {
                         this.renderComparisonView();
                         const panel = document.getElementById('componentDetailsPanel');
                         panel.classList.remove('hidden');
+                        // Create mobile toggle button if on mobile
+                        this.createMobileDetailsToggle();
 
                         return; // Don't proceed to normal selection
                     }
@@ -9455,6 +9494,9 @@ class PartsDatabase {
         // Render the comparison view
         this.renderComparisonView();
         panel.classList.remove('hidden');
+
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
 
         // Unround modal right corners
         const modalContent = document.querySelector('.modal-content');
@@ -11370,6 +11412,13 @@ class PartsDatabase {
         // Hide tooltip if visible
         this.hideGraphTooltip();
 
+        // Remove mobile toggle button if both panels are hidden
+        const statisticsPanel = document.getElementById('statisticsPanel');
+        if (statisticsPanel && statisticsPanel.classList.contains('hidden')) {
+            const toggleBtn = document.getElementById('mobileDetailsToggle');
+            if (toggleBtn) toggleBtn.remove();
+        }
+
         // Restore modal rounded corners
         const modalContent = document.querySelector('.modal-content');
         if (modalContent) {
@@ -11417,6 +11466,9 @@ class PartsDatabase {
             statisticsBtn.innerHTML = '<i class="fas fa-times"></i> Hide Price Vs Performance';
             this.renderStatisticsScatterPlot();
 
+            // Create mobile toggle button if on mobile
+            this.createMobileDetailsToggle();
+
             // Unround modal right corners
             const modalContent = document.querySelector('.modal-content');
             if (modalContent) {
@@ -11438,6 +11490,13 @@ class PartsDatabase {
         document.querySelectorAll('.part-card.panel-expanded').forEach(card => {
             card.classList.remove('panel-expanded');
         });
+
+        // Remove mobile toggle button if both panels are hidden
+        const detailsPanel = document.getElementById('componentDetailsPanel');
+        if (detailsPanel && detailsPanel.classList.contains('hidden')) {
+            const toggleBtn = document.getElementById('mobileDetailsToggle');
+            if (toggleBtn) toggleBtn.remove();
+        }
 
         // Restore modal rounded corners
         const modalContent = document.querySelector('.modal-content');
@@ -12791,6 +12850,9 @@ class PartsDatabase {
             detailsPanel.classList.remove('hidden');
         }
 
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
+
         // Render the comparison details
         this.renderComparisonView();
 
@@ -12882,6 +12944,9 @@ class PartsDatabase {
             detailsPanel.classList.remove('hidden');
         }
 
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
+
         // Render the comparison details
         this.renderComparisonView();
     }
@@ -12966,6 +13031,9 @@ class PartsDatabase {
             detailsPanel.classList.remove('hidden');
         }
 
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
+
         // Render the comparison details
         this.renderComparisonView();
     }
@@ -13049,6 +13117,9 @@ class PartsDatabase {
         if (detailsPanel) {
             detailsPanel.classList.remove('hidden');
         }
+
+        // Create mobile toggle button if on mobile
+        this.createMobileDetailsToggle();
 
         // Render the comparison details
         this.renderComparisonView();

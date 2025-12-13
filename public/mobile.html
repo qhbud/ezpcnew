@@ -1153,6 +1153,7 @@
             height: 80vh;
             max-height: 80vh;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
         }
 
         .modal-content {
@@ -1162,6 +1163,8 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+            min-width: 0;
         }
 
         .modal-content-wrapper:has(.component-details-panel:not(.hidden)) .modal-content {
@@ -1175,22 +1178,33 @@
         .modal-header {
             background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            min-height: 60px;
         }
 
         .modal-header h3 {
             margin: 0;
             font-size: 1.4rem;
             font-weight: 600;
+            flex: 1;
+            min-width: 0;
+            line-height: 1.3;
+            word-break: break-word;
         }
 
         .modal-header-actions {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-shrink: 0;
         }
 
         .view-statistics-btn {
@@ -1206,6 +1220,8 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .view-statistics-btn:hover {
@@ -1247,6 +1263,12 @@
             padding: 5px;
             border-radius: 50%;
             transition: background-color 0.2s;
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-close:hover {
@@ -1257,6 +1279,9 @@
             padding: 20px;
             flex: 1;
             overflow-y: auto;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .component-table-container {
@@ -1564,16 +1589,25 @@
         .component-details-panel {
             background: white;
             border-radius: 0 12px 12px 0;
-            width: 400px;
+            width: 100%;
+            max-width: 400px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             animation: slideInRight 0.3s ease-out;
+            box-sizing: border-box;
         }
 
         .component-details-panel.hidden {
             display: none;
+        }
+
+        /* Make statistics panel flexible to match modal-content width */
+        #statisticsPanel {
+            width: 100%;
+            max-width: 400px;
+            flex: 1;
         }
 
         @keyframes slideInRight {
@@ -1590,17 +1624,26 @@
         .details-panel-header {
             background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            gap: 12px;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            min-height: 60px;
         }
 
         .details-panel-header h3 {
             margin: 0;
             font-size: 1.4rem;
             font-weight: 600;
+            flex: 1;
+            min-width: 0;
+            line-height: 1.3;
+            word-break: break-word;
         }
 
         .details-panel-close {
@@ -1612,6 +1655,12 @@
             padding: 5px;
             border-radius: 50%;
             transition: background-color 0.2s;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .details-panel-close:hover {
@@ -1622,6 +1671,9 @@
             padding: 20px;
             overflow-y: auto;
             flex: 1;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .no-selection {
@@ -2281,6 +2333,7 @@
             margin-top: 10px;
         }
 
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
             .build-summary {
                 grid-template-columns: 1fr;
@@ -2289,6 +2342,228 @@
 
             .build-results-modal {
                 max-width: 95%;
+            }
+
+            /* Modal - Full screen on mobile */
+            .modal-content-wrapper {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: 100vh;
+                max-height: 100vh;
+                flex-direction: column;
+                border-radius: 0;
+                left: 0 !important;
+                right: 0 !important;
+                transform: translate(0, -50%) !important;
+            }
+
+            .modal-content {
+                border-radius: 0 !important;
+                height: 60%;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Component Details Panel - Stack below on mobile */
+            .component-details-panel {
+                width: 100% !important;
+                max-width: none !important;
+                min-width: 0 !important;
+                height: 40%;
+                border-radius: 0 !important;
+                border-top: 2px solid #e0e0e0;
+                flex-shrink: 0 !important;
+            }
+
+            .modal-content-wrapper:has(.component-details-panel:not(.hidden)) .modal-content {
+                border-radius: 0 !important;
+            }
+
+            /* Prevent body scroll when modal is open */
+            body:has(.modal-overlay:not(.hidden)) {
+                overflow: hidden;
+            }
+
+            /* Adjust header sizes for mobile - keep them same size */
+            .modal-header,
+            .details-panel-header {
+                padding: 12px 15px;
+                min-height: 52px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .modal-header h3,
+            .details-panel-header h3 {
+                font-size: 0.95rem;
+                max-width: 100%;
+                line-height: 1.25;
+                flex: 1;
+                min-width: 0;
+            }
+
+            /* View Statistics Button - Make it more compact on mobile */
+            .view-statistics-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+                gap: 4px;
+            }
+
+            /* Close buttons - slightly smaller on mobile */
+            .modal-close,
+            .details-panel-close {
+                width: 32px;
+                height: 32px;
+                font-size: 1.2rem;
+            }
+
+            /* Details panel body - reduce padding on mobile */
+            .details-panel-body {
+                padding: 15px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .modal-body {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* Component list items - better mobile layout */
+            .component-item {
+                padding: 12px;
+            }
+
+            .component-name {
+                font-size: 13px;
+            }
+
+            .component-price {
+                font-size: 16px;
+            }
+
+            /* Statistics Chart - Adjust for mobile */
+            #statisticsScatterPlot {
+                height: 300px !important;
+            }
+
+            .detail-image-container {
+                height: 150px;
+            }
+        }
+
+        /* Extra small devices - phones in portrait */
+        @media (max-width: 480px) {
+            .modal-header,
+            .details-panel-header {
+                padding: 10px 12px;
+                min-height: 48px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .modal-header h3,
+            .details-panel-header h3 {
+                font-size: 0.85rem;
+                line-height: 1.2;
+                flex: 1;
+                min-width: 0;
+            }
+
+            /* Close buttons - even smaller on small phones */
+            .modal-close,
+            .details-panel-close {
+                width: 30px;
+                height: 30px;
+                font-size: 1.1rem;
+            }
+
+            .view-statistics-btn {
+                padding: 6px 8px;
+                font-size: 0;
+                min-width: 36px;
+                position: relative;
+            }
+
+            .view-statistics-btn i {
+                font-size: 14px;
+            }
+
+            /* Show tooltip on hover for small screens */
+            .view-statistics-btn::after {
+                content: attr(title);
+                position: absolute;
+                bottom: -30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 10px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s;
+            }
+
+            .view-statistics-btn:active::after {
+                opacity: 1;
+            }
+
+            .details-panel-body {
+                padding: 12px;
+            }
+
+            .component-item {
+                padding: 10px;
+            }
+
+            .component-name {
+                font-size: 12px;
+            }
+
+            .component-price {
+                font-size: 15px;
+            }
+
+            #statisticsScatterPlot {
+                height: 250px !important;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .detail-value {
+                text-align: left;
+            }
+        }
+
+        /* Landscape mobile - optimize for horizontal viewing */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .modal-content-wrapper {
+                flex-direction: row;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: 100vh;
+            }
+
+            .modal-content {
+                height: 100%;
+                width: 60% !important;
+                max-width: 60% !important;
+            }
+
+            .component-details-panel {
+                height: 100% !important;
+                width: 40% !important;
+                max-width: 40% !important;
+                min-width: 0 !important;
+                border-top: none;
+                border-left: 2px solid #e0e0e0;
+                border-radius: 0 !important;
             }
         }
     </style>
