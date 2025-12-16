@@ -1638,9 +1638,12 @@ tr.incompatible td {
     border-radius: 20px;
     width: 90%;
     max-width: 600px;
+    max-height: 90vh;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     animation: slideUp 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes slideUp {
@@ -1661,6 +1664,7 @@ tr.incompatible td {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .budget-modal-header h2 {
@@ -1703,6 +1707,9 @@ tr.incompatible td {
 
 .budget-modal-body {
     padding: 40px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .question-container {
@@ -2047,16 +2054,14 @@ tr.incompatible td {
 }
 
 .budget-modal-footer {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
+    display: flex;
+    justify-content: space-between;
     gap: 15px;
     align-items: center;
-    margin-top: 30px;
-}
-
-.budget-modal-footer .budget-cancel-btn {
-    grid-column: 2;
-    justify-self: end;
+    padding: 30px 40px;
+    flex-shrink: 0;
+    background: rgba(26, 32, 44, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .budget-back-btn {
@@ -2199,6 +2204,25 @@ tr.incompatible td {
         font-size: 0.9rem;
     }
 
+    /* Budget Modal - Mobile responsive */
+    .budget-modal-content {
+        width: 95%;
+        max-height: 95vh;
+        border-radius: 12px;
+    }
+
+    .budget-modal-header {
+        padding: 20px;
+    }
+
+    .budget-modal-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .budget-modal-body {
+        padding: 20px;
+    }
+
     /* Budget Modal Footer - Mobile responsive */
     .budget-modal-footer {
         display: flex;
@@ -2206,14 +2230,8 @@ tr.incompatible td {
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-top: 20px;
+        padding: 20px;
         width: 100%;
-    }
-
-    /* Hide cancel button on mobile */
-    .budget-modal-footer .budget-cancel-btn {
-        display: none !important;
-        visibility: hidden !important;
     }
 
     .budget-back-btn,
@@ -2314,12 +2332,6 @@ tr.incompatible td {
     .spec-badge {
         font-size: 0.6rem;
         padding: 2px 5px;
-    }
-
-    /* Limit the overall build result modal height */
-    .budget-modal-body {
-        max-height: 60vh;
-        overflow-y: auto;
     }
 
     /* Accept Build button - don't stretch */
@@ -2453,6 +2465,51 @@ tr.incompatible td {
         }
     }
 
+}
+
+/* Extra small screens - phones */
+@media (max-width: 600px) {
+    .budget-modal-content {
+        width: 98%;
+        max-height: 98vh;
+        border-radius: 8px;
+    }
+
+    .budget-modal-header {
+        padding: 15px;
+    }
+
+    .budget-modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .budget-modal-body {
+        padding: 15px;
+    }
+
+    .budget-modal-footer {
+        padding: 15px;
+        gap: 8px;
+    }
+
+    .budget-back-btn,
+    .budget-next-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        min-width: 70px;
+        max-width: 120px;
+    }
+
+    /* Build components list - reduce height on very small screens */
+    .build-components {
+        max-height: 150px;
+    }
+
+    /* Build component cards - more compact */
+    .build-component-card {
+        padding: 6px;
+        margin-bottom: 6px;
+    }
 }
 
 /* Incompatibility warning overlay - top left corner of image */

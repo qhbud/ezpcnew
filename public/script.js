@@ -3712,6 +3712,26 @@ class PartsDatabase {
             if (coolerDiv && coolerDiv.getAttribute('data-stock-cooler') === 'true') {
                 this.removeBuilderComponent('cooler');
             }
+            // If there's a custom cooler selected, refresh its display to remove incompatibility styling
+            else if (this.currentBuild.cooler) {
+                this.updateBuilderComponentDisplay('cooler', this.currentBuild.cooler);
+            }
+        }
+
+        // If removing motherboard, refresh CPU, RAM, case, and cooler to remove incompatibility styling
+        if (componentType === 'motherboard') {
+            if (this.currentBuild.cpu) {
+                this.updateBuilderComponentDisplay('cpu', this.currentBuild.cpu);
+            }
+            if (this.currentBuild.ram) {
+                this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
+            }
+            if (this.currentBuild.case) {
+                this.updateBuilderComponentDisplay('case', this.currentBuild.case);
+            }
+            if (this.currentBuild.cooler) {
+                this.updateBuilderComponentDisplay('cooler', this.currentBuild.cooler);
+            }
         }
 
         this.updateTotalPrice();
@@ -4001,7 +4021,7 @@ class PartsDatabase {
         const compatibilityIcon = document.getElementById('compatibilityIcon');
         const issues = [];
 
-        const { cpu, motherboard, ram, cooler, psu, gpu } = this.currentBuild;
+        const { cpu, motherboard, ram, cooler, psu, gpu, case: pcCase } = this.currentBuild;
 
         // Check CPU and Motherboard socket compatibility
         if (cpu && motherboard) {
@@ -4018,6 +4038,62 @@ class PartsDatabase {
 
             if (ramType && mbRamSupport && !mbRamSupport.includes(ramType)) {
                 issues.push(`⚠️ RAM type (${ramType}) may not be compatible with motherboard`);
+            }
+        }
+
+        // Check Motherboard and Case form factor compatibility
+        if (motherboard && pcCase) {
+            const caseFormFactors = pcCase.formFactor || [];
+            const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+            const motherboardFormFactor = motherboard.formFactor || '';
+
+            if (motherboardFormFactor && caseFormFactorArray.length > 0) {
+                let caseCompatible = false;
+
+                // Normalize motherboard form factor (handle all variants - remove hyphens and normalize spaces)
+                const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                // Check motherboard type (order matters: check more specific first)
+                const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                const isMoboEATX = moboFFUpper.includes('EATX');
+                const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                for (const caseFF of caseFormFactorArray) {
+                    const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                    // Check case type (order matters: check more specific first)
+                    const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                    const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                    const isCaseEATX = caseFFUpper.includes('EATX');
+                    const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                    // E-ATX case accepts all motherboards
+                    if (isCaseEATX) {
+                        caseCompatible = true;
+                        break;
+                    }
+                    // ATX case: compatible with ATX, mATX, ITX
+                    else if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) {
+                        caseCompatible = true;
+                        break;
+                    }
+                    // mATX/Micro ATX case: compatible with mATX, ITX
+                    else if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) {
+                        caseCompatible = true;
+                        break;
+                    }
+                    // ITX case: compatible with ITX only
+                    else if (isCaseITX && isMoboITX) {
+                        caseCompatible = true;
+                        break;
+                    }
+                }
+
+                if (!caseCompatible) {
+                    const caseFFDisplay = caseFormFactorArray.join('/');
+                    issues.push(`⚠️ Motherboard (${motherboardFormFactor}) is too large for case (${caseFFDisplay})`);
+                }
             }
         }
 
@@ -4824,14 +4900,48 @@ class PartsDatabase {
         const encodedBuild = btoa(jsonString);
         const shareURL = `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
 
-        // Copy to clipboard
-        navigator.clipboard.writeText(shareURL).then(() => {
-            // Show success message with a styled alert
-            const componentCount = Object.keys(buildData).length;
-            alert(`✅ Share link copied to clipboard!\n\nTotal: $${this.totalPrice.toFixed(2)}\nComponents: ${componentCount}\n\nAnyone with this link can view and use your build!`);
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-            alert('Failed to copy link. Please try again.');
+        // Copy to clipboard with fallback for mobile browsers
+        const copyToClipboard = async (text) => {
+            // Try modern Clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.log('Clipboard API failed, using fallback:', err);
+                }
+            }
+
+            // Fallback method for mobile browsers (especially iOS Safari)
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                textArea.remove();
+                return successful;
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                textArea.remove();
+                return false;
+            }
+        };
+
+        // Use the copy function
+        copyToClipboard(shareURL).then(success => {
+            if (success) {
+                // Show success message with a styled alert
+                const componentCount = Object.keys(buildData).length;
+                alert(`✅ Share link copied to clipboard!\n\nTotal: $${this.totalPrice.toFixed(2)}\nComponents: ${componentCount}\n\nAnyone with this link can view and use your build!`);
+            } else {
+                alert('Failed to copy link. Please try again.');
+            }
         });
     }
 
@@ -5845,6 +5955,45 @@ class PartsDatabase {
 
             const compatibleChipsetsLabel = document.getElementById('compatibleChipsetsLabel');
             if (compatibleChipsetsLabel) compatibleChipsetsLabel.textContent = 'Socket:';
+
+            if (cpuCompatibilityInfo) cpuCompatibilityInfo.style.display = 'flex';
+            if (cpuChipsetsInfo) cpuChipsetsInfo.style.display = 'flex';
+            if (ramTypeCompatInfo) ramTypeCompatInfo.style.display = 'none';
+
+            // Set up checkbox event listener for compatibility filtering
+            const showOnlyCompatibleCheckbox = document.getElementById('showOnlyCompatibleCheckbox');
+            if (showOnlyCompatibleCheckbox) {
+                // Remove any existing listeners
+                showOnlyCompatibleCheckbox.replaceWith(showOnlyCompatibleCheckbox.cloneNode(true));
+                const newCheckbox = document.getElementById('showOnlyCompatibleCheckbox');
+
+                newCheckbox.addEventListener('change', () => {
+                    this.populateComponentTable(componentType);
+                });
+            }
+        } else if (componentType === 'case' && this.currentBuild && this.currentBuild.motherboard) {
+            // Hide PSU wattage container for case selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
+            // Show case form factor compatibility if motherboard is selected
+            if (compatibilityInfoContainer) {
+                compatibilityInfoContainer.style.display = 'block';
+            }
+
+            const selectedMotherboard = this.currentBuild.motherboard;
+            const motherboardName = selectedMotherboard.name || selectedMotherboard.title || 'Unknown Motherboard';
+            const motherboardFormFactor = selectedMotherboard.formFactor || 'Unknown';
+
+            // Update compatibility info for case selection
+            const selectedCpuLabel = document.getElementById('selectedCpuLabel');
+            if (selectedCpuLabel) selectedCpuLabel.textContent = 'Selected Motherboard:';
+
+            document.getElementById('selectedCpuNameInfo').textContent = motherboardName;
+            document.getElementById('compatibleChipsetsInfo').textContent = motherboardFormFactor;
+
+            const compatibleChipsetsLabel = document.getElementById('compatibleChipsetsLabel');
+            if (compatibleChipsetsLabel) compatibleChipsetsLabel.textContent = 'Form Factor:';
 
             if (cpuCompatibilityInfo) cpuCompatibilityInfo.style.display = 'flex';
             if (cpuChipsetsInfo) cpuChipsetsInfo.style.display = 'flex';
@@ -7381,6 +7530,15 @@ class PartsDatabase {
                 }
             }
 
+            // Get socket compatibility for debug mode
+            const socketCompatibility = component.socketCompatibility || [];
+            const socketsDisplay = socketCompatibility.length > 0
+                ? socketCompatibility.join(', ')
+                : 'No sockets defined';
+            const socketDebugInfo = this.debugMode
+                ? `<div style="font-size: 11px; color: #666; margin-top: 4px;">🔌 Sockets: ${socketsDisplay}</div>`
+                : '';
+
             row.innerHTML = `
                 <td style="padding: 8px; text-align: center; width: 100px;">
                     ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-snowflake" style="color: #ccc; font-size: 24px;"></i></div>'}
@@ -7393,6 +7551,7 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${socketDebugInfo}
                 </td>
                 <td>${coolerType}</td>
                 <td class="price-cell">
@@ -7418,7 +7577,7 @@ class PartsDatabase {
             let compatibilityBadge = '';
             if (this.currentBuild && this.currentBuild.motherboard && !isCaseCompatible) {
                 const motherboardFormFactor = this.currentBuild.motherboard.formFactor;
-                compatibilityBadge = `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 4px; font-size: 10px; font-weight: 600;">⚠️ ${motherboardFormFactor} Motherboard Incompatible</span>`;
+                compatibilityBadge = `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 4px; font-size: 10px; font-weight: 600;">⚠️ ${motherboardFormFactor} Motherboard Too Large</span>`;
             }
 
             row.innerHTML = `
@@ -8237,14 +8396,19 @@ class PartsDatabase {
         this.updateBuilderComponentDisplay(componentType, component);
 
         // Update related components to refresh their compatibility status
-        if (componentType === 'cpu' && this.currentBuild.motherboard) {
-            // CPU was selected, refresh motherboard to check compatibility
-            this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+        if (componentType === 'cpu') {
+            // CPU was selected, refresh motherboard and cooler to check compatibility
+            if (this.currentBuild.motherboard) {
+                this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+            }
+            if (this.currentBuild.cooler) {
+                this.updateBuilderComponentDisplay('cooler', this.currentBuild.cooler);
+            }
         } else if (componentType === 'ram' && this.currentBuild.motherboard) {
             // RAM was selected, refresh motherboard to check compatibility
             this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
         } else if (componentType === 'motherboard') {
-            // Motherboard was selected, refresh CPU, RAM, and case to check compatibility
+            // Motherboard was selected, refresh CPU, RAM, case, and cooler to check compatibility
             if (this.currentBuild.cpu) {
                 this.updateBuilderComponentDisplay('cpu', this.currentBuild.cpu);
             }
@@ -8254,9 +8418,15 @@ class PartsDatabase {
             if (this.currentBuild.case) {
                 this.updateBuilderComponentDisplay('case', this.currentBuild.case);
             }
+            if (this.currentBuild.cooler) {
+                this.updateBuilderComponentDisplay('cooler', this.currentBuild.cooler);
+            }
         } else if (componentType === 'case' && this.currentBuild.motherboard) {
             // Case was selected, refresh motherboard to check compatibility
             this.updateBuilderComponentDisplay('motherboard', this.currentBuild.motherboard);
+        } else if (componentType === 'cooler' && this.currentBuild.cpu) {
+            // Cooler was selected, ensure it displays with correct compatibility status
+            // (No need to refresh CPU, just ensure cooler styling is correct)
         }
 
         // If selecting a CPU with included cooler, show stock cooler if no cooler selected
@@ -8592,6 +8762,45 @@ class PartsDatabase {
                         const caseFFDisplay = caseFormFactorArray.join('/');
                         incompatibilityMessage = `Too Small for Motherboard: ${caseFFDisplay} case won't fit ${motherboardFormFactor} motherboard`;
                     }
+                }
+            }
+        }
+
+        // Check cooler socket compatibility with CPU
+        if (componentType === 'cooler' && this.currentBuild && this.currentBuild.cpu) {
+            const selectedCpu = this.currentBuild.cpu;
+            const cpuSocket = selectedCpu.socket || selectedCpu.socketType;
+            const coolerSockets = component.socketCompatibility || [];
+
+            if (cpuSocket && coolerSockets.length > 0) {
+                // Helper function to normalize socket names (e.g., sTRX5 = TR5, LGA 1700 = LGA1700)
+                const normalizeSocket = (socket) => {
+                    return socket.toString().trim().toUpperCase().replace(/\s+/g, '').replace('STRX', 'TR');
+                };
+
+                const normalizedCpuSocket = normalizeSocket(cpuSocket);
+
+                // Check if the CPU socket is in the cooler's compatibility list
+                const isCoolerCompatible = coolerSockets.some(coolerSocket => {
+                    const normalizedCoolerSocket = normalizeSocket(coolerSocket);
+
+                    // Direct match
+                    if (normalizedCpuSocket === normalizedCoolerSocket) return true;
+
+                    // Handle LGA115x wildcard (matches 1150, 1151, 1155, 1156)
+                    if (normalizedCoolerSocket === 'LGA115X' &&
+                        (normalizedCpuSocket === 'LGA1150' || normalizedCpuSocket === 'LGA1151' ||
+                         normalizedCpuSocket === 'LGA1155' || normalizedCpuSocket === 'LGA1156')) {
+                        return true;
+                    }
+
+                    return false;
+                });
+
+                if (!isCoolerCompatible) {
+                    isCompatible = false;
+                    const coolerSocketsDisplay = coolerSockets.join(', ');
+                    incompatibilityMessage = `Incompatible Socket: Cooler supports ${coolerSocketsDisplay} (CPU has ${cpuSocket})`;
                 }
             }
         }

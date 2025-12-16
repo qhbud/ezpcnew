@@ -2453,6 +2453,52 @@ app.post('/api/ai-build', async (req, res) => {
             name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
         }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray();
 
+        // Filter cases to ensure motherboard form factor compatibility
+        if (selectedParts.motherboard && selectedParts.motherboard.formFactor) {
+            const motherboardFormFactor = selectedParts.motherboard.formFactor;
+            const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+            // Check motherboard type (order matters: check more specific first)
+            const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+            const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+            const isMoboEATX = moboFFUpper.includes('EATX');
+            const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+            const compatibleCases = cases.filter(caseItem => {
+                const caseFormFactors = caseItem.formFactor || [];
+                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                for (const caseFF of caseFormFactorArray) {
+                    const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                    // Check case type (order matters: check more specific first)
+                    const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                    const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                    const isCaseEATX = caseFFUpper.includes('EATX');
+                    const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                    // E-ATX case accepts all motherboards
+                    if (isCaseEATX) return true;
+                    // ATX case: compatible with ATX, mATX, ITX
+                    if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) return true;
+                    // mATX/Micro ATX case: compatible with mATX, ITX
+                    if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) return true;
+                    // ITX case: compatible with ITX only
+                    if (isCaseITX && isMoboITX) return true;
+                }
+
+                return false;
+            });
+
+            if (compatibleCases.length > 0) {
+                cases = compatibleCases;
+                caseDebug.searchCriteria += `, Compatible with ${motherboardFormFactor} motherboard`;
+                console.log(`Filtered to ${compatibleCases.length} cases compatible with ${motherboardFormFactor} motherboard`);
+            } else {
+                console.warn(`⚠️ No compatible cases found for ${motherboardFormFactor} motherboard in budget, trying all cases...`);
+            }
+        }
+
         caseDebug.candidatesFound = cases.length;
 
         // If no cases found in budget, find the cheapest available (MANDATORY component)
@@ -2463,6 +2509,44 @@ app.post('/api/ai-build', async (req, res) => {
                 wattage: { $exists: false },
                 name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
             }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
+
+            // Filter for motherboard compatibility even in fallback
+            if (selectedParts.motherboard && selectedParts.motherboard.formFactor) {
+                const motherboardFormFactor = selectedParts.motherboard.formFactor;
+                const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
+                const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
+                const isMoboEATX = moboFFUpper.includes('EATX');
+                const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
+
+                const compatibleCases = cases.filter(caseItem => {
+                    const caseFormFactors = caseItem.formFactor || [];
+                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                    for (const caseFF of caseFormFactorArray) {
+                        const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+
+                        const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
+                        const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
+                        const isCaseEATX = caseFFUpper.includes('EATX');
+                        const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
+
+                        if (isCaseEATX) return true;
+                        if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) return true;
+                        if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) return true;
+                        if (isCaseITX && isMoboITX) return true;
+                    }
+
+                    return false;
+                });
+
+                if (compatibleCases.length > 0) {
+                    cases = compatibleCases;
+                    console.log(`Fallback: Found ${compatibleCases.length} compatible cases for ${motherboardFormFactor} motherboard`);
+                }
+            }
+
             caseDebug.searchCriteria = 'Cheapest available (budget allocation insufficient)';
             caseDebug.candidatesFound = cases.length;
         }
@@ -3280,6 +3364,19 @@ app.post('/api/components/increment-saves', async (req, res) => {
     } catch (error) {
         console.error('Error incrementing save counts:', error);
         res.status(500).json({ error: 'Failed to update save counts' });
+    }
+});
+
+// Cache management endpoint
+app.post('/api/clear-cache', (req, res) => {
+    try {
+        apiCache.clear();
+        statsCache.clear();
+        console.log('🗑️  Cache cleared successfully');
+        res.json({ success: true, message: 'Cache cleared successfully' });
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+        res.status(500).json({ error: 'Failed to clear cache' });
     }
 });
 
