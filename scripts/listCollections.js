@@ -7,11 +7,10 @@ async function listCollections() {
 
         // Get all collections
         const collections = await db.listCollections().toArray();
-        const cpuCollections = collections.filter(col => col.name.includes('cpu'));
 
-        console.log(`Found ${cpuCollections.length} CPU-related collections:\n`);
+        console.log(`Found ${collections.length} collections:\n`);
 
-        for (const col of cpuCollections) {
+        for (const col of collections) {
             const collection = db.collection(col.name);
             const count = await collection.countDocuments();
             console.log(`${col.name}: ${count} documents`);
