@@ -2495,7 +2495,9 @@ app.post('/api/ai-build', async (req, res) => {
                 caseDebug.searchCriteria += `, Compatible with ${motherboardFormFactor} motherboard`;
                 console.log(`Filtered to ${compatibleCases.length} cases compatible with ${motherboardFormFactor} motherboard`);
             } else {
-                console.warn(`⚠️ No compatible cases found for ${motherboardFormFactor} motherboard in budget, trying all cases...`);
+                console.warn(`⚠️ No compatible cases found for ${motherboardFormFactor} motherboard in budget, expanding search...`);
+                // Set cases to empty array to trigger fallback search for compatible cases
+                cases = [];
             }
         }
 
