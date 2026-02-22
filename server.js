@@ -18,53 +18,53 @@ function hasValidPrice(item) {
 
 // GPU benchmark data for performance scoring
 const gpuBenchmarks = {
-    'RTX 5090': 205.5,
-    'RTX 5080': 172.6,
-    'RTX 5070 Ti': 171.5,
-    'RTX 5070': 152.6,
-    'RTX 5060 Ti': 118.9,
-    'RTX 5060': 103.7,
-    'RTX 4090': 203.3,
-    'RTX 4080 Super': 185.6,
-    'RTX 4080': 183.6,
-    'RTX 4070 Ti Super': 166.6,
-    'RTX 4070 Super': 149.8,
-    'RTX 4070 Ti': 166.6,
-    'RTX 4070': 133,
-    'RTX 4060 Ti': 105,
+    'RTX 5090': 197.5,
+    'RTX 5080': 178.5,
+    'RTX 5070 Ti': 169.3,
+    'RTX 5070': 149.1,
+    'RTX 5060 Ti': 120.3,
+    'RTX 5060': 102.7,
+    'RTX 4090': 195.6,
+    'RTX 4080 Super': 177.2,
+    'RTX 4080': 175,
+    'RTX 4070 Ti Super': 161.3,
+    'RTX 4070 Ti': 155.1,
+    'RTX 4070 Super': 147.6,
+    'RTX 4070': 130.7,
+    'RTX 4060 Ti': 103.2,
     'RTX 4060': 83.9,
-    'RTX 3090 Ti': 134.1,
-    'RTX 3090': 131.85,
-    'RTX 3080 Ti': 130.05,
-    'RTX 3080': 128.175,
-    'RTX 3070 Ti': 120.975,
-    'RTX 3070': 117.15,
-    'RTX 3060 Ti': 111.15,
-    'RTX 3060': 90.75,
-    'RTX 3050': 66.6,
-    'RX 7900 XTX': 140.2,
-    'RX 7900 XT': 131,
-    'RX 7900 GRE': 126.3,
-    'RX 7900': 126.3,
-    'RX 7800 XT': 107.1,
-    'RX 7700 XT': 97.6,
-    'RX 7600 XT': 64.3,
-    'RX 7600': 60.6,
-    'RX 6950 XT': 140.55,
-    'RX 6900 XT': 138.975,
-    'RX 6800 XT': 135.9,
-    'RX 6800': 130.5,
-    'RX 6750 XT': 120,
-    'RX 6700 XT': 110,
-    'RX 6650 XT': 100,
-    'RX 6600 XT': 90,
-    'RX 6600': 80,
-    'RX 6500 XT': 60,
-    'RX 6400': 45,
-    'Arc A770': 95,
-    'Arc A750': 85,
-    'Arc A580': 70,
-    'Arc A380': 50
+    'RTX 3090 Ti': 131.6,
+    'RTX 3090': 128.1,
+    'RTX 3080 Ti': 126.2,
+    'RTX 3080': 125.8,
+    'RTX 3070 Ti': 98.59404601,
+    'RTX 3070': 99.8,
+    'RTX 3060 Ti': 91.5,
+    'RTX 3060': 70.2,
+    'RTX 3050': 51.4,
+    'RX 7900 XTX': 174.1,
+    'RX 7900 XT': 163.1,
+    'RX 7800 XT': 133.2,
+    'RX 7700 XT': 114.5,
+    'RX 7600 XT': 84.6,
+    'RX 7600': 79.3,
+    'RX 6950 XT': 153,
+    'RX 6900 XT': 145,
+    'RX 6800 XT': 132,
+    'RX 6800': 120,
+    'RX 6750 XT': 110,
+    'RX 6700 XT': 105,
+    'RX 6650 XT': 93,
+    'RX 6600 XT': 80,
+    'RX 6600': 64.1,
+    'RX 6500 XT': 40.76102842,
+    'RX 6400': 31.36481732,
+    'Arc A770': 63.4,
+    'Arc A750': 57.4,
+    'Arc A580': 80,
+    'Arc A380': 37.45250338,
+    'Arc B570': 72.4,
+    'Arc B580': 80.364
 };
 
 // Function to get GPU performance score from benchmark data
@@ -80,7 +80,7 @@ function getGpuPerformance(gpu) {
     for (const [model, score] of sortedModels) {
         if (name.includes(model)) {
             // Normalize the score (divide by max value of 205.5 - RTX 5090)
-            const maxScore = 205.5;
+            const maxScore = 197.5;
             return score / maxScore;
         }
     }
@@ -566,6 +566,8 @@ async function handleGPURequest(req, res) {
                     availableCards: modelData.availableCards,
                     saveCount: modelData.totalSaveCount, // Sum of all variants' save counts
                     releaseYear: card.releaseYear,
+                    tdp: card.tdp,
+                    length: card.length,
                     category: 'gpus',
                     collection: card.collection
                 };
@@ -2298,7 +2300,7 @@ app.post('/api/ai-build', async (req, res) => {
 
         // More realistic power estimation using actual component TDP values
         const basePower = 100; // Motherboard, fans, etc.
-        let gpuPower = selectedParts.gpu ? getGPUTDP(selectedParts.gpu.name || selectedParts.gpu.title) : 0;
+        let gpuPower = selectedParts.gpu ? (parseFloat(selectedParts.gpu.tdp) || getGPUTDP(selectedParts.gpu.name || selectedParts.gpu.title)) : 0;
         let cpuPower = selectedParts.cpu ? getCPUTDP(selectedParts.cpu) : 0;
         const ramPower = 10; // DDR5 RAM
         // Storage can be an array or a single object, handle both cases
@@ -2501,6 +2503,36 @@ app.post('/api/ai-build', async (req, res) => {
             }
         }
 
+        // Filter cases by GPU length compatibility
+        if (selectedParts.gpu && selectedParts.gpu.length > 0) {
+            const gpuLength = selectedParts.gpu.length;
+            const gpuCompatibleCases = cases.filter(caseItem => {
+                const caseFormFactors = caseItem.formFactor || [];
+                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                const isITXCase = caseFormFactorArray.some(ff => {
+                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                    return u.includes('ITX') && !u.includes('ATX');
+                });
+                const isMATXCase = caseFormFactorArray.some(ff => {
+                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                    return u.includes('MATX') || u.includes('MICROATX');
+                });
+
+                if (isITXCase && gpuLength > 300) return false;
+                if (isMATXCase && gpuLength > 340) return false;
+                return true;
+            });
+
+            if (gpuCompatibleCases.length > 0) {
+                cases = gpuCompatibleCases;
+                caseDebug.searchCriteria += `, GPU fits (${gpuLength}mm)`;
+                console.log(`Filtered to ${gpuCompatibleCases.length} cases that fit GPU (${gpuLength}mm)`);
+            } else {
+                console.warn(`⚠️ No cases found that fit GPU (${gpuLength}mm), skipping GPU size filter`);
+            }
+        }
+
         caseDebug.candidatesFound = cases.length;
 
         // If no cases found in budget, find the cheapest available (MANDATORY component)
@@ -2546,6 +2578,35 @@ app.post('/api/ai-build', async (req, res) => {
                 if (compatibleCases.length > 0) {
                     cases = compatibleCases;
                     console.log(`Fallback: Found ${compatibleCases.length} compatible cases for ${motherboardFormFactor} motherboard`);
+                }
+            }
+
+            // Apply GPU size filter in fallback too
+            if (selectedParts.gpu && selectedParts.gpu.length > 0) {
+                const gpuLength = selectedParts.gpu.length;
+                const gpuCompatibleCases = cases.filter(caseItem => {
+                    const caseFormFactors = caseItem.formFactor || [];
+                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                    const isITXCase = caseFormFactorArray.some(ff => {
+                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                        return u.includes('ITX') && !u.includes('ATX');
+                    });
+                    const isMATXCase = caseFormFactorArray.some(ff => {
+                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                        return u.includes('MATX') || u.includes('MICROATX');
+                    });
+
+                    if (isITXCase && gpuLength > 300) return false;
+                    if (isMATXCase && gpuLength > 340) return false;
+                    return true;
+                });
+
+                if (gpuCompatibleCases.length > 0) {
+                    cases = gpuCompatibleCases;
+                    console.log(`Fallback: Filtered to ${gpuCompatibleCases.length} cases that fit GPU (${gpuLength}mm)`);
+                } else {
+                    console.warn(`Fallback: No cases fit GPU (${gpuLength}mm), skipping GPU size filter`);
                 }
             }
 

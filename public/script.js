@@ -21,53 +21,53 @@ class PartsDatabase {
 
         // GPU Performance Benchmarks
         this.gpuBenchmarks = {
-            'RTX 5090': 205.5,
-            'RTX 5080': 172.6,
-            'RTX 5070 Ti': 171.5,
-            'RTX 5070': 152.6,
-            'RTX 5060 Ti': 118.9,
-            'RTX 5060': 103.7,
-            'RTX 4090': 203.3,
-            'RTX 4080 Super': 185.6,
-            'RTX 4080': 183.6,
-            'RTX 4070 Ti Super': 166.6,
-            'RTX 4070 Super': 149.8,
-            'RTX 4070 Ti': 166.6,
-            'RTX 4070': 133,
-            'RTX 4060 Ti': 105,
+            'RTX 5090': 197.5,
+            'RTX 5080': 178.5,
+            'RTX 5070 Ti': 169.3,
+            'RTX 5070': 149.1,
+            'RTX 5060 Ti': 120.3,
+            'RTX 5060': 102.7,
+            'RTX 4090': 195.6,
+            'RTX 4080 Super': 177.2,
+            'RTX 4080': 175,
+            'RTX 4070 Ti Super': 161.3,
+            'RTX 4070 Ti': 155.1,
+            'RTX 4070 Super': 147.6,
+            'RTX 4070': 130.7,
+            'RTX 4060 Ti': 103.2,
             'RTX 4060': 83.9,
-            'RTX 3090 Ti': 134.1,
-            'RTX 3090': 131.85,
-            'RTX 3080 Ti': 130.05,
-            'RTX 3080': 128.175,
-            'RTX 3070 Ti': 120.975,
-            'RTX 3070': 117.15,
-            'RTX 3060 Ti': 111.15,
-            'RTX 3060': 90.75,
-            'RTX 3050': 66.6,
-            'RX 7900 XTX': 140.2,
-            'RX 7900 XT': 131,
-            'RX 7900 GRE': 126.3,
-            'RX 7900': 126.3,
-            'RX 7800 XT': 107.1,
-            'RX 7700 XT': 97.6,
-            'RX 7600 XT': 64.3,
-            'RX 7600': 60.6,
-            'RX 6950 XT': 140.55,
-            'RX 6900 XT': 138.975,
-            'RX 6800 XT': 135.9,
-            'RX 6800': 130.5,
-            'RX 6750 XT': 120,
-            'RX 6700 XT': 110,
-            'RX 6650 XT': 100,
-            'RX 6600 XT': 90,
-            'RX 6600': 80,
-            'RX 6500 XT': 60,
-            'RX 6400': 45,
-            'Arc A770': 95,
-            'Arc A750': 85,
-            'Arc A580': 70,
-            'Arc A380': 50
+            'RTX 3090 Ti': 131.6,
+            'RTX 3090': 128.1,
+            'RTX 3080 Ti': 126.2,
+            'RTX 3080': 125.8,
+            'RTX 3070 Ti': 98.59404601,
+            'RTX 3070': 99.8,
+            'RTX 3060 Ti': 91.5,
+            'RTX 3060': 70.2,
+            'RTX 3050': 51.4,
+            'RX 7900 XTX': 174.1,
+            'RX 7900 XT': 163.1,
+            'RX 7800 XT': 133.2,
+            'RX 7700 XT': 114.5,
+            'RX 7600 XT': 84.6,
+            'RX 7600': 79.3,
+            'RX 6950 XT': 153,
+            'RX 6900 XT': 145,
+            'RX 6800 XT': 132,
+            'RX 6800': 120,
+            'RX 6750 XT': 110,
+            'RX 6700 XT': 105,
+            'RX 6650 XT': 93,
+            'RX 6600 XT': 80,
+            'RX 6600': 64.1,
+            'RX 6500 XT': 40.76102842,
+            'RX 6400': 31.36481732,
+            'Arc A770': 63.4,
+            'Arc A750': 57.4,
+            'Arc A580': 80,
+            'Arc A380': 37.45250338,
+            'Arc B570': 72.4,
+            'Arc B580': 80.364
         };
 
         this.allParts = []; // Current active parts (GPUs, CPUs, Motherboards, RAM, PSUs, or Coolers)
@@ -3604,7 +3604,9 @@ class PartsDatabase {
 
     getGpuPerformance(component) {
         // Extract GPU model from component name or model field
-        const name = component.name || component.title || component.model || '';
+        // Strip trademark/registered symbols that break matching (e.g. "RTX™ 5080" → "RTX 5080")
+        const rawName = component.name || component.title || component.model || '';
+        const name = rawName.replace(/[\u2122\u00AE]/g, '').replace(/\s+/g, ' ');
 
         // Sort benchmark keys by length (longest first) to match more specific models first
         // This ensures "RX 7900 XTX" matches before "RX 7900"
@@ -3615,7 +3617,7 @@ class PartsDatabase {
         for (const [model, score] of sortedModels) {
             if (name.includes(model)) {
                 // Normalize the score (divide by max value of 205.5 - RTX 5090)
-                const maxScore = 205.5;
+                const maxScore = 197.5;
                 return score / maxScore;
             }
         }
@@ -4115,6 +4117,32 @@ class PartsDatabase {
 
             if (cpuSocket && coolerSockets.length > 0 && !coolerSockets.includes(cpuSocket)) {
                 issues.push(`⚠️ Cooler may not support CPU socket (${cpuSocket})`);
+            }
+        }
+
+        // Check GPU length vs case form factor
+        if (gpu && pcCase) {
+            const gpuLength = gpu.length || 0;
+            const caseFormFactors = pcCase.formFactor || [];
+            const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+            if (gpuLength > 0) {
+                const isITXCase = caseFormFactorArray.some(ff => {
+                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                    return u.includes('ITX') && !u.includes('ATX');
+                });
+                const isMATXCase = caseFormFactorArray.some(ff => {
+                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                    return u.includes('MATX') || u.includes('MICROATX');
+                });
+
+                const gpuName = gpu.gpuModel || gpu.name || 'Selected GPU';
+
+                if (isITXCase && gpuLength > 300) {
+                    issues.push(`⚠️ ${gpuName} (≈${gpuLength}mm) may be too long for many ITX cases (typical limit: 300mm)`);
+                } else if (isMATXCase && gpuLength > 340) {
+                    issues.push(`⚠️ ${gpuName} (≈${gpuLength}mm) may be too long for most Micro-ATX cases (typical limit: 340mm)`);
+                }
             }
         }
 
@@ -5636,11 +5664,13 @@ class PartsDatabase {
             breakdown.push(`CPU: ${cpuWattage}W`);
         }
 
-        // GPU wattage
-        if (this.currentBuild && this.currentBuild.gpu && this.currentBuild.gpu.wattage) {
-            const gpuWattage = this.currentBuild.gpu.wattage;
-            totalWattage += gpuWattage;
-            breakdown.push(`GPU: ${gpuWattage}W`);
+        // GPU wattage (stored as tdp on GPU documents, wattage as fallback)
+        if (this.currentBuild && this.currentBuild.gpu) {
+            const gpuWattage = this.currentBuild.gpu.tdp || this.currentBuild.gpu.wattage;
+            if (gpuWattage) {
+                totalWattage += gpuWattage;
+                breakdown.push(`GPU: ${gpuWattage}W`);
+            }
         }
 
         // RAM wattage: 3W per DDR4 stick, 5W per DDR5 stick
@@ -5719,6 +5749,24 @@ class PartsDatabase {
                 this.greatValueGpuIds = ids;
                 // Refresh the table to show badges
                 this.populateComponentTable(componentType);
+                // Re-expand the selected GPU row and restore the details panel after re-render
+                if (this.currentBuild && this.currentBuild.gpu) {
+                    const selectedGpu = this.currentBuild.gpu;
+                    setTimeout(() => {
+                        this.expandAndSelectGPUsInModal([selectedGpu]);
+                        // Restore details panel state
+                        if (!this.comparisonComponents || this.comparisonComponents.length === 0) {
+                            this.comparisonComponents = [{ component: selectedGpu, componentType: 'gpu', variantIndex: 0 }];
+                            this.currentComparisonIndex = 0;
+                            this.currentDetailSelection = { component: selectedGpu, componentType: 'gpu', variantIndex: 0 };
+                            this.renderComparisonView();
+                            const panel = document.getElementById('componentDetailsPanel');
+                            if (panel) panel.classList.remove('hidden');
+                            const modalContent = document.querySelector('.modal-content');
+                            if (modalContent) modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
+                        }
+                    }, 200);
+                }
             });
         }
 
@@ -6123,15 +6171,39 @@ class PartsDatabase {
             }
 
             if (selectedComponent) {
-                // Wait a bit for the table to render
-                setTimeout(() => {
-                    this.showSingleComponentDetails(selectedComponent, componentType, 0);
-
-                    // Scroll to the selected component row after table is fully rendered
+                if (componentType === 'gpu') {
+                    // For GPUs: expand the model row and open the details panel
                     setTimeout(() => {
-                        this.scrollToSelectedComponent(selectedComponent);
-                    }, 200);
-                }, 100);
+                        // Expand the model row and mark the variant
+                        this.expandAndSelectGPUsInModal([selectedComponent]);
+
+                        // Open the details panel for the selected GPU immediately
+                        if (!this.comparisonComponents) this.comparisonComponents = [];
+                        this.comparisonComponents = [{ component: selectedComponent, componentType: 'gpu', variantIndex: 0 }];
+                        this.currentComparisonIndex = 0;
+                        this.currentDetailSelection = { component: selectedComponent, componentType: 'gpu', variantIndex: 0 };
+                        this.closeStatisticsPanel();
+                        this.renderComparisonView();
+                        const panel = document.getElementById('componentDetailsPanel');
+                        if (panel) panel.classList.remove('hidden');
+                        this.createMobileDetailsToggle();
+                        const modalContent = document.querySelector('.modal-content');
+                        if (modalContent) modalContent.style.setProperty('border-radius', '12px 0 0 12px', 'important');
+
+                        // Scroll to the selected variant after it's rendered
+                        setTimeout(() => {
+                            this.scrollToSelectedComponent(selectedComponent);
+                        }, 900);
+                    }, 150);
+                } else {
+                    // For other components: show details panel and scroll
+                    setTimeout(() => {
+                        this.showSingleComponentDetails(selectedComponent, componentType, 0);
+                        setTimeout(() => {
+                            this.scrollToSelectedComponent(selectedComponent);
+                        }, 200);
+                    }, 100);
+                }
             }
         }
     }
@@ -6141,8 +6213,8 @@ class PartsDatabase {
         const modalBody = document.querySelector('.modal-body');
         if (!modalBody) return;
 
-        // Find the component-selected row that is inside the modal
-        const selectedRow = modalBody.querySelector('.component-selected');
+        // Find the selected row — for GPUs check variant-selected, otherwise component-selected
+        const selectedRow = modalBody.querySelector('.variant-selected') || modalBody.querySelector('.component-selected');
 
         if (selectedRow) {
             // Get the position of the row relative to the modal body
@@ -7580,6 +7652,32 @@ class PartsDatabase {
                 compatibilityBadge = `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 4px; font-size: 10px; font-weight: 600;">⚠️ ${motherboardFormFactor} Motherboard Too Large</span>`;
             }
 
+            // GPU size warning for ITX and mATX cases
+            if (this.currentBuild && this.currentBuild.gpu) {
+                const gpuLength = this.currentBuild.gpu.length || 0;
+                if (gpuLength > 0) {
+                    const caseFormFactors = component.formFactor || [];
+                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
+
+                    const isITXCase = caseFormFactorArray.some(ff => {
+                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                        return u.includes('ITX') && !u.includes('ATX');
+                    });
+                    const isMATXCase = caseFormFactorArray.some(ff => {
+                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+                        return u.includes('MATX') || u.includes('MICROATX');
+                    });
+
+                    const gpuName = this.currentBuild.gpu.gpuModel || this.currentBuild.gpu.name || 'GPU';
+
+                    if (isITXCase && gpuLength > 300) {
+                        compatibilityBadge += `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-radius: 4px; font-size: 10px; font-weight: 600;">⚠️ GPU May Not Fit (≈${gpuLength}mm)</span>`;
+                    } else if (isMATXCase && gpuLength > 340) {
+                        compatibilityBadge += `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-radius: 4px; font-size: 10px; font-weight: 600;">⚠️ GPU May Not Fit (≈${gpuLength}mm)</span>`;
+                    }
+                }
+            }
+
             row.innerHTML = `
                 <td style="padding: 8px; text-align: center; width: 100px;">
                     ${imageUrl ? `<img src="${imageUrl}" alt="${name}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px;">` : '<div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"><i class="fas fa-box" style="color: #ccc; font-size: 24px;"></i></div>'}
@@ -8024,34 +8122,29 @@ class PartsDatabase {
                     this.currentComparisonIndex = 0;
                 }
 
-                // Add all variants to comparison (append, don't clear), but skip those out of price range
-                variants.forEach((variant, variantIndex) => {
-                    // Check if this variant meets the price filter
-                    const variantBasePrice = parseFloat(variant.basePrice) || 0;
-                    const variantSalePrice = parseFloat(variant.salePrice || variant.currentPrice) || 0;
-                    const variantPrice = variantSalePrice > 0 ? variantSalePrice : variantBasePrice;
+                // Sort variants by price and select only the two cheapest that meet the price filter
+                const sortedForSelection = variants
+                    .map((variant, originalIndex) => {
+                        const bp = parseFloat(variant.basePrice) || 0;
+                        const sp = parseFloat(variant.salePrice || variant.currentPrice) || 0;
+                        const price = sp > 0 ? sp : bp;
+                        return { variant, originalIndex, price };
+                    })
+                    .filter(({ price }) => {
+                        if (this.minPrice !== null && price < this.minPrice) return false;
+                        if (this.maxPrice !== null && price > this.maxPrice) return false;
+                        return true;
+                    })
+                    .sort((a, b) => a.price - b.price)
+                    .slice(0, 2);
 
-                    let meetsPriceFilter = true;
-                    if (this.minPrice !== null && variantPrice < this.minPrice) {
-                        meetsPriceFilter = false;
-                    }
-                    if (this.maxPrice !== null && variantPrice > this.maxPrice) {
-                        meetsPriceFilter = false;
-                    }
-
-                    // Skip variants that don't meet the price filter
-                    if (!meetsPriceFilter) {
-                        return;
-                    }
-
-                    // Check if this variant is already in the comparison
+                sortedForSelection.forEach(({ variant }) => {
                     const variantId = variant._id || variant.title;
                     const alreadyExists = this.comparisonComponents.some(item => {
                         const existingId = item.component._id || item.component.title;
                         return existingId === variantId;
                     });
 
-                    // Only add if not already present
                     if (!alreadyExists) {
                         this.comparisonComponents.push({
                             component: variant,
@@ -8061,15 +8154,16 @@ class PartsDatabase {
                     }
                 });
 
-                // Show the details panel with the first variant from this group
+                // Show the details panel with the cheapest selected variant
+                const cheapestSelected = sortedForSelection.length > 0 ? sortedForSelection[0].variant : variants[0];
                 this.currentDetailSelection = {
-                    component: variants[0],
+                    component: cheapestSelected,
                     componentType: 'gpu',
                     variantIndex: 0
                 };
 
-                // Update comparison index to show the first variant of this group
-                const firstVariantId = variants[0]._id || variants[0].title;
+                // Update comparison index to show the cheapest selected variant
+                const firstVariantId = cheapestSelected._id || cheapestSelected.title;
                 const firstVariantIndex = this.comparisonComponents.findIndex(item => {
                     const itemId = item.component._id || item.component.title;
                     return itemId === firstVariantId;
@@ -8160,9 +8254,28 @@ class PartsDatabase {
             return '<div class="no-variants">No individual cards available</div>';
         }
 
+        // Find the cheapest variant price (only when there are multiple)
+        let cheapestPrice = Infinity;
+        if (variants.length > 1) {
+            variants.forEach(v => {
+                const sp = parseFloat(v.salePrice || v.currentPrice) || 0;
+                const bp = parseFloat(v.basePrice) || 0;
+                const p = sp > 0 ? sp : bp;
+                if (p > 0 && p < cheapestPrice) cheapestPrice = p;
+            });
+        }
+
+        // Sort variants by price (cheapest first), preserving original index for cache lookups
+        const sortedVariants = variants.map((variant, originalIndex) => {
+            const sp = parseFloat(variant.salePrice || variant.currentPrice) || 0;
+            const bp = parseFloat(variant.basePrice) || 0;
+            const effectivePrice = sp > 0 ? sp : bp;
+            return { variant, originalIndex, effectivePrice };
+        }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+
         let html = '<div class="variants-grid">';
 
-        variants.forEach((variant, variantIndex) => {
+        sortedVariants.forEach(({ variant, originalIndex, effectivePrice }) => {
             const variantName = variant.title || variant.name || 'Variant';
             const variantBasePrice = parseFloat(variant.basePrice) || 0;
             const variantSalePrice = parseFloat(variant.salePrice || variant.currentPrice) || 0;
@@ -8171,11 +8284,14 @@ class PartsDatabase {
             const discount = isOnSale && variantBasePrice > 0 ? Math.round(((variantBasePrice - variantSalePrice) / variantBasePrice) * 100) : 0;
 
             // Check if this variant is selected
-            const variantId = variant._id || variant.title || variantIndex;
+            const variantId = variant._id || variant.title || originalIndex;
             const isSelected = this.isVariantSelected(variantId);
 
             // Check if this variant is a great value card
             const isGreatValue = this.greatValueGpuIds && this.greatValueGpuIds.has(variantId);
+
+            // Check if this is the cheapest variant
+            const isCheapest = variants.length > 1 && variantPrice > 0 && variantPrice === cheapestPrice;
 
             // Check if this variant meets the price filter
             let meetsPriceFilter = true;
@@ -8188,21 +8304,25 @@ class PartsDatabase {
 
             const grayedOutStyle = !meetsPriceFilter ? 'opacity: 0.4;' : '';
 
+            const cheapestStyle = isCheapest ? 'border-left: 3px solid #22c55e;' : '';
+            const cheapestPriceStyle = isCheapest ? 'color: #22c55e; font-weight: 700;' : '';
+
             html += `
-                <div class="variant-card ${isSelected ? 'variant-selected' : ''}" style="${grayedOutStyle}"
-                     onclick="pcBuilder.toggleVariantSelection('${componentType}', ${variantIndex}, '${cacheKey}')"
+                <div class="variant-card ${isSelected ? 'variant-selected' : ''} ${isCheapest ? 'variant-cheapest' : ''}" style="${grayedOutStyle}${cheapestStyle}"
+                     onclick="pcBuilder.toggleVariantSelection('${componentType}', ${originalIndex}, '${cacheKey}')"
                      data-variant-id="${variantId}">
                     <div class="variant-info">
                         <div class="variant-name">
                             ${variantName}
+                            ${isCheapest ? '<span class="best-price-badge" style="display: inline-block; margin-left: 6px; padding: 2px 6px; background: rgba(34, 197, 94, 0.15); color: #16a34a; border-radius: 3px; font-size: 9px; font-weight: 700; vertical-align: middle;">BEST PRICE</span>' : ''}
                             ${isGreatValue ? '<span class="great-value-badge-small" style="display: inline-block; margin-left: 6px; padding: 2px 6px; background: rgba(34, 197, 94, 0.15); color: #16a34a; border-radius: 3px; font-size: 9px; font-weight: 700; vertical-align: middle;">GREAT VALUE</span>' : ''}
                             ${!meetsPriceFilter ? '<span style="display: inline-block; margin-left: 6px; padding: 2px 6px; background: rgba(0, 0, 0, 0.1); color: #999; border-radius: 3px; font-size: 9px; font-weight: 700; vertical-align: middle;">OUT OF RANGE</span>' : ''}
                         </div>
-                        <div class="variant-price">
+                        <div class="variant-price" style="${cheapestPriceStyle}">
                             ${isOnSale ?
                                 `<span class="original-price">$${variantBasePrice.toFixed(2)}</span>
-                                 <span class="sale-price">$${variantSalePrice.toFixed(2)}</span>` :
-                                `<span class="price">$${variantPrice.toFixed(2)}</span>`
+                                 <span class="sale-price" ${isCheapest ? 'style="color: #22c55e;"' : ''}>$${variantSalePrice.toFixed(2)}</span>` :
+                                `<span class="price" ${isCheapest ? 'style="color: #22c55e; font-weight: 700;"' : ''}>$${variantPrice.toFixed(2)}</span>`
                             }
                         </div>
                     </div>
@@ -12175,8 +12295,35 @@ class PartsDatabase {
             ctx.setLineDash([]);
         }
 
+        // Determine the currently selected component for this mode
+        const selectedComponent = this.currentBuild
+            ? (isStorageMode ? this.currentBuild.storage
+                : isRamMode ? this.currentBuild.ram
+                : isCpuMode ? this.currentBuild.cpu
+                : this.currentBuild.gpu)
+            : null;
+        const selectedName = selectedComponent
+            ? (selectedComponent.title || selectedComponent.name || '').trim().toLowerCase()
+            : null;
+
+        // Helper to draw a 5-pointed star
+        const drawStar = (cx, cy, outerRadius, innerRadius) => {
+            ctx.beginPath();
+            for (let i = 0; i < 10; i++) {
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                const angle = (Math.PI / 2 * -1) + (Math.PI / 5) * i;
+                const sx = cx + Math.cos(angle) * radius;
+                const sy = cy + Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.closePath();
+        };
+
         // Draw points with hover detection capability
         this.scatterPlotPoints = []; // Store for hover detection
+        let selectedPointInfo = null; // Track selected point to draw on top
+
         dataPoints.forEach((point, index) => {
             const scaledPerformance = performanceToScale(point.performance);
             const x = padding.left + ((scaledPerformance - scaledMinPerformance) / (scaledMaxPerformance - scaledMinPerformance)) * chartWidth;
@@ -12227,15 +12374,24 @@ class PartsDatabase {
             const g = Math.round(255 * ratio);
             const b = 100;
 
-            // Draw point with reduced opacity if incompatible
-            const opacity = isCompatible ? 1.0 : 0.15;
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.5})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            // Check if this is the currently selected component
+            const pointName = (point.name || '').trim().toLowerCase();
+            const isSelected = selectedName && pointName === selectedName;
+
+            if (isSelected) {
+                // Defer drawing the selected point so it renders on top
+                selectedPointInfo = { x, y, point, r, g, b, isCompatible };
+            } else {
+                // Draw regular point with reduced opacity if incompatible
+                const opacity = isCompatible ? 1.0 : 0.15;
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.5})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
 
             // Store point data for hover detection
             this.scatterPlotPoints.push({
@@ -12246,6 +12402,19 @@ class PartsDatabase {
                 isCompatible: isCompatible
             });
         });
+
+        // Draw the selected component as a gold star on top of all other points
+        if (selectedPointInfo) {
+            const { x, y } = selectedPointInfo;
+
+            // Gold star
+            ctx.fillStyle = '#FFD700';
+            drawStar(x, y, 10, 4.5);
+            ctx.fill();
+            ctx.strokeStyle = '#B8860B';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
 
         // Draw axis labels
         ctx.fillStyle = '#333';
@@ -12394,6 +12563,7 @@ class PartsDatabase {
                 <div style="text-align: center; padding-top: 15px; border-top: 1px solid #e0e0e0;">
                     <p style="margin: 8px 0; font-size: 13px;">
                         ${colorGuideText}
+                        ${selectedComponent ? '<span style="margin: 0 8px; color: #333;">|</span> <span style="color: #FFD700; font-size: 16px; vertical-align: middle;">&#9733;</span> <span style="color: #B8860B; font-weight: 600;">Your Selection</span>' : ''}
                     </p>
                     <p style="font-size: 11px; color: #999; margin: 8px 0 0 0;">
                         ${valueExplanation}
@@ -13339,54 +13509,61 @@ class PartsDatabase {
 
         const titleUpper = title.toUpperCase();
 
+        // Use [^\d]* instead of \s* to handle special chars like ™ ® between prefix and model number
+        // Use [^\w]* for gaps between model number and suffixes (Ti, Super, XT, XTX, GRE)
+
         // NVIDIA RTX patterns - check for Ti and Super variants first (more specific)
         // Check RTX with Ti Super
-        if (/RTX\s*\d{4}\s*TI\s*SUPER/i.test(titleUpper)) {
-            const match = titleUpper.match(/RTX\s*(\d{4})\s*TI\s*SUPER/i);
+        if (/RTX[^\d]*\d{4}[^\w]*TI[^\w]*SUPER/i.test(titleUpper)) {
+            const match = titleUpper.match(/RTX[^\d]*(\d{4})[^\w]*TI[^\w]*SUPER/i);
             if (match) return `RTX ${match[1]} Ti Super`;
         }
         // Check RTX with Ti
-        if (/RTX\s*\d{4}\s*TI/i.test(titleUpper)) {
-            const match = titleUpper.match(/RTX\s*(\d{4})\s*TI/i);
+        if (/RTX[^\d]*\d{4}[^\w]*TI/i.test(titleUpper)) {
+            const match = titleUpper.match(/RTX[^\d]*(\d{4})[^\w]*TI/i);
             if (match) return `RTX ${match[1]} Ti`;
         }
         // Check RTX with Super
-        if (/RTX\s*\d{4}\s*SUPER/i.test(titleUpper)) {
-            const match = titleUpper.match(/RTX\s*(\d{4})\s*SUPER/i);
+        if (/RTX[^\d]*\d{4}[^\w]*SUPER/i.test(titleUpper)) {
+            const match = titleUpper.match(/RTX[^\d]*(\d{4})[^\w]*SUPER/i);
             if (match) return `RTX ${match[1]} Super`;
         }
         // Check regular RTX
-        if (/RTX\s*\d{4}/.test(titleUpper)) {
-            const match = titleUpper.match(/RTX\s*(\d{4})/);
+        if (/RTX[^\d]*\d{4}/.test(titleUpper)) {
+            const match = titleUpper.match(/RTX[^\d]*(\d{4})/);
             if (match) return `RTX ${match[1]}`;
         }
 
         // NVIDIA GTX patterns
-        if (/GTX\s*\d{4}\s*TI/i.test(titleUpper)) {
-            const match = titleUpper.match(/GTX\s*(\d{4})\s*TI/i);
+        if (/GTX[^\d]*\d{4}[^\w]*TI/i.test(titleUpper)) {
+            const match = titleUpper.match(/GTX[^\d]*(\d{4})[^\w]*TI/i);
             if (match) return `GTX ${match[1]} Ti`;
         }
-        if (/GTX\s*\d{4}/.test(titleUpper)) {
-            const match = titleUpper.match(/GTX\s*(\d{4})/);
+        if (/GTX[^\d]*\d{4}/.test(titleUpper)) {
+            const match = titleUpper.match(/GTX[^\d]*(\d{4})/);
             if (match) return `GTX ${match[1]}`;
         }
 
-        // AMD RX patterns - check XTX before XT (more specific first)
-        if (/RX\s*\d{4}\s*XTX/i.test(titleUpper)) {
-            const match = titleUpper.match(/RX\s*(\d{4})\s*XTX/i);
+        // AMD RX patterns - check XTX before XT, then GRE (more specific first)
+        if (/RX[^\d]*\d{4}[^\w]*XTX/i.test(titleUpper)) {
+            const match = titleUpper.match(/RX[^\d]*(\d{4})[^\w]*XTX/i);
             if (match) return `RX ${match[1]} XTX`;
         }
-        if (/RX\s*\d{4}\s*XT/i.test(titleUpper)) {
-            const match = titleUpper.match(/RX\s*(\d{4})\s*XT/i);
+        if (/RX[^\d]*\d{4}[^\w]*GRE/i.test(titleUpper)) {
+            const match = titleUpper.match(/RX[^\d]*(\d{4})[^\w]*GRE/i);
+            if (match) return `RX ${match[1]} GRE`;
+        }
+        if (/RX[^\d]*\d{4}[^\w]*XT/i.test(titleUpper)) {
+            const match = titleUpper.match(/RX[^\d]*(\d{4})[^\w]*XT/i);
             if (match) return `RX ${match[1]} XT`;
         }
-        if (/RX\s*\d{4}/.test(titleUpper)) {
-            const match = titleUpper.match(/RX\s*(\d{4})/);
+        if (/RX[^\d]*\d{4}/.test(titleUpper)) {
+            const match = titleUpper.match(/RX[^\d]*(\d{4})/);
             if (match) return `RX ${match[1]}`;
         }
 
         // Intel Arc patterns
-        const arcMatch = titleUpper.match(/ARC\s*([A-Z]\d{3})/i);
+        const arcMatch = titleUpper.match(/ARC[^\w]*([A-Z]\d{3})/i);
         if (arcMatch) {
             return `Arc ${arcMatch[1]}`;
         }
