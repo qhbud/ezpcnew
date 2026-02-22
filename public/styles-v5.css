@@ -1253,9 +1253,36 @@ tr.incompatible td {
 }
 
 .variant-card.variant-selected {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-    border-color: #3b82f6;
-    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    border-color: #60a5fa;
+    box-shadow: 0 4px 16px rgba(96, 165, 250, 0.35);
+}
+
+.variant-card.variant-selected.variant-cheapest {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-color: #22c55e;
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+}
+
+.variant-card.variant-selected.variant-cheapest .variant-name {
+    color: white;
+    font-weight: 600;
+}
+
+.variant-card.variant-selected.variant-cheapest .variant-price,
+.variant-card.variant-selected.variant-cheapest .price,
+.variant-card.variant-selected.variant-cheapest .sale-price {
+    color: white !important;
+}
+
+.variant-card.variant-selected.variant-cheapest .original-price {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.variant-card.variant-selected.variant-cheapest .best-price-badge {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .variant-card.variant-selected .variant-name {
@@ -1287,7 +1314,7 @@ tr.incompatible td {
     top: 10px;
     right: 10px;
     background: white;
-    color: #3b82f6;
+    color: #60a5fa;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -1297,6 +1324,10 @@ tr.incompatible td {
     font-size: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     animation: popIn 0.3s ease;
+}
+
+.variant-cheapest .selection-indicator {
+    color: #22c55e;
 }
 
 @keyframes popIn {
