@@ -687,6 +687,7 @@ class PartsDatabase {
             if (response.ok) {
                 this.allCPUs = await response.json();
                 console.log('Loaded CPUs:', this.allCPUs.length);
+                this.refreshModalIfOpen('cpu');
                 // CPUs are now loaded and ready for the modal
                 if (this.currentTab === 'cpu') {
                     this.allParts = this.allCPUs;
@@ -731,6 +732,7 @@ class PartsDatabase {
                 });
 
                 console.log(`Loaded ${this.allMotherboards.length} Motherboards (filtered out ${allData.length - this.allMotherboards.length} unavailable)`);
+                this.refreshModalIfOpen('motherboard');
                 this.populateMotherboardSelector();
                 if (this.currentTab === 'motherboard') {
                     this.allParts = this.allMotherboards;
@@ -797,6 +799,7 @@ class PartsDatabase {
             if (response.ok) {
                 this.allRAM = await response.json();
                 console.log('Loaded RAM:', this.allRAM.length);
+                this.refreshModalIfOpen('ram');
                 this.populateRamSelector();
                 if (this.currentTab === 'ram') {
                     this.allParts = this.allRAM;
@@ -825,6 +828,7 @@ class PartsDatabase {
                     psu.wattage && psu.certification && psu.modularity
                 );
                 console.log('Loaded PSUs:', this.allPSUs.length, `(filtered out ${allPSUs.length - this.allPSUs.length} incomplete)`);
+                this.refreshModalIfOpen('psu');
                 this.populatePsuSelector();
                 if (this.currentTab === 'psu') {
                     this.allParts = this.allPSUs;
@@ -849,6 +853,7 @@ class PartsDatabase {
             if (response.ok) {
                 this.allCoolers = await response.json();
                 console.log('Loaded Coolers:', this.allCoolers.length);
+                this.refreshModalIfOpen('cooler');
                 this.populateCoolerSelector();
                 if (this.currentTab === 'cooler') {
                     this.allParts = this.allCoolers;
@@ -880,6 +885,7 @@ class PartsDatabase {
 
                 this.allStorage = filteredData;
                 console.log(`Loaded ${filteredData.length} Storage devices from database (filtered out ${data.length - filteredData.length} $0 items)`);
+                this.refreshModalIfOpen('storage', 'storage2', 'storage3', 'storage4', 'storage5', 'storage6');
             } else {
                 console.error('Failed to load Storage:', response.status);
             }
@@ -902,6 +908,7 @@ class PartsDatabase {
 
                 this.allCases = filteredData;
                 console.log(`Loaded ${filteredData.length} Cases from database (filtered out ${data.length - filteredData.length} $0 items)`);
+                this.refreshModalIfOpen('case');
             } else {
                 console.error('Failed to load Cases:', response.status);
             }
@@ -924,6 +931,7 @@ class PartsDatabase {
 
                 this.allAddons = filteredData;
                 console.log(`Loaded ${filteredData.length} Add-ons from database (filtered out ${data.length - filteredData.length} $0 items)`);
+                this.refreshModalIfOpen('addon', 'addon2', 'addon3', 'addon4', 'addon5', 'addon6');
             } else {
                 console.error('Failed to load Add-ons:', response.status);
             }
@@ -940,7 +948,8 @@ class PartsDatabase {
             const gpus = await this.fetchAllGPUs();
             this.allGPUs = gpus;
             this.filteredGPUs = gpus;
-            
+            this.refreshModalIfOpen('gpu', 'gpu2', 'gpu3', 'gpu4');
+
             this.populateManufacturerFilter();
             this.populateGpuSelector();
             this.updateStats();
@@ -6290,6 +6299,12 @@ class PartsDatabase {
         }
     }
 
+    refreshModalIfOpen(...types) {
+        if (types.some(t => this.currentModalType === t)) {
+            this.populateComponentTable(this.currentModalType);
+        }
+    }
+
     getComponentsForType(componentType) {
         switch (componentType) {
             case 'gpu': case 'gpu2': case 'gpu3': case 'gpu4': return this.allGPUs || [];
@@ -6364,22 +6379,6 @@ class PartsDatabase {
             row.innerHTML = '<td colspan="7" style="text-align: center; padding: 20px;">Loading components... Please wait.</td>';
             tbody.appendChild(row);
             console.log(`No components loaded yet for ${componentType}`);
-            // Poll until data arrives, then re-render automatically
-            if (!this._modalRetryTimer) {
-                this._modalRetryTimer = setInterval(() => {
-                    if (this.currentModalType !== componentType) {
-                        clearInterval(this._modalRetryTimer);
-                        this._modalRetryTimer = null;
-                        return;
-                    }
-                    const retryComponents = this.getComponentsForType(componentType);
-                    if (retryComponents && retryComponents.length > 0) {
-                        clearInterval(this._modalRetryTimer);
-                        this._modalRetryTimer = null;
-                        this.populateComponentTable(componentType);
-                    }
-                }, 300);
-            }
             return;
         }
 
