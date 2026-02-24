@@ -19,65 +19,147 @@ class ParallelRamImporter {
   // Get RAM models list (same as in bulkRamImporter.js)
   getRamModels() {
     return [
-      // DDR5 High-End Gaming/Enthusiast - Priority 1
+      // ============================================================
+      // DDR5 DESKTOP RAM
+      // ============================================================
+
+      // DDR5 Ultra-Extreme / Extreme 32GB - Priority 1
+      { model: 'DDR5-8400 32GB', searchTerms: ['DDR5 8400MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 8400, tier: 'ultra-extreme' },
       { model: 'DDR5-8000 32GB', searchTerms: ['DDR5 8000MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 8000, tier: 'extreme' },
+      { model: 'DDR5-7800 32GB', searchTerms: ['DDR5 7800MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7800, tier: 'extreme' },
       { model: 'DDR5-7600 32GB', searchTerms: ['DDR5 7600MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7600, tier: 'extreme' },
+      { model: 'DDR5-7400 32GB', searchTerms: ['DDR5 7400MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7400, tier: 'extreme' },
       { model: 'DDR5-7200 32GB', searchTerms: ['DDR5 7200MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7200, tier: 'extreme' },
+      { model: 'DDR5-7000 32GB', searchTerms: ['DDR5 7000MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7000, tier: 'high-end' },
       { model: 'DDR5-6800 32GB', searchTerms: ['DDR5 6800MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6800, tier: 'high-end' },
+      { model: 'DDR5-6600 32GB', searchTerms: ['DDR5 6600MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6600, tier: 'high-end' },
       { model: 'DDR5-6400 32GB', searchTerms: ['DDR5 6400MHz 32GB gaming'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6400, tier: 'high-end' },
+      { model: 'DDR5-6200 32GB', searchTerms: ['DDR5 6200MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6200, tier: 'high-end' },
       { model: 'DDR5-6000 32GB', searchTerms: ['DDR5 6000MHz 32GB gaming'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6000, tier: 'high-end' },
 
-      // DDR5 Mainstream Gaming - Priority 1
+      // DDR5 Mainstream 32GB - Priority 1
       { model: 'DDR5-5600 32GB', searchTerms: ['DDR5 5600MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 5600, tier: 'mainstream' },
       { model: 'DDR5-5200 32GB', searchTerms: ['DDR5 5200MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 5200, tier: 'mainstream' },
       { model: 'DDR5-4800 32GB', searchTerms: ['DDR5 4800MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 4800, tier: 'entry' },
 
       // DDR5 16GB Kits - Priority 1
+      { model: 'DDR5-8000 16GB', searchTerms: ['DDR5 8000MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 8000, tier: 'extreme' },
+      { model: 'DDR5-7200 16GB', searchTerms: ['DDR5 7200MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 7200, tier: 'extreme' },
       { model: 'DDR5-6400 16GB', searchTerms: ['DDR5 6400MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6400, tier: 'high-end' },
       { model: 'DDR5-6000 16GB', searchTerms: ['DDR5 6000MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6000, tier: 'high-end' },
       { model: 'DDR5-5600 16GB', searchTerms: ['DDR5 5600MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 5600, tier: 'mainstream' },
       { model: 'DDR5-5200 16GB', searchTerms: ['DDR5 5200MHz 16GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 5200, tier: 'mainstream' },
+      { model: 'DDR5-4800 16GB', searchTerms: ['DDR5 4800MHz 16GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 4800, tier: 'entry' },
 
-      // DDR5 High Capacity - Priority 2
+      // DDR5 48GB Kits (2x24GB) - Priority 1
+      { model: 'DDR5-6000 48GB', searchTerms: ['DDR5 6000MHz 48GB 2x24GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 6000, tier: 'high-end' },
+      { model: 'DDR5-5600 48GB', searchTerms: ['DDR5 5600MHz 48GB 2x24GB'], manufacturer: 'Various', priority: 1, type: 'DDR5', speed: 5600, tier: 'mainstream' },
+
+      // DDR5 High Capacity 64GB - Priority 2
+      { model: 'DDR5-7200 64GB', searchTerms: ['DDR5 7200MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 7200, tier: 'workstation' },
+      { model: 'DDR5-6400 64GB', searchTerms: ['DDR5 6400MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 6400, tier: 'workstation' },
       { model: 'DDR5-6000 64GB', searchTerms: ['DDR5 6000MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 6000, tier: 'workstation' },
       { model: 'DDR5-5600 64GB', searchTerms: ['DDR5 5600MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 5600, tier: 'workstation' },
+      { model: 'DDR5-4800 64GB', searchTerms: ['DDR5 4800MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 4800, tier: 'workstation' },
+
+      // DDR5 96GB Kits (2x48GB) - Priority 2
+      { model: 'DDR5-6000 96GB', searchTerms: ['DDR5 6000MHz 96GB 2x48GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 6000, tier: 'workstation' },
+      { model: 'DDR5-5600 96GB', searchTerms: ['DDR5 5600MHz 96GB 2x48GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 5600, tier: 'workstation' },
+
+      // DDR5 128GB - Priority 2
       { model: 'DDR5-5200 128GB', searchTerms: ['DDR5 5200MHz 128GB'], manufacturer: 'Various', priority: 2, type: 'DDR5', speed: 5200, tier: 'workstation' },
 
-      // DDR4 High-End Gaming - Priority 1
+      // ============================================================
+      // DDR4 DESKTOP RAM
+      // ============================================================
+
+      // DDR4 High-End / Extreme 32GB - Priority 1
+      { model: 'DDR4-4400 32GB', searchTerms: ['DDR4 4400MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 4400, tier: 'extreme' },
+      { model: 'DDR4-4200 32GB', searchTerms: ['DDR4 4200MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 4200, tier: 'extreme' },
       { model: 'DDR4-4000 32GB', searchTerms: ['DDR4 4000MHz 32GB gaming'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 4000, tier: 'high-end' },
       { model: 'DDR4-3800 32GB', searchTerms: ['DDR4 3800MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3800, tier: 'high-end' },
       { model: 'DDR4-3600 32GB', searchTerms: ['DDR4 3600MHz 32GB gaming'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3600, tier: 'high-end' },
+      { model: 'DDR4-3466 32GB', searchTerms: ['DDR4 3466MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3466, tier: 'high-end' },
       { model: 'DDR4-3200 32GB', searchTerms: ['DDR4 3200MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3200, tier: 'mainstream' },
+      { model: 'DDR4-3000 32GB', searchTerms: ['DDR4 3000MHz 32GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3000, tier: 'mainstream' },
 
-      // DDR4 16GB Mainstream - Priority 1
+      // DDR4 Budget 32GB - Priority 2
+      { model: 'DDR4-2666 32GB', searchTerms: ['DDR4 2666MHz 32GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2666, tier: 'entry' },
+      { model: 'DDR4-2400 32GB', searchTerms: ['DDR4 2400MHz 32GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2400, tier: 'entry' },
+
+      // DDR4 16GB Kits - Priority 1
+      { model: 'DDR4-4000 16GB', searchTerms: ['DDR4 4000MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 4000, tier: 'high-end' },
+      { model: 'DDR4-3800 16GB', searchTerms: ['DDR4 3800MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3800, tier: 'high-end' },
       { model: 'DDR4-3600 16GB', searchTerms: ['DDR4 3600MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3600, tier: 'high-end' },
+      { model: 'DDR4-3466 16GB', searchTerms: ['DDR4 3466MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3466, tier: 'high-end' },
+      { model: 'DDR4-3400 16GB', searchTerms: ['DDR4 3400MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3400, tier: 'high-end' },
       { model: 'DDR4-3200 16GB', searchTerms: ['DDR4 3200MHz 16GB kit'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3200, tier: 'mainstream' },
       { model: 'DDR4-3000 16GB', searchTerms: ['DDR4 3000MHz 16GB'], manufacturer: 'Various', priority: 1, type: 'DDR4', speed: 3000, tier: 'mainstream' },
 
-      // DDR4 Budget/Entry Level - Priority 2
+      // DDR4 Budget/Legacy 16GB - Priority 2
       { model: 'DDR4-2666 16GB', searchTerms: ['DDR4 2666MHz 16GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2666, tier: 'entry' },
       { model: 'DDR4-2400 16GB', searchTerms: ['DDR4 2400MHz 16GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2400, tier: 'entry' },
+      { model: 'DDR4-2133 16GB', searchTerms: ['DDR4 2133MHz 16GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2133, tier: 'legacy' },
 
       // DDR4 8GB Budget - Priority 2
       { model: 'DDR4-3200 8GB', searchTerms: ['DDR4 3200MHz 8GB kit'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3200, tier: 'entry' },
+      { model: 'DDR4-3000 8GB', searchTerms: ['DDR4 3000MHz 8GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3000, tier: 'entry' },
       { model: 'DDR4-2666 8GB', searchTerms: ['DDR4 2666MHz 8GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2666, tier: 'entry' },
+      { model: 'DDR4-2400 8GB', searchTerms: ['DDR4 2400MHz 8GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2400, tier: 'entry' },
+      { model: 'DDR4-2133 8GB', searchTerms: ['DDR4 2133MHz 8GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2133, tier: 'legacy' },
 
-      // DDR4 High Capacity Workstation - Priority 2
+      // DDR4 High Capacity 48GB Workstation - Priority 2
+      { model: 'DDR4-3600 48GB', searchTerms: ['DDR4 3600MHz 48GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3600, tier: 'workstation' },
+      { model: 'DDR4-3200 48GB', searchTerms: ['DDR4 3200MHz 48GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3200, tier: 'workstation' },
+
+      // DDR4 High Capacity 64GB Workstation - Priority 2
       { model: 'DDR4-3600 64GB', searchTerms: ['DDR4 3600MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3600, tier: 'workstation' },
       { model: 'DDR4-3200 64GB', searchTerms: ['DDR4 3200MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 3200, tier: 'workstation' },
+      { model: 'DDR4-2400 64GB', searchTerms: ['DDR4 2400MHz 64GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2400, tier: 'workstation' },
+
+      // DDR4 128GB Workstation - Priority 2
       { model: 'DDR4-2666 128GB', searchTerms: ['DDR4 2666MHz 128GB'], manufacturer: 'Various', priority: 2, type: 'DDR4', speed: 2666, tier: 'workstation' },
 
-      // Brand-Specific High-End - Priority 3
+      // ============================================================
+      // BRAND-SPECIFIC PREMIUM RAM
+      // ============================================================
+
+      // Brand-Specific DDR5 - Priority 3
       { model: 'Corsair Dominator DDR5', searchTerms: ['Corsair Dominator DDR5'], manufacturer: 'Corsair', priority: 3, type: 'DDR5', speed: 6000, tier: 'premium' },
+      { model: 'Corsair Vengeance DDR5', searchTerms: ['Corsair Vengeance DDR5'], manufacturer: 'Corsair', priority: 3, type: 'DDR5', speed: 5600, tier: 'premium' },
       { model: 'G.Skill Trident Z5 DDR5', searchTerms: ['G.Skill Trident Z5 DDR5'], manufacturer: 'G.Skill', priority: 3, type: 'DDR5', speed: 6000, tier: 'premium' },
+      { model: 'G.Skill Flare X5 DDR5', searchTerms: ['G.Skill Flare X5 DDR5'], manufacturer: 'G.Skill', priority: 3, type: 'DDR5', speed: 6000, tier: 'premium' },
       { model: 'Kingston Fury Beast DDR5', searchTerms: ['Kingston Fury Beast DDR5'], manufacturer: 'Kingston', priority: 3, type: 'DDR5', speed: 5600, tier: 'mainstream' },
+      { model: 'Kingston Fury Renegade DDR5', searchTerms: ['Kingston Fury Renegade DDR5'], manufacturer: 'Kingston', priority: 3, type: 'DDR5', speed: 6400, tier: 'premium' },
+      { model: 'TeamGroup T-Force Delta DDR5', searchTerms: ['TeamGroup T-Force Delta DDR5'], manufacturer: 'TeamGroup', priority: 3, type: 'DDR5', speed: 6000, tier: 'premium' },
+      { model: 'ADATA XPG Lancer DDR5', searchTerms: ['ADATA XPG Lancer DDR5'], manufacturer: 'ADATA', priority: 3, type: 'DDR5', speed: 5600, tier: 'mainstream' },
+      { model: 'Crucial DDR5 Pro', searchTerms: ['Crucial DDR5 Pro'], manufacturer: 'Crucial', priority: 3, type: 'DDR5', speed: 5600, tier: 'mainstream' },
+
+      // Brand-Specific DDR4 - Priority 3
       { model: 'G.Skill Trident Z DDR4', searchTerms: ['G.Skill Trident Z DDR4'], manufacturer: 'G.Skill', priority: 3, type: 'DDR4', speed: 3600, tier: 'premium' },
       { model: 'Corsair Vengeance RGB DDR4', searchTerms: ['Corsair Vengeance RGB DDR4'], manufacturer: 'Corsair', priority: 3, type: 'DDR4', speed: 3600, tier: 'high-end' },
       { model: 'Crucial Ballistix DDR4', searchTerms: ['Crucial Ballistix DDR4'], manufacturer: 'Crucial', priority: 3, type: 'DDR4', speed: 3200, tier: 'mainstream' },
+      { model: 'Crucial Ballistix MAX DDR4', searchTerms: ['Crucial Ballistix MAX DDR4'], manufacturer: 'Crucial', priority: 3, type: 'DDR4', speed: 4000, tier: 'premium' },
+      { model: 'Kingston Fury Renegade DDR4', searchTerms: ['Kingston Fury Renegade DDR4'], manufacturer: 'Kingston', priority: 3, type: 'DDR4', speed: 3600, tier: 'premium' },
+      { model: 'TeamGroup T-Force Vulcan DDR4', searchTerms: ['TeamGroup T-Force Vulcan DDR4'], manufacturer: 'TeamGroup', priority: 3, type: 'DDR4', speed: 3200, tier: 'mainstream' },
+      { model: 'ADATA XPG Spectrix DDR4', searchTerms: ['ADATA XPG Spectrix DDR4'], manufacturer: 'ADATA', priority: 3, type: 'DDR4', speed: 3600, tier: 'high-end' },
+      { model: 'Patriot Viper Steel DDR4', searchTerms: ['Patriot Viper Steel DDR4'], manufacturer: 'Patriot', priority: 3, type: 'DDR4', speed: 3600, tier: 'high-end' },
 
-      // SO-DIMM Laptop RAM - Priority 3
+      // ============================================================
+      // SO-DIMM LAPTOP RAM
+      // ============================================================
+
+      // DDR5 SO-DIMM Laptop - Priority 3
       { model: 'DDR5-5600 SO-DIMM 32GB', searchTerms: ['DDR5 5600MHz SO-DIMM 32GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR5', speed: 5600, tier: 'laptop' },
-      { model: 'DDR4-3200 SO-DIMM 32GB', searchTerms: ['DDR4 3200MHz SO-DIMM 32GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR4', speed: 3200, tier: 'laptop' }
+      { model: 'DDR5-5600 SO-DIMM 16GB', searchTerms: ['DDR5 5600MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR5', speed: 5600, tier: 'laptop' },
+      { model: 'DDR5-5200 SO-DIMM 16GB', searchTerms: ['DDR5 5200MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR5', speed: 5200, tier: 'laptop' },
+      { model: 'DDR5-4800 SO-DIMM 16GB', searchTerms: ['DDR5 4800MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR5', speed: 4800, tier: 'laptop' },
+
+      // DDR4 SO-DIMM Laptop - Priority 3
+      { model: 'DDR4-3200 SO-DIMM 32GB', searchTerms: ['DDR4 3200MHz SO-DIMM 32GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR4', speed: 3200, tier: 'laptop' },
+      { model: 'DDR4-3200 SO-DIMM 16GB', searchTerms: ['DDR4 3200MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR4', speed: 3200, tier: 'laptop' },
+      { model: 'DDR4-2666 SO-DIMM 16GB', searchTerms: ['DDR4 2666MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR4', speed: 2666, tier: 'laptop' },
+      { model: 'DDR4-2400 SO-DIMM 16GB', searchTerms: ['DDR4 2400MHz SO-DIMM 16GB laptop'], manufacturer: 'Various', priority: 3, type: 'DDR4', speed: 2400, tier: 'laptop' }
     ];
   }
 

@@ -6,7 +6,7 @@ const Logger = require('./utils/logger');
 const DataEnrichmentService = require('./services/dataEnrichmentService');
 const DatabaseService = require('./services/databaseService');
 
-const AmazonScraper = require('./scrapers/amazonScraper');
+const AmazonScraper = require('./scrapers/amazonScraperSimple');
 const NeweggScraper = require('./scrapers/neweggScraper');
 const BestBuyScraper = require('./scrapers/bestbuyScraper');
 

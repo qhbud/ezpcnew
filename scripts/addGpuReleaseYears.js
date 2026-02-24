@@ -3,54 +3,69 @@ const { MongoClient } = require('mongodb');
 
 // GPU release year data
 const gpuReleaseYears = [
-    // NVIDIA RTX 50 Series
+    // NVIDIA RTX 50 Series (Blackwell)
     { name: 'RTX 5090', year: 2025 },
     { name: 'RTX 5080', year: 2025 },
+    { name: 'RTX 5070 Ti', year: 2025 },
     { name: 'RTX 5070', year: 2025 },
     { name: 'RTX 5060 Ti', year: 2025 },
     { name: 'RTX 5060', year: 2025 },
 
-    // NVIDIA RTX 40 Series
+    // NVIDIA RTX 40 Series (Ada Lovelace)
     { name: 'RTX 4090', year: 2022 },
     { name: 'RTX 4080 Super', year: 2024 },
     { name: 'RTX 4080', year: 2022 },
-    { name: 'RTX 4070 Super', year: 2024 },
     { name: 'RTX 4070 Ti Super', year: 2024 },
     { name: 'RTX 4070 Ti', year: 2023 },
+    { name: 'RTX 4070 Super', year: 2024 },
     { name: 'RTX 4070', year: 2023 },
     { name: 'RTX 4060 Ti', year: 2023 },
     { name: 'RTX 4060', year: 2023 },
 
-    // AMD RX 7000 Series
+    // NVIDIA RTX 30 Series (Ampere)
+    { name: 'RTX 3090 Ti', year: 2022 },
+    { name: 'RTX 3090', year: 2020 },
+    { name: 'RTX 3080 Ti', year: 2021 },
+    { name: 'RTX 3080', year: 2020 },
+    { name: 'RTX 3070 Ti', year: 2021 },
+    { name: 'RTX 3070', year: 2020 },
+    { name: 'RTX 3060 Ti', year: 2020 },
+    { name: 'RTX 3060', year: 2021 },
+    { name: 'RTX 3050', year: 2022 },
+    { name: 'RTX 2060 Super', year: 2019 },
+
+    // AMD RX 7000 Series (RDNA 3)
     { name: 'RX 7900 XTX', year: 2022 },
     { name: 'RX 7900 XT', year: 2022 },
-    { name: 'RX 7900 GRE', year: 2023 },
+    { name: 'RX 7900', year: 2024 },
     { name: 'RX 7800 XT', year: 2023 },
     { name: 'RX 7700 XT', year: 2023 },
     { name: 'RX 7600 XT', year: 2024 },
     { name: 'RX 7600', year: 2023 },
 
-    // AMD RX 6000 Series
-    { name: 'RX 6950 XT', year: 2020 },
+    // AMD RX 6000 Series (RDNA 2)
+    { name: 'RX 6950 XT', year: 2022 },
     { name: 'RX 6900 XT', year: 2020 },
     { name: 'RX 6800 XT', year: 2020 },
     { name: 'RX 6800', year: 2020 },
-    { name: 'RX 6750 XT', year: 2020 },
-    { name: 'RX 6700 XT', year: 2020 },
-    { name: 'RX 6650 XT', year: 2020 },
-    { name: 'RX 6600 XT', year: 2020 },
-    { name: 'RX 6600', year: 2020 },
+    { name: 'RX 6750 XT', year: 2022 },
+    { name: 'RX 6700 XT', year: 2021 },
+    { name: 'RX 6650 XT', year: 2022 },
+    { name: 'RX 6600 XT', year: 2021 },
+    { name: 'RX 6600', year: 2021 },
+    { name: 'RX 6500 XT', year: 2022 },
 
     // Intel Arc
     { name: 'Arc A770', year: 2022 },
     { name: 'Arc A750', year: 2022 },
-    { name: 'Arc A580', year: 2022 }
+    { name: 'Arc A580', year: 2023 }
 ];
 
 // Normalize GPU name for matching
 function normalizeName(name) {
     if (!name) return '';
     return name
+        .replace(/[™®©]/g, '')
         .toLowerCase()
         .replace(/geforce\s+/gi, '')
         .replace(/radeon\s+/gi, '')
