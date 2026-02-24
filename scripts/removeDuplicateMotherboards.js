@@ -1,48 +1,44 @@
-const { connectToDatabase, getDatabase } = require('../config/database');
+const { connectToDatabase } = require('../config/database');
 
-async function removeDuplicates() {
-    try {
-        await connectToDatabase();
-        const db = getDatabase();
-        const collection = db.collection('motherboards');
+async function removeDuplicateMotherboards() {
+    const db = await connectToDatabase();
+    const col = db.collection('motherboards');
 
-        // Find all motherboards without memoryType
-        const motherboardsWithoutMemoryType = await collection.find({
-            memoryType: { $exists: false }
-        }).toArray();
+    const all = await col.find({}).toArray();
+    console.log(`Total motherboards: ${all.length}`);
 
-        console.log(`\nFound ${motherboardsWithoutMemoryType.length} motherboards without memoryType\n`);
+    // Group by normalized name — keep first, remove rest
+    const seen = new Map();
+    const toRemove = [];
 
-        for (const mb of motherboardsWithoutMemoryType) {
-            console.log(`Checking: ${mb.name || mb.title}`);
-            console.log(`URL: ${mb.sourceUrl}`);
+    for (const mb of all) {
+        const key = (mb.name || mb.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!key) continue;
 
-            // Try to find a duplicate with memoryType by matching title
-            const duplicate = await collection.findOne({
-                $or: [
-                    { name: mb.name },
-                    { title: mb.title }
-                ],
-                memoryType: { $exists: true },
-                _id: { $ne: mb._id }
-            });
-
-            if (duplicate) {
-                console.log(`  ✓ Found duplicate with memoryType, removing old entry...`);
-                await collection.deleteOne({ _id: mb._id });
-                console.log(`  ✓ Deleted`);
-            } else {
-                console.log(`  ✗ No duplicate found, keeping this one`);
-            }
-            console.log('');
+        if (seen.has(key)) {
+            toRemove.push(mb);
+        } else {
+            seen.set(key, mb);
         }
-
-        console.log('\n✅ Cleanup complete!\n');
-        process.exit(0);
-    } catch (error) {
-        console.error('Error:', error);
-        process.exit(1);
     }
+
+    console.log(`\nFound ${toRemove.length} duplicates:\n`);
+    toRemove.forEach(mb => {
+        console.log(` - "${(mb.name || '').substring(0, 80)}"`);
+    });
+
+    if (toRemove.length === 0) {
+        console.log('No duplicates found.');
+        process.exit(0);
+    }
+
+    const ids = toRemove.map(mb => mb._id);
+    const result = await col.deleteMany({ _id: { $in: ids } });
+
+    console.log(`\n✅ Removed: ${result.deletedCount}`);
+    console.log(`Remaining: ${all.length - result.deletedCount}`);
+
+    process.exit(0);
 }
 
-removeDuplicates();
+removeDuplicateMotherboards().catch(e => { console.error(e); process.exit(1); });

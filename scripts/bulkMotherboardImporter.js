@@ -36,43 +36,103 @@ class BulkMotherboardImporter {
   // Get comprehensive motherboard model list
   getMotherboardModels() {
     return [
-      // Intel Z790 (Latest High-End)
-      { model: 'Z790 ATX', searchTerms: ['Z790 ATX motherboard', 'Z790 ATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
-      { model: 'Z790 Micro-ATX', searchTerms: ['Z790 Micro ATX motherboard', 'Z790 mATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
-      { model: 'Z790 Mini-ITX', searchTerms: ['Z790 Mini ITX motherboard', 'Z790 ITX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      // ============================================================
+      // LGA1851 - Intel Core Ultra 200 series (Arrow Lake)
+      // ============================================================
 
-      // Intel B760 (Mainstream)
-      { model: 'B760 ATX', searchTerms: ['B760 ATX motherboard', 'B760 ATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
-      { model: 'B760 Micro-ATX', searchTerms: ['B760 Micro ATX motherboard', 'B760 mATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      // Z890 High-End
+      { model: 'Z890 ATX', searchTerms: ['Z890 ATX motherboard LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 1 },
+      { model: 'Z890 Micro-ATX', searchTerms: ['Z890 Micro ATX motherboard mATX LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 1 },
+      { model: 'Z890 Mini-ITX', searchTerms: ['Z890 Mini ITX motherboard LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 1 },
 
-      // Intel Z690 (Previous High-End)
-      { model: 'Z690 ATX', searchTerms: ['Z690 ATX motherboard', 'Z690 ATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
-      { model: 'Z690 Micro-ATX', searchTerms: ['Z690 Micro ATX motherboard', 'Z690 mATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+      // B860 Mainstream
+      { model: 'B860 ATX', searchTerms: ['B860 ATX motherboard LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 1 },
+      { model: 'B860 Micro-ATX', searchTerms: ['B860 Micro ATX motherboard mATX LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 1 },
 
-      // Intel B660 (Previous Mainstream)
-      { model: 'B660 ATX', searchTerms: ['B660 ATX motherboard', 'B660 ATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
-      { model: 'B660 Micro-ATX', searchTerms: ['B660 Micro ATX motherboard', 'B660 mATX'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+      // H810 Budget
+      { model: 'H810 Micro-ATX', searchTerms: ['H810 Micro ATX motherboard LGA1851'], manufacturer: 'Intel', socket: 'LGA1851', priority: 2 },
 
-      // AMD X670E/X670 (Latest High-End)
-      { model: 'X670E ATX', searchTerms: ['X670E ATX motherboard', 'X670E ATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
-      { model: 'X670 ATX', searchTerms: ['X670 ATX motherboard', 'X670 ATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
-      { model: 'X670 Micro-ATX', searchTerms: ['X670 Micro ATX motherboard', 'X670 mATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      // ============================================================
+      // LGA1700 - Intel 12th/13th Gen (Alder/Raptor Lake)
+      // ============================================================
 
-      // AMD B650E/B650 (Mainstream)
-      { model: 'B650E ATX', searchTerms: ['B650E ATX motherboard', 'B650E ATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
-      { model: 'B650 ATX', searchTerms: ['B650 ATX motherboard', 'B650 ATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
-      { model: 'B650 Micro-ATX', searchTerms: ['B650 Micro ATX motherboard', 'B650 mATX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
-      { model: 'B650 Mini-ITX', searchTerms: ['B650 Mini ITX motherboard', 'B650 ITX'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      // Z790 High-End
+      { model: 'Z790 ATX', searchTerms: ['Z790 ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      { model: 'Z790 Micro-ATX', searchTerms: ['Z790 Micro ATX motherboard mATX LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      { model: 'Z790 Mini-ITX', searchTerms: ['Z790 Mini ITX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
 
-      // AMD X570 (Previous High-End AM4)
-      { model: 'X570 ATX', searchTerms: ['X570 ATX motherboard', 'X570 ATX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
-      { model: 'X570 Micro-ATX', searchTerms: ['X570 Micro ATX motherboard', 'X570 mATX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
-      { model: 'X570 Mini-ITX', searchTerms: ['X570 Mini ITX motherboard', 'X570 ITX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      // B760 Mainstream
+      { model: 'B760 ATX', searchTerms: ['B760 ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      { model: 'B760 Micro-ATX', searchTerms: ['B760 Micro ATX motherboard mATX LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
+      { model: 'B760 Mini-ITX', searchTerms: ['B760 Mini ITX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 1 },
 
-      // AMD B550 (Previous Mainstream AM4)
-      { model: 'B550 ATX', searchTerms: ['B550 ATX motherboard', 'B550 ATX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
-      { model: 'B550 Micro-ATX', searchTerms: ['B550 Micro ATX motherboard', 'B550 mATX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
-      { model: 'B550 Mini-ITX', searchTerms: ['B550 Mini ITX motherboard', 'B550 ITX'], manufacturer: 'AMD', socket: 'AM4', priority: 2 }
+      // H770 Mid-Range
+      { model: 'H770 ATX', searchTerms: ['H770 ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+
+      // H610 Budget
+      { model: 'H610 Micro-ATX', searchTerms: ['H610 Micro ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+
+      // Z690 Previous High-End
+      { model: 'Z690 ATX', searchTerms: ['Z690 ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+      { model: 'Z690 Micro-ATX', searchTerms: ['Z690 Micro ATX motherboard mATX LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+
+      // B660 Previous Mainstream
+      { model: 'B660 ATX', searchTerms: ['B660 ATX motherboard LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+      { model: 'B660 Micro-ATX', searchTerms: ['B660 Micro ATX motherboard mATX LGA1700'], manufacturer: 'Intel', socket: 'LGA1700', priority: 2 },
+
+      // ============================================================
+      // AM5 - AMD Ryzen 7000/8000/9000 series
+      // ============================================================
+
+      // X870E Flagship
+      { model: 'X870E ATX', searchTerms: ['X870E ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // X870 High-End
+      { model: 'X870 ATX', searchTerms: ['X870 ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      { model: 'X870 Micro-ATX', searchTerms: ['X870 Micro ATX motherboard mATX AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // B850 Mainstream
+      { model: 'B850 ATX', searchTerms: ['B850 ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      { model: 'B850 Micro-ATX', searchTerms: ['B850 Micro ATX motherboard mATX AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // X670E Flagship (previous gen)
+      { model: 'X670E ATX', searchTerms: ['X670E ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // X670 High-End (previous gen)
+      { model: 'X670 ATX', searchTerms: ['X670 ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      { model: 'X670 Micro-ATX', searchTerms: ['X670 Micro ATX motherboard mATX AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 2 },
+
+      // B650E Mainstream (previous gen)
+      { model: 'B650E ATX', searchTerms: ['B650E ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // B650 Mainstream (previous gen)
+      { model: 'B650 ATX', searchTerms: ['B650 ATX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      { model: 'B650 Micro-ATX', searchTerms: ['B650 Micro ATX motherboard mATX AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+      { model: 'B650 Mini-ITX', searchTerms: ['B650 Mini ITX motherboard AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 1 },
+
+      // A620 Budget
+      { model: 'A620 Micro-ATX', searchTerms: ['A620 Micro ATX motherboard mATX AM5'], manufacturer: 'AMD', socket: 'AM5', priority: 2 },
+
+      // ============================================================
+      // AM4 - AMD Ryzen 1000–5000 series
+      // ============================================================
+
+      // X570 High-End
+      { model: 'X570 ATX', searchTerms: ['X570 ATX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      { model: 'X570 Micro-ATX', searchTerms: ['X570 Micro ATX motherboard mATX AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      { model: 'X570 Mini-ITX', searchTerms: ['X570 Mini ITX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+
+      // B550 Mainstream
+      { model: 'B550 ATX', searchTerms: ['B550 ATX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      { model: 'B550 Micro-ATX', searchTerms: ['B550 Micro ATX motherboard mATX AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      { model: 'B550 Mini-ITX', searchTerms: ['B550 Mini ITX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+
+      // B450 Previous Mainstream
+      { model: 'B450 ATX', searchTerms: ['B450 ATX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+      { model: 'B450 Micro-ATX', searchTerms: ['B450 Micro ATX motherboard mATX AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
+
+      // A520 Budget
+      { model: 'A520 Micro-ATX', searchTerms: ['A520 Micro ATX motherboard AM4'], manufacturer: 'AMD', socket: 'AM4', priority: 2 },
     ];
   }
 

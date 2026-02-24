@@ -1093,17 +1093,17 @@ class PartsDatabase {
         } else if (this.currentManufacturer === 'high-speed') {
             this.filteredParts = this.allRAM.filter(ram => {
                 if (!ram.speed) return false;
-                const speed = parseInt(ram.speed.replace(/[^\d]/g, ''));
-                return (ram.memoryType === 'DDR5' && speed >= 6000) || 
+                const speed = parseInt(ram.speed);
+                return (ram.memoryType === 'DDR5' && speed >= 6000) ||
                        (ram.memoryType === 'DDR4' && speed >= 3600);
             });
         } else if (this.currentManufacturer === 'rgb-ram') {
-            this.filteredParts = this.allRAM.filter(ram => 
+            this.filteredParts = this.allRAM.filter(ram =>
                 ram.specifications && ram.specifications.rgb
             );
         } else if (this.currentManufacturer === '32gb-kit') {
-            this.filteredParts = this.allRAM.filter(ram => 
-                ram.capacity && ram.capacity.includes('32GB')
+            this.filteredParts = this.allRAM.filter(ram =>
+                ram.totalCapacity && ram.totalCapacity >= 32
             );
         } else {
             this.filteredParts = this.allRAM;
@@ -1214,8 +1214,9 @@ class PartsDatabase {
                     return (ram.title && ram.title.toLowerCase().includes(query)) ||
                            (ram.manufacturer && ram.manufacturer.toLowerCase().includes(query)) ||
                            (ram.memoryType && ram.memoryType.toLowerCase().includes(query)) ||
-                           (ram.speed && ram.speed.toLowerCase().includes(query)) ||
-                           (ram.capacity && ram.capacity.toLowerCase().includes(query));
+                           (ram.speed != null && String(ram.speed).toLowerCase().includes(query)) ||
+                           (ram.totalCapacity != null && String(ram.totalCapacity).toLowerCase().includes(query)) ||
+                           (ram.kitConfiguration && ram.kitConfiguration.toLowerCase().includes(query));
                 });
                 this.applyRAMFilters();
             } else if (this.currentTab === 'psu') {
@@ -1847,7 +1848,7 @@ class PartsDatabase {
                     ${motherboard.formFactor ? `<div class="spec"><span class="spec-label">Form Factor:</span> <span class="spec-value">${motherboard.formFactor}</span></div>` : ''}
                     ${memoryTypeDisplay}
                     ${motherboard.maxMemory ? `<div class="spec"><span class="spec-label">Max RAM:</span> <span class="spec-value">${motherboard.maxMemory}GB</span></div>` : ''}
-                    ${motherboard.memorySlots ? `<div class="spec"><span class="spec-label">RAM Slots:</span> <span class="spec-value">${motherboard.memorySlots}</span></div>` : ''}
+                    ${motherboard.ramSlots ? `<div class="spec"><span class="spec-label">RAM Slots:</span> <span class="spec-value">${motherboard.ramSlots}</span></div>` : ''}
                 </div>
             </div>
             <div class="part-card-footer">
@@ -3527,7 +3528,7 @@ class PartsDatabase {
                 if (component.formFactor) details.push(`<strong>Form Factor:</strong> ${component.formFactor}`);
                 if (component.memoryType) details.push(`<strong>Memory Support:</strong> ${component.memoryType}`);
                 if (component.maxMemory) details.push(`<strong>Max Memory:</strong> ${component.maxMemory}GB`);
-                if (component.memorySlots) details.push(`<strong>Memory Slots:</strong> ${component.memorySlots}`);
+                if (component.ramSlots) details.push(`<strong>Memory Slots:</strong> ${component.ramSlots}`);
                 break;
                 
             case 'ram':
@@ -5529,9 +5530,10 @@ class PartsDatabase {
                 { text: 'Socket', sort: 'socket', icon: true },
                 { text: 'Chipset', sort: 'chipset', icon: true },
                 { text: 'DDR', sort: 'memoryType', icon: true },
-                { text: 'RAM Slots', sort: 'memorySlots', icon: true },
+                { text: 'RAM Slots', sort: 'ramSlots', icon: true },
                 { text: 'M.2 Slots', sort: 'm2Slots', icon: true },
                 { text: 'PCIe Slots', sort: 'pcieSlots', icon: true },
+                { text: 'WiFi', sort: 'wifi', icon: true, style: 'width: 80px; min-width: 80px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'ram': [
@@ -5940,7 +5942,7 @@ class PartsDatabase {
             const selectedMotherboard = this.currentBuild.motherboard;
             const motherboardName = selectedMotherboard.name || selectedMotherboard.title || 'Unknown Motherboard';
             const motherboardMemoryTypes = selectedMotherboard.memoryType || [];
-            const memorySlots = selectedMotherboard.memorySlots || selectedMotherboard.specifications?.memorySlots || 0;
+            const memorySlots = selectedMotherboard.ramSlots || selectedMotherboard.specifications?.ramSlots || 0;
 
             // Format memory types for display
             const memoryTypesArray = Array.isArray(motherboardMemoryTypes) ? motherboardMemoryTypes : [motherboardMemoryTypes];
@@ -5968,6 +5970,8 @@ class PartsDatabase {
             if (cpuCompatibilityInfo) cpuCompatibilityInfo.style.display = 'flex';
             if (cpuChipsetsInfo) cpuChipsetsInfo.style.display = 'flex';
             if (ramTypeCompatInfo) ramTypeCompatInfo.style.display = 'none';
+            const cpuDdrInfoMb = document.getElementById('cpuDdrRequirementInfo');
+            if (cpuDdrInfoMb) cpuDdrInfoMb.style.display = 'none';
 
             // Set up checkbox event listener for compatibility filtering
             const showOnlyCompatibleCheckbox = document.getElementById('showOnlyCompatibleCheckbox');
@@ -5980,6 +5984,56 @@ class PartsDatabase {
                     this.populateComponentTable(componentType);
                 });
             }
+        } else if (componentType === 'ram' && this.currentBuild && this.currentBuild.cpu && !this.currentBuild.motherboard) {
+            // Hide PSU wattage container for RAM selection
+            const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
+            if (psuWattageInfoContainer) psuWattageInfoContainer.style.display = 'none';
+
+            // Determine if the CPU's socket forces a single DDR generation
+            const selectedCpu = this.currentBuild.cpu;
+            const cpuSocket = (selectedCpu.socket || selectedCpu.socketType || '').toString().trim().toUpperCase();
+            const cpuDdrRequirementInfo = document.getElementById('cpuDdrRequirementInfo');
+            const cpuDdrRequirementText = document.getElementById('cpuDdrRequirementText');
+
+            let requiredDdrType = null;
+            if (cpuSocket && this.allMotherboards && this.allMotherboards.length > 0) {
+                const compatibleMotherboards = this.allMotherboards.filter(mb =>
+                    (mb.socket || '').toString().trim().toUpperCase() === cpuSocket
+                );
+                if (compatibleMotherboards.length > 0) {
+                    const supportedDdrTypes = new Set();
+                    compatibleMotherboards.forEach(mb => {
+                        const memTypes = Array.isArray(mb.memoryType) ? mb.memoryType : (mb.memoryType ? [mb.memoryType] : []);
+                        memTypes.forEach(t => {
+                            const n = t.toString().trim().toUpperCase();
+                            if (n.includes('DDR5')) supportedDdrTypes.add('DDR5');
+                            if (n.includes('DDR4')) supportedDdrTypes.add('DDR4');
+                        });
+                    });
+                    if (supportedDdrTypes.size === 1) {
+                        requiredDdrType = [...supportedDdrTypes][0];
+                    }
+                }
+            }
+
+            if (requiredDdrType && cpuDdrRequirementInfo && cpuDdrRequirementText) {
+                const cpuName = selectedCpu.name || selectedCpu.title || 'Selected CPU';
+                cpuDdrRequirementText.textContent = `${cpuName} uses ${cpuSocket} socket — only ${requiredDdrType} memory is compatible`;
+                cpuDdrRequirementInfo.style.display = 'flex';
+                if (compatibilityInfoContainer) compatibilityInfoContainer.style.display = 'block';
+            } else {
+                if (cpuDdrRequirementInfo) cpuDdrRequirementInfo.style.display = 'none';
+                if (compatibilityInfoContainer) compatibilityInfoContainer.style.display = 'none';
+            }
+
+            // Hide other info rows not relevant here
+            if (cpuCompatibilityInfo) cpuCompatibilityInfo.style.display = 'none';
+            if (cpuChipsetsInfo) cpuChipsetsInfo.style.display = 'none';
+            if (ramTypeCompatInfo) ramTypeCompatInfo.style.display = 'none';
+            const ramSlotsInfo = document.getElementById('ramSlotsInfo');
+            if (ramSlotsInfo) ramSlotsInfo.style.display = 'none';
+            const caseFormFactorInfo = document.getElementById('caseFormFactorInfo');
+            if (caseFormFactorInfo) caseFormFactorInfo.style.display = 'none';
         } else if (componentType === 'cooler' && this.currentBuild && this.currentBuild.cpu) {
             // Hide PSU wattage container for cooler selection
             const psuWattageInfoContainer = document.getElementById('psuWattageInfoContainer');
@@ -6498,7 +6552,7 @@ class PartsDatabase {
                     // Check RAM slot count compatibility - motherboard must have enough slots for RAM kit
                     if (selectedRam && isCompatible) {
                         const ramKitSize = selectedRam.kitSize || 1;
-                        const motherboardSlots = component.memorySlots || component.specifications?.memorySlots || 0;
+                        const motherboardSlots = component.ramSlots || component.specifications?.ramSlots || 0;
 
                         // Only filter if we know the motherboard slot count
                         if (motherboardSlots > 0) {
@@ -6601,12 +6655,12 @@ class PartsDatabase {
                     if (selectedRam) {
                         const ramKitSize = selectedRam.kitSize || 1;
 
-                        const aSlotsCount = a.memorySlots || a.specifications?.memorySlots || 0;
+                        const aSlotsCount = a.ramSlots || a.specifications?.ramSlots || 0;
                         if (aSlotsCount > 0) {
                             aRamSlotsCompatible = ramKitSize <= aSlotsCount;
                         }
 
-                        const bSlotsCount = b.memorySlots || b.specifications?.memorySlots || 0;
+                        const bSlotsCount = b.ramSlots || b.specifications?.ramSlots || 0;
                         if (bSlotsCount > 0) {
                             bRamSlotsCompatible = ramKitSize <= bSlotsCount;
                         }
@@ -6777,7 +6831,7 @@ class PartsDatabase {
             }
 
             // RAM slot count filtering - filter out RAM kits with more modules than motherboard has slots
-            const memorySlots = selectedMotherboard.memorySlots || selectedMotherboard.specifications?.memorySlots || 0;
+            const memorySlots = selectedMotherboard.ramSlots || selectedMotherboard.specifications?.ramSlots || 0;
 
             if (memorySlots > 0 && isFilteringEnabled) {
                 // Filter to only show RAM kits that fit in the available slots
@@ -6785,6 +6839,43 @@ class PartsDatabase {
                     const kitSize = ram.kitSize || 0;
                     return kitSize <= memorySlots;
                 });
+            }
+        }
+
+        // CPU-based RAM DDR type filtering (no motherboard selected yet)
+        // If the selected CPU's socket is only compatible with DDR5 motherboards, hide DDR4 RAM (and vice versa)
+        if (componentType === 'ram' && this.currentBuild && this.currentBuild.cpu && !this.currentBuild.motherboard) {
+            const selectedCpu = this.currentBuild.cpu;
+            const cpuSocket = (selectedCpu.socket || selectedCpu.socketType || '').toString().trim().toUpperCase();
+
+            if (cpuSocket && this.allMotherboards && this.allMotherboards.length > 0) {
+                // Find all motherboards compatible with this CPU socket
+                const compatibleMotherboards = this.allMotherboards.filter(mb => {
+                    const mbSocket = (mb.socket || '').toString().trim().toUpperCase();
+                    return mbSocket === cpuSocket;
+                });
+
+                if (compatibleMotherboards.length > 0) {
+                    // Collect all DDR types supported by compatible motherboards
+                    const supportedDdrTypes = new Set();
+                    compatibleMotherboards.forEach(mb => {
+                        const memTypes = Array.isArray(mb.memoryType) ? mb.memoryType : (mb.memoryType ? [mb.memoryType] : []);
+                        memTypes.forEach(t => {
+                            const normalized = t.toString().trim().toUpperCase();
+                            if (normalized.includes('DDR5')) supportedDdrTypes.add('DDR5');
+                            if (normalized.includes('DDR4')) supportedDdrTypes.add('DDR4');
+                        });
+                    });
+
+                    // Only filter if ALL compatible motherboards agree on a single DDR generation
+                    if (supportedDdrTypes.size === 1) {
+                        const onlyType = [...supportedDdrTypes][0]; // 'DDR5' or 'DDR4'
+                        filteredComponents = filteredComponents.filter(ram => {
+                            const ramType = (ram.memoryType || '').toString().trim().toUpperCase();
+                            return ramType.includes(onlyType);
+                        });
+                    }
+                }
             }
         }
 
@@ -7471,9 +7562,9 @@ class PartsDatabase {
             const imageUrl = component.imageUrl || component.image || '';
 
             // Get slot counts
-            const ramSlots = component.memorySlots || '-';
-            const m2Slots = component.m2SlotCount || '-';
-            const pcieSlots = component.pcieSlotCount || '-';
+            const ramSlots = component.ramSlots || '-';
+            const m2Slots = component.m2Slots || '-';
+            const pcieSlots = component.pcieSlots || '-';
 
             // Format memory type display
             const memoryTypeDisplay = component.memoryType && Array.isArray(component.memoryType) && component.memoryType.length > 0
@@ -7501,6 +7592,7 @@ class PartsDatabase {
                 <td>${ramSlots}</td>
                 <td>${m2Slots}</td>
                 <td>${pcieSlots}</td>
+                <td style="text-align: center;">${component.networking?.wifi ? '<span style="color: #10b981; font-size: 16px;" title="WiFi included">✓</span>' : '<span style="color: #6b7280; font-size: 14px;">—</span>'}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8456,7 +8548,7 @@ class PartsDatabase {
         // If selecting a motherboard, check if current RAM quantity exceeds slot capacity
         if (componentType === 'motherboard' && this.currentBuild.ram) {
             const ram = this.currentBuild.ram;
-            const memorySlots = component.memorySlots || component.specifications?.memorySlots || 4;
+            const memorySlots = component.ramSlots || component.specifications?.ramSlots || 4;
             const kitSize = ram.kitSize || 1;
             const currentQuantity = ram.quantity || 1;
             const maxQuantity = Math.floor(memorySlots / kitSize);
@@ -8474,7 +8566,7 @@ class PartsDatabase {
             const gpu = this.currentBuild.gpu;
 
             // Try to get PCIe slot count from various fields
-            const pcieSlotCount = component.pcieSlotCount || component.specifications?.pcieSlotCount || 0;
+            const pcieSlotCount = component.pcieSlots || component.specifications?.pcieSlots || 0;
 
             let maxGPUs = 1;
             if (pcieSlotCount > 0) {
@@ -9027,7 +9119,7 @@ class PartsDatabase {
         let maxSlots = 4; // Default assumption
         if (this.currentBuild.motherboard) {
             const motherboard = this.currentBuild.motherboard;
-            maxSlots = motherboard.memorySlots || motherboard.specifications?.memorySlots || 4;
+            maxSlots = motherboard.ramSlots || motherboard.specifications?.ramSlots || 4;
         }
 
         // Calculate max quantity based on available slots
@@ -9067,7 +9159,7 @@ class PartsDatabase {
             const motherboard = this.currentBuild.motherboard;
 
             // Try to get PCIe slot count from various fields
-            const pcieSlotCount = motherboard.pcieSlotCount || motherboard.specifications?.pcieSlotCount || 0;
+            const pcieSlotCount = motherboard.pcieSlots || motherboard.specifications?.pcieSlots || 0;
 
             if (pcieSlotCount > 0) {
                 // Most motherboards have at least 1-2 PCIe x16 slots
@@ -9540,17 +9632,17 @@ class PartsDatabase {
                     aVal = (a.modularity || '').toLowerCase();
                     bVal = (b.modularity || '').toLowerCase();
                     break;
-                case 'memorySlots':
-                    aVal = parseInt(a.memorySlots) || 0;
-                    bVal = parseInt(b.memorySlots) || 0;
+                case 'ramSlots':
+                    aVal = parseInt(a.ramSlots) || 0;
+                    bVal = parseInt(b.ramSlots) || 0;
                     break;
                 case 'm2Slots':
-                    aVal = parseInt(a.m2SlotCount) || 0;
-                    bVal = parseInt(b.m2SlotCount) || 0;
+                    aVal = parseInt(a.m2Slots) || 0;
+                    bVal = parseInt(b.m2Slots) || 0;
                     break;
                 case 'pcieSlots':
-                    aVal = parseInt(a.pcieSlotCount) || 0;
-                    bVal = parseInt(b.pcieSlotCount) || 0;
+                    aVal = parseInt(a.pcieSlots) || 0;
+                    bVal = parseInt(b.pcieSlots) || 0;
                     break;
                 case 'storageType':
                     // Sort storage types: M.2 SSD < SATA SSD < Other SSD < HDD
@@ -12324,6 +12416,17 @@ class PartsDatabase {
         this.scatterPlotPoints = []; // Store for hover detection
         let selectedPointInfo = null; // Track selected point to draw on top
 
+        // For RAM/Storage: pre-rank all items by value-per-dollar so the gradient
+        // is distributed evenly (guaranteed ~50% green, ~50% warm)
+        let rankMap = null;
+        if (isRamMode || isStorageMode) {
+            const ranked = dataPoints
+                .map((p, i) => ({ i, val: p.performance / p.price }))
+                .sort((a, b) => a.val - b.val);
+            rankMap = new Map();
+            ranked.forEach((item, rank) => rankMap.set(item.i, rank / Math.max(ranked.length - 1, 1)));
+        }
+
         dataPoints.forEach((point, index) => {
             const scaledPerformance = performanceToScale(point.performance);
             const x = padding.left + ((scaledPerformance - scaledMinPerformance) / (scaledMaxPerformance - scaledMinPerformance)) * chartWidth;
@@ -12367,11 +12470,14 @@ class PartsDatabase {
             // Color based on value proposition (performance per dollar)
             const performancePerDollar = point.performance / point.price;
             const maxPerformancePerDollar = Math.max(...dataPoints.map(p => p.performance / p.price));
-            const ratio = performancePerDollar / maxPerformancePerDollar;
+
+            // RAM/Storage: use rank-based percentile so the gradient is evenly distributed
+            // (~50% green, ~50% warm). GPU/CPU: keep raw ratio relative to best value.
+            const colorRatio = rankMap ? rankMap.get(index) : (performancePerDollar / maxPerformancePerDollar);
 
             // Green for good value, red for poor value
-            const r = Math.round(255 * (1 - ratio));
-            const g = Math.round(255 * ratio);
+            const r = Math.round(255 * (1 - colorRatio));
+            const g = Math.round(255 * colorRatio);
             const b = 100;
 
             // Check if this is the currently selected component
@@ -12464,6 +12570,8 @@ class PartsDatabase {
             titleElement.style.padding = '0';
             titleElement.style.borderRadius = '0';
             titleElement.onclick = null;
+            titleElement.onmouseenter = null;
+            titleElement.onmouseleave = null;
         } else if (isRamMode) {
             // For RAM, show capacity in GB (not clickable)
             titleElement.textContent = 'Capacity (GB)';
@@ -12473,6 +12581,8 @@ class PartsDatabase {
             titleElement.style.padding = '0';
             titleElement.style.borderRadius = '0';
             titleElement.onclick = null;
+            titleElement.onmouseenter = null;
+            titleElement.onmouseleave = null;
         } else if (isCpuMode) {
             const perfType = this.cpuPerformanceMode === 'multiThread' ? 'Multi-Thread Performance' : 'Single-Thread Performance';
             titleElement.textContent = perfType;
