@@ -6290,6 +6290,23 @@ class PartsDatabase {
         }
     }
 
+    getComponentsForType(componentType) {
+        switch (componentType) {
+            case 'gpu': case 'gpu2': case 'gpu3': case 'gpu4': return this.allGPUs || [];
+            case 'cpu': return this.allCPUs || [];
+            case 'motherboard': return this.allMotherboards || [];
+            case 'ram': return this.allRAM || [];
+            case 'cooler': return this.allCoolers || [];
+            case 'psu': return this.allPSUs || [];
+            case 'case': return this.allCases || [];
+            case 'storage': case 'storage2': case 'storage3':
+            case 'storage4': case 'storage5': case 'storage6': return this.allStorage || [];
+            case 'addon': case 'addon2': case 'addon3':
+            case 'addon4': case 'addon5': case 'addon6': return this.allAddons || [];
+            default: return [];
+        }
+    }
+
     populateComponentTable(componentType) {
         let components = [];
 
@@ -6347,6 +6364,22 @@ class PartsDatabase {
             row.innerHTML = '<td colspan="7" style="text-align: center; padding: 20px;">Loading components... Please wait.</td>';
             tbody.appendChild(row);
             console.log(`No components loaded yet for ${componentType}`);
+            // Poll until data arrives, then re-render automatically
+            if (!this._modalRetryTimer) {
+                this._modalRetryTimer = setInterval(() => {
+                    if (this.currentModalType !== componentType) {
+                        clearInterval(this._modalRetryTimer);
+                        this._modalRetryTimer = null;
+                        return;
+                    }
+                    const retryComponents = this.getComponentsForType(componentType);
+                    if (retryComponents && retryComponents.length > 0) {
+                        clearInterval(this._modalRetryTimer);
+                        this._modalRetryTimer = null;
+                        this.populateComponentTable(componentType);
+                    }
+                }, 300);
+            }
             return;
         }
 
@@ -13811,6 +13844,12 @@ class PartsDatabase {
         document.getElementById('componentSelectorModal').style.display = 'none';
         this.currentModalType = '';
         this.modalContext = null; // Reset modal context
+
+        // Cancel any pending data-wait retry
+        if (this._modalRetryTimer) {
+            clearInterval(this._modalRetryTimer);
+            this._modalRetryTimer = null;
+        }
 
         // Reset price filters
         this.minPrice = null;
