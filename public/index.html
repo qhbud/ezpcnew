@@ -34,83 +34,30 @@
 
     <!-- Mobile Override Styles - Force single column on mobile -->
     <style>
-        /* Mobile: Force single column for performance buttons */
-        @media (max-width: 1200px) {
-            .performance-options {
-                display: flex !important;
-                flex-direction: column !important;
-                flex-wrap: nowrap !important;
-                align-items: stretch !important;
-                gap: 15px !important;
-            }
-
-            .performance-option-btn,
-            button.performance-option-btn {
-                min-width: 100% !important;
-                max-width: 100% !important;
-                width: 100% !important;
-                flex: none !important;
-            }
+    /* Mobile-first base styles (no !important needed) */
+    .performance-options {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+    
+    .parts-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+    
+    /* Desktop enhancement */
+    @media (min-width: 769px) {
+        .performance-options {
+            flex-direction: row;
         }
-
-        /* Mobile: Force single column for parts grid */
-        @media (max-width: 1200px) {
-            .parts-grid,
-            #partsGrid,
-            div#partsGrid,
-            div#partsGrid.parts-grid,
-            div.parts-grid#partsGrid {
-                display: grid !important;
-                grid-template-columns: 1fr !important;
-            }
+        
+        .parts-grid {
+            grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
         }
-
-        /* DEBUG MODE: Force single column (regardless of screen size) - MAXIMUM SPECIFICITY */
-        body.debug-single-column .performance-options,
-        body.debug-single-column div.performance-options {
-            display: flex !important;
-            flex-direction: column !important;
-            flex-wrap: nowrap !important;
-            align-items: stretch !important;
-            gap: 15px !important;
-        }
-
-        body.debug-single-column .performance-option-btn,
-        body.debug-single-column button.performance-option-btn {
-            min-width: 100% !important;
-            max-width: 100% !important;
-            width: 100% !important;
-            flex: none !important;
-        }
-
-        /* Grid - highest specificity possible */
-        body.debug-single-column .parts-grid,
-        body.debug-single-column #partsGrid,
-        body.debug-single-column div#partsGrid,
-        body.debug-single-column div#partsGrid.parts-grid,
-        body.debug-single-column div.parts-grid#partsGrid,
-        html body.debug-single-column div#partsGrid.parts-grid {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-        }
-
-        .force-single-column,
-        div.force-single-column,
-        #partsGrid.force-single-column,
-        div#partsGrid.force-single-column {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-        }
-
-        /* Override desktop media query when in debug mode */
-        @media (min-width: 1201px) {
-            body.debug-single-column .parts-grid,
-            body.debug-single-column #partsGrid,
-            body.debug-single-column div#partsGrid {
-                grid-template-columns: 1fr !important;
-            }
-        }
-    </style>
+    }
+</style>
 
     <!-- Structured Data (Schema.org) for SEO -->
     <script type="application/ld+json">
@@ -145,7 +92,7 @@
 </head>
 <body>
     <canvas id="particles-canvas"></canvas>
-    <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode" style="display: none;">
+    <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode" style="display: none;" aria-label="Toggle debug mode">
         <i class="fas fa-bug"></i>
     </button>
     <div class="container">
@@ -994,7 +941,7 @@
                         <button id="viewStatisticsBtn" class="view-statistics-btn first-time-glow hidden" onclick="pcBuilder.toggleStatisticsPanel()" title="View Price Vs Performance">
                             <i class="fas fa-chart-scatter"></i> View Price Vs Performance
                         </button>
-                        <button class="modal-close" onclick="closeComponentModal()">
+                        <button class="modal-close" onclick="closeComponentModal()" aria-label="Close component selector">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -1125,1223 +1072,12 @@
         </div>
     </div>
 
-    <style>
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content-wrapper {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            gap: 0;
-            width: 90%;
-            max-width: 1600px;
-            height: 80vh;
-            max-height: 80vh;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 12px;
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .modal-content-wrapper:has(.component-details-panel:not(.hidden)) .modal-content {
-            border-radius: 12px 0 0 12px !important;
-        }
-
-        .modal-content-wrapper:has(.component-details-panel.hidden) .modal-content {
-            border-radius: 12px !important;
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.4rem;
-            font-weight: 600;
-        }
-
-        .modal-header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .view-statistics-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .view-statistics-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
-        }
-
-        .view-statistics-btn i {
-            font-size: 1rem;
-        }
-
-        /* Glowing pulse animation for first-time users */
-        .view-statistics-btn.first-time-glow {
-            animation: glowPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes glowPulse {
-            0%, 100% {
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7),
-                            0 0 15px rgba(52, 152, 219, 0.4);
-                transform: scale(1);
-            }
-            50% {
-                background: rgba(52, 152, 219, 0.4);
-                box-shadow: 0 0 20px 5px rgba(52, 152, 219, 0.8),
-                            0 0 25px rgba(52, 152, 219, 0.6);
-                transform: scale(1.05);
-            }
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-
-        .modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .modal-body {
-            padding: 20px;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .component-table-container {
-            overflow-x: auto;
-        }
-
-        .component-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        .component-table th {
-            background: #f8f9fa;
-            padding: 15px 12px;
-            text-align: left;
-            font-weight: 600;
-            border-bottom: 2px solid #e9ecef;
-            white-space: nowrap;
-        }
-
-        .component-table th.sortable {
-            cursor: pointer;
-            user-select: none;
-            transition: background-color 0.2s;
-        }
-
-        .component-table th.sortable:hover {
-            background: #e9ecef;
-        }
-
-        .component-table th.sortable.sorted-asc i {
-            transform: rotate(180deg);
-            color: #3b82f6;
-        }
-
-        .component-table th.sortable.sorted-desc i {
-            color: #3b82f6;
-        }
-
-        .component-table td {
-            padding: 12px;
-            border-bottom: 1px solid #e9ecef;
-            vertical-align: middle;
-        }
-
-        .component-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .component-name-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .component-name {
-            font-weight: 500;
-            color: #333;
-            line-height: 1.3;
-        }
-
-        .component-specs {
-            color: #666;
-            font-size: 12px;
-            margin-top: 4px;
-        }
-
-        .price-cell {
-            font-weight: 600;
-        }
-
-        .base-price {
-            color: #333;
-        }
-
-        .sale-price {
-            color: #e74c3c;
-        }
-
-        .original-price {
-            text-decoration: line-through;
-            color: #999;
-            font-size: 12px;
-        }
-
-        .discount-badge {
-            background: #27ae60;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .select-component-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            color: white;
-            border: none;
-            padding: 21px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .select-component-btn i {
-            opacity: 0;
-            margin-right: 0;
-            width: 0;
-            transition: all 0.3s ease;
-        }
-
-        .select-component-btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
-        }
-
-        .select-component-btn:hover i {
-            opacity: 1;
-            margin-right: 8px;
-            width: auto;
-        }
-
-        .component-select-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            width: 100%;
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .component-select-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
-        }
-
-        .component-select-btn i {
-            font-size: 16px;
-        }
-
-        /* Remove old component-select styles */
-        .component-select {
-            display: none;
-        }
-
-        /* Expandable variants styles */
-        .expand-icon {
-            margin-right: 8px;
-            font-size: 12px;
-            transition: transform 0.3s;
-            display: inline-block;
-        }
-
-        .component-main-row.expanded .expand-icon {
-            transform: rotate(90deg);
-        }
-
-        .component-main-row:hover {
-            background: #f8f9fa !important;
-        }
-
-        .variants-row {
-            background: #f8f9fa;
-        }
-
-        .variants-container {
-            padding: 15px 20px;
-            animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .variants-header {
-            font-weight: 600;
-            font-size: 14px;
-            color: #3b82f6;
-            margin-bottom: 12px;
-        }
-
-        .variants-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 12px;
-            min-height: 120px;
-            align-content: start;
-        }
-
-        .variant-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            transition: all 0.2s;
-            min-height: 80px;
-        }
-
-        .variant-card:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
-            transform: translateY(-1px);
-        }
-
-        .variant-info {
-            flex: 1;
-        }
-
-        .variant-name {
-            font-size: 13px;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 6px;
-        }
-
-        .variant-price {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .variant-price .price {
-            font-size: 14px;
-            font-weight: 600;
-            color: #3b82f6;
-        }
-
-        .variant-price .original-price {
-            font-size: 12px;
-            text-decoration: line-through;
-            color: #999;
-        }
-
-        .variant-price .sale-price {
-            font-size: 14px;
-            font-weight: 600;
-            color: #e74c3c;
-        }
-
-        .discount-badge-small {
-            background: #27ae60;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .variant-discount-badge {
-            display: flex;
-            align-items: flex-start;
-            margin-left: 8px;
-            padding-top: 2px;
-        }
-
-        .select-variant-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 500;
-            white-space: nowrap;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-left: 12px;
-        }
-
-        .select-variant-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-        }
-
-        .no-variants {
-            padding: 20px;
-            text-align: center;
-            color: #999;
-            font-style: italic;
-        }
-
-        /* Component Details Side Panel */
-        .component-details-panel {
-            background: white;
-            border-radius: 0 12px 12px 0;
-            width: 100%;
-            max-width: 400px;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            animation: slideInRight 0.3s ease-out;
-        }
-
-        .component-details-panel.hidden {
-            display: none;
-        }
-
-        /* Make statistics panel flexible to match modal-content width */
-        #statisticsPanel {
-            width: 100%;
-            max-width: 400px;
-            flex: 1;
-        }
-
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .details-panel-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .details-panel-header h3 {
-            margin: 0;
-            font-size: 1.4rem;
-            font-weight: 600;
-        }
-
-        .details-panel-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.3rem;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-
-        .details-panel-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .details-panel-body {
-            padding: 20px;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .no-selection {
-            text-align: center;
-            color: #999;
-            font-style: italic;
-            padding: 40px 20px;
-        }
-
-        .detail-section {
-            margin-bottom: 24px;
-        }
-
-        .detail-section h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: #3b82f6;
-            margin: 0 0 12px 0;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            font-weight: 500;
-            color: #666;
-            font-size: 13px;
-        }
-
-        .detail-value {
-            font-weight: 600;
-            color: #333;
-            font-size: 13px;
-            text-align: right;
-        }
-
-        .detail-image-container {
-            width: 100%;
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            overflow: hidden;
-            border: 1px solid #e0e0e0;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            position: relative;
-        }
-
-        .detail-product-link {
-            text-decoration: none;
-            display: block;
-        }
-
-        .detail-product-link:hover .detail-image-container {
-            border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-        }
-
-        .detail-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            padding: 10px;
-        }
-
-        .detail-image-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f5f5f5;
-        }
-
-        .image-price-overlay {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
-            backdrop-filter: blur(4px);
-            padding: 8px 12px;
-            border-radius: 8px;
-            text-align: right;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .image-manufacturer-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(118, 142, 255, 0.95) 100%);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            padding: 6px 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-            font-size: 12px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Hide manufacturer badge for storage components to prevent overlap with buttons */
-        #selectedBuilderStorage .image-manufacturer-badge,
-        #selectedBuilderStorage2 .image-manufacturer-badge,
-        #selectedBuilderStorage3 .image-manufacturer-badge,
-        #selectedBuilderStorage4 .image-manufacturer-badge,
-        #selectedBuilderStorage5 .image-manufacturer-badge,
-        #selectedBuilderStorage6 .image-manufacturer-badge {
-            display: none;
-        }
-
-        .image-vram-overlay {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            padding: 6px 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .overlay-vram-text {
-            color: white;
-            font-size: 14px;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-
-        .overlay-sale-price {
-            color: #e74c3c;
-            font-size: 16px;
-            font-weight: 700;
-            line-height: 1.2;
-            margin-bottom: 2px;
-        }
-
-        .overlay-original-price {
-            color: #999;
-            font-size: 11px;
-            text-decoration: line-through;
-            line-height: 1.2;
-            margin-bottom: 4px;
-        }
-
-        .overlay-discount {
-            color: white;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
-            display: inline-block;
-        }
-
-        .overlay-current-price {
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-
-        .detail-title-link {
-            text-decoration: none;
-            display: block;
-            transition: opacity 0.2s;
-        }
-
-        .detail-title-link:hover {
-            opacity: 0.8;
-        }
-
-        .detail-title-link:hover .detail-title {
-            color: #3b82f6;
-        }
-
-        .detail-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: color 0.2s;
-        }
-
-        .detail-manufacturer {
-            font-size: 14px;
-            color: #3b82f6;
-            margin-bottom: 16px;
-            font-weight: 500;
-        }
-
-        .detail-price-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .detail-price-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .detail-price-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .detail-price-label {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .detail-price-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #3b82f6;
-        }
-
-        .detail-sale-price {
-            color: #e74c3c;
-        }
-
-        .detail-original-price {
-            font-size: 14px;
-            text-decoration: line-through;
-            color: #999;
-        }
-
-        .detail-discount {
-            background: #27ae60;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        /* Savings Graph Styles */
-        .savings-graph-section {
-            margin: 20px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .savings-graph-section canvas {
-            display: block;
-            margin: 0 auto 20px auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .savings-summary {
-            padding: 16px;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            border-radius: 8px;
-            border-left: 4px solid #27ae60;
-        }
-
-        .savings-amount {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #2e7d32;
-        }
-
-        .savings-amount i {
-            font-size: 20px;
-            color: #27ae60;
-        }
-
-        .savings-amount strong {
-            font-size: 16px;
-            color: #1b5e20;
-        }
-
-        #clearPriceRangeBtn:hover {
-            background: #e9ecef !important;
-            border-color: #d0d0d0 !important;
-        }
-
-        /* Builder Component Card Styles */
-        .builder-component-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 0;
-            transition: all 0.2s;
-            position: relative;
-            min-height: 315px;
-            width: 607.5px;
-            max-width: 607.5px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .builder-component-card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .swap-component-btn {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            background: rgba(37, 99, 235, 0.9);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            width: 36px;
-            height: 36px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            z-index: 10;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .swap-component-btn:hover {
-            background: rgba(37, 99, 235, 1);
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-        }
-
-        .swap-component-btn i {
-            font-size: 16px;
-        }
-
-        .builder-component-info {
-            margin-top: 12px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .selected-component {
-            margin-top: 12px;
-            position: relative;
-            top: -14%;
-        }
-
-
-        .detail-title {
-            min-height: 60px;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.4;
-            max-height: calc(1.4em * 3);
-        }
-
-        /* Component Grid Layout */
-        .component-selectors {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-
-        /* ============================================
-           SINGLE COLUMN LAYOUT (layout-single class)
-           ============================================ */
-        .component-selectors.layout-single .component-row {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 24px;
-            width: 100%;
-        }
-
-        .component-selectors.layout-single .component-section {
-            width: 303.75px;
-            min-height: 175px;
-            position: relative;
-        }
-
-        .component-selectors.layout-single .component-select-btn {
-            width: 303.75px !important;
-            height: 141.75px !important;
-            font-size: 0.9rem !important;
-        }
-
-        .component-selectors.layout-single .component-select-btn i {
-            font-size: 1.2rem;
-        }
-
-        /* ============================================
-           DOUBLE COLUMN LAYOUT (layout-double class)
-           ============================================ */
-        .component-selectors.layout-double .component-row {
-            display: flex;
-            flex-direction: row;
-            gap: 120px;
-            margin-bottom: 24px;
-            justify-content: flex-start;
-            padding-left: calc((100% - (607.5px * 2 + 120px)) / 2);
-        }
-
-        .component-selectors.layout-double .component-section {
-            flex: 0 0 607.5px;
-            width: 607.5px;
-            min-width: 607.5px;
-            max-width: 607.5px;
-            min-height: 350px;
-            position: relative;
-        }
-
-        /* ============================================
-           SHARED STYLES (Both layouts)
-           ============================================ */
-        .component-section {
-            position: relative;
-        }
-
-        .component-select-btn {
-            width: 607.5px !important;
-            height: 283.5px !important;
-            min-height: unset;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-        }
-
-        .component-section-full {
-            flex: 0 0 607.5px;
-            width: 607.5px;
-            margin: 40px 0;
-        }
-
-        .component-selector {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            justify-content: center;
-            margin-top: 12px;
-        }
-
-        .component-section {
-            position: relative;
-        }
-
-        .component-selector {
-            position: relative;
-        }
-
-        .close-storage-section-btn {
-            position: absolute;
-            top: 20px;
-            right: 8px;
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: #e74c3c;
-            color: white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            z-index: 100;
-            box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
-        }
-
-        /* Adjust button position when selected component is showing */
-        .component-section:has(.selected-component:not([style*="display: none"])) .close-storage-section-btn {
-            top: 8px;
-            transform: translateY(-14%);
-        }
-
-        .close-storage-section-btn:hover {
-            background: #c0392b;
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5);
-        }
-
-        .close-storage-section-btn:active {
-            transform: scale(0.95);
-        }
-
-        .close-storage-section-btn i {
-            font-size: 14px;
-        }
-
-        .add-storage-section-btn {
-            position: absolute;
-            top: 20px;
-            right: 48px;
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: #27ae60;
-            color: white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            z-index: 100;
-            box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
-        }
-
-        /* Adjust button position when selected component is showing */
-        .component-section:has(.selected-component:not([style*="display: none"])) .add-storage-section-btn {
-            top: 8px;
-            transform: translateY(-14%);
-        }
-
-        .add-storage-section-btn:hover {
-            background: #229954;
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.5);
-        }
-
-        .add-storage-section-btn:active {
-            transform: scale(0.95);
-        }
-
-        .add-storage-section-btn i {
-            font-size: 14px;
-        }
-
-        .component-section.disabled {
-            opacity: 0.3;
-            pointer-events: none;
-            display: none;
-        }
-
-        /* Build Results Modal Styles */
-        .build-results-modal {
-            max-width: 800px;
-        }
-
-        .loading-state {
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .build-summary {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-        }
-
-        .summary-item {
-            text-align: center;
-        }
-
-        .summary-label {
-            display: block;
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .summary-value {
-            display: block;
-            color: white;
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .build-components {
-            max-height: 600px;
-            overflow-y: auto;
-            scroll-behavior: smooth;
-        }
-
-        .build-component-card {
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .build-component-card:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-        }
-
-        .component-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .component-type {
-            font-size: 12px;
-            color: #3b82f6;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .component-price {
-            font-size: 18px;
-            font-weight: 700;
-            color: #2d3748;
-        }
-
-        .component-name {
-            font-size: 14px;
-            color: #4a5568;
-            margin-bottom: 8px;
-            line-height: 1.5;
-        }
-
-        .component-specs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .spec-badge {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            color: #4a5568;
-        }
-
-        .error-message {
-            text-align: center;
-            padding: 40px 20px;
-            color: #e53e3e;
-        }
-
-        .error-message i {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .error-message p {
-            font-size: 16px;
-            margin-top: 10px;
-        }
-
-        @media (max-width: 768px) {
-            .build-summary {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .build-results-modal {
-                max-width: 95%;
-            }
-        }
-    </style>
-
     <!-- Budget Questionnaire Modal -->
     <div id="budgetModal" class="budget-modal-overlay">
         <div class="budget-modal-content">
             <div class="budget-modal-header">
                 <h2><span id="wizardQuestionCounter" class="wizard-question-counter">1/4</span> PC Build Wizard</h2>
-                <button class="budget-modal-close" onclick="closeBudgetModal()">
+                <button class="budget-modal-close" onclick="closeBudgetModal()" aria-label="Close build wizard">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -2469,7 +1205,7 @@
         <div class="budget-modal-content build-results-modal">
             <div class="budget-modal-header">
                 <h2 style="font-size: 22px;"><i class="fas fa-check-circle"></i> Your PC Build</h2>
-                <button class="budget-modal-close" onclick="closeBuildResults()">
+                <button class="budget-modal-close" onclick="closeBuildResults()" aria-label="Close build results">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -2526,6 +1262,79 @@
 
     <script src="script.js?v=5"></script>
     <script>
+        const BuildRequestManager = (() => {
+            let currentController = null;
+            
+            return {
+                async submit(data) {
+                    // Cancel any pending request
+                    if (currentController) {
+                        currentController.abort('New request initiated');
+                    }
+                    
+                    currentController = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                        currentController.abort('Request timeout after 30 seconds');
+                    }, 30000);
+                    
+                    try {
+                        const response = await fetch('/api/ai-build', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                            signal: currentController.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        return await response.json();
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            console.log('Request cancelled:', error.message);
+                            throw new Error('Request timed out or was cancelled');
+                        }
+                        throw error;
+                    } finally {
+                        currentController = null;
+                    }
+                },
+                
+                cancel() {
+                    if (currentController) {
+                        currentController.abort('User cancelled');
+                        currentController = null;
+                    }
+                }
+            };
+        })();
+
+        // Replace submitWizard function (lines ~1300-1320):
+        async function submitWizard() {
+            console.log('Wizard completed:', wizardData);
+            const savedWizardData = { ...wizardData };
+            
+            closeBudgetModal();
+            
+            document.getElementById('buildResultsModal').style.display = 'flex';
+            document.getElementById('buildLoadingState').style.display = 'block';
+            document.getElementById('buildResultsContent').style.display = 'none';
+            document.getElementById('buildErrorState').style.display = 'none';
+            
+            try {
+                const data = await BuildRequestManager.submit(savedWizardData);
+                lastGeneratedBuild = data;
+                displayBuildResults(data);
+            } catch (error) {
+                document.getElementById('buildLoadingState').style.display = 'none';
+                document.getElementById('buildErrorState').style.display = 'block';
+                document.getElementById('buildErrorMessage').textContent = 
+                    error.message || 'Failed to generate build. Please try again.';
+            }
+        }
         // Budget Modal Functions
         let isUnlimited = false;
         let currentQuestion = 1;
@@ -2609,20 +1418,89 @@
         }
 
         function closeBudgetModal() {
-            document.getElementById('budgetModal').style.display = 'none';
+            const modal = document.getElementById('budgetModal');
+            if (modal._cleanupFocusTrap) {
+                modal._cleanupFocusTrap();
+                delete modal._cleanupFocusTrap;
+            }
+            modal.style.display = 'none';
             document.getElementById('budgetInput').value = '1500';
             document.getElementById('budgetSlider').value = '1500';
             document.getElementById('storageInput').value = '1';
             document.getElementById('storageSlider').value = '1000';
             isUnlimited = false;
             currentQuestion = 1;
-            wizardData = { budget: null, performance: null, storage: null };
-            // Reset performance selection
+            wizardData = { budget: null, performance: null, storage: null, includeMonitor: null };
             document.querySelectorAll('.performance-option-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
+            // Clear any validation errors
+            document.querySelectorAll('.validation-error').forEach(el => el.remove());
         }
-
+        // Focus trap implementation for accessibility
+        function initFocusTrap(modalElement) {
+            const focusableElements = modalElement.querySelectorAll(
+                'a[href], button, textarea, input[type="text"], input[type="number"], ' +
+                'input[type="radio"], input[type="checkbox"], select, [tabindex]:not([tabindex="-1"])'
+            );
+            
+            if (focusableElements.length === 0) return;
+            
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+            
+            firstElement.focus();
+            
+            function handleKeyDown(e) {
+                if (e.key !== 'Tab') return;
+                
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+            
+            function handleEscape(e) {
+                if (e.key === 'Escape') {
+                    const closeBtn = modalElement.querySelector('.modal-close, .budget-modal-close');
+                    if (closeBtn) closeBtn.click();
+                }
+            }
+            
+            modalElement.addEventListener('keydown', handleKeyDown);
+            modalElement.addEventListener('keydown', handleEscape);
+            
+            return () => {
+                modalElement.removeEventListener('keydown', handleKeyDown);
+                modalElement.removeEventListener('keydown', handleEscape);
+            };
+        }
+        function showValidationError(questionId, message) {
+            // Clear previous errors for this question
+            const existingError = document.getElementById(questionId + '-error');
+            if (existingError) existingError.remove();
+            
+            // Create error element
+            const errorDiv = document.createElement('div');
+            errorDiv.id = questionId + '-error';
+            errorDiv.className = 'validation-error';
+            errorDiv.textContent = message;
+            errorDiv.style.cssText = 'color: #dc2626; font-size: 14px; margin-top: 12px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-weight: 500;';
+            
+            // Add to question container
+            document.getElementById(questionId).appendChild(errorDiv);
+            
+            // Auto-focus the first interactive element in the question
+            const firstInput = document.getElementById(questionId).querySelector('input, button, select');
+            if (firstInput) firstInput.focus();
+        }
         function showQuestion(questionNumber) {
             // Hide all questions
             document.getElementById('question1').style.display = 'none';
@@ -2663,8 +1541,9 @@
                 const budget = isUnlimited ? 'Unlimited' : budgetInput.value;
 
                 if (!isUnlimited && (!budget || budget < 1000)) {
-                    alert('Please enter a valid budget amount (minimum $1000)');
+                    showValidationError('question1', 'Please enter a valid budget amount (minimum $1000)');
                     return;
+
                 }
 
                 wizardData.budget = budget;
@@ -2673,7 +1552,7 @@
             } else if (currentQuestion === 2) {
                 // Validate performance selection
                 if (!wizardData.performance) {
-                    alert('Please select a performance priority');
+                    showValidationError('question2', 'Please select a performance priority');
                     return;
                 }
 
@@ -2685,7 +1564,7 @@
                 const storageInTB = parseFloat(storageInput.value);
 
                 if (!storageInTB || storageInTB < 0.5) {
-                    alert('Please enter a valid storage amount (minimum 0.5 TB)');
+                    showValidationError('question3', 'Please enter a valid storage amount (minimum 0.5 TB)');
                     return;
                 }
 
@@ -2697,7 +1576,7 @@
             } else if (currentQuestion === 4) {
                 // Validate monitor selection
                 if (wizardData.includeMonitor === null) {
-                    alert('Please select whether to include a monitor');
+                    showValidationError('question4', 'Please select whether to include a monitor');
                     return;
                 }
 
@@ -2741,57 +1620,6 @@
                 document.getElementById('includeMonitorBtn').classList.add('selected');
             } else {
                 document.getElementById('excludeMonitorBtn').classList.add('selected');
-            }
-        }
-
-        async function submitWizard() {
-            console.log('Wizard completed:', wizardData);
-
-            // Save wizardData before closing modal (as closeBudgetModal resets it)
-            const savedWizardData = { ...wizardData };
-
-            // Close the wizard modal
-            closeBudgetModal();
-
-            // Show the build results modal in loading state
-            document.getElementById('buildResultsModal').style.display = 'flex';
-            document.getElementById('buildLoadingState').style.display = 'block';
-            document.getElementById('buildResultsContent').style.display = 'none';
-            document.getElementById('buildErrorState').style.display = 'none';
-
-            try {
-                // Call the AI build API
-                console.log('Sending request to /api/ai-build with data:', savedWizardData);
-                const response = await fetch('/api/ai-build', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(savedWizardData)
-                });
-
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API error response:', errorText);
-                    throw new Error('Failed to generate build: ' + response.status);
-                }
-
-                const data = await response.json();
-                console.log('API response data:', data);
-
-                if (data.success) {
-                    lastGeneratedBuild = data; // Store the build data
-                    displayBuildResults(data);
-                } else {
-                    throw new Error(data.error || 'Failed to generate build');
-                }
-            } catch (error) {
-                console.error('Error generating build:', error);
-                document.getElementById('buildLoadingState').style.display = 'none';
-                document.getElementById('buildErrorState').style.display = 'block';
-                document.getElementById('buildErrorMessage').textContent = error.message || 'Failed to generate build. Please try again.';
             }
         }
 
@@ -3225,7 +2053,7 @@
                     let valueInGB = tbToGb(valueInTB);
                     if (valueInGB > 10000) {
                         valueInGB = 10000;
-                    }
+                    } 
                     storageSlider.value = valueInGB;
                     updateStorageDisplay(valueInGB);
                 }
