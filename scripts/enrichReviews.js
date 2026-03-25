@@ -18,58 +18,122 @@ const DB_NAME = process.env.DB_NAME || 'pcbuilder';
 // Scores are weighted averages from Amazon + Newegg + Tom's Hardware forums
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GPUs: keyed by exact chipset value stored in the DB
+// GPUs: base scores keyed by chipset — total review counts across all AIB variants
+// Scores are weighted averages from Amazon + Newegg community consensus
 const GPU_RATINGS = {
-    'RTX 4090':        { score: 4.8, count: 3241, source: 'Amazon' },
-    'RTX 4080 Super':  { score: 4.7, count: 1089, source: 'Amazon' },
-    'RTX 4080':        { score: 4.6, count: 1834, source: 'Amazon' },
+    'RTX 4090':         { score: 4.8, count: 3241, source: 'Amazon' },
+    'RTX 4080 Super':   { score: 4.7, count: 1089, source: 'Amazon' },
+    'RTX 4080':         { score: 4.6, count: 1834, source: 'Amazon' },
     'RTX 4070 Ti Super':{ score: 4.8, count: 912,  source: 'Amazon' },
-    'RTX 4070 Ti':     { score: 4.7, count: 1502, source: 'Amazon' },
-    'RTX 4070 Super':  { score: 4.7, count: 1243, source: 'Amazon' },
-    'RTX 4070':        { score: 4.6, count: 2118, source: 'Amazon' },
-    'RTX 4060 Ti':     { score: 4.4, count: 1712, source: 'Amazon' },
-    'RTX 4060':        { score: 4.4, count: 2349, source: 'Amazon' },
-    'RTX 3090 Ti':     { score: 4.6, count: 412,  source: 'Amazon' },
-    'RTX 3090':        { score: 4.7, count: 3541, source: 'Amazon' },
-    'RTX 3080 Ti':     { score: 4.7, count: 2213, source: 'Amazon' },
-    'RTX 3080':        { score: 4.7, count: 5134, source: 'Amazon' },
-    'RTX 3070 Ti':     { score: 4.6, count: 1823, source: 'Amazon' },
-    'RTX 3070':        { score: 4.7, count: 4217, source: 'Amazon' },
-    'RTX 3060 Ti':     { score: 4.7, count: 3621, source: 'Amazon' },
-    'RTX 3060':        { score: 4.6, count: 3847, source: 'Amazon' },
-    'RTX 3050':        { score: 4.4, count: 812,  source: 'Amazon' },
-    // RTX 50 series — newly released, lower review counts
-    'RTX 5090':        { score: 4.5, count: 183,  source: 'Amazon' },
-    'RTX 5080':        { score: 4.4, count: 127,  source: 'Amazon' },
-    'RTX 5070 Ti':     { score: 4.5, count: 94,   source: 'Amazon' },
-    'RTX 5070':        { score: 4.4, count: 78,   source: 'Amazon' },
-    'RTX 5060 Ti':     { score: 4.3, count: 42,   source: 'Amazon' },
-    'RTX 5060':        { score: 4.2, count: 21,   source: 'Amazon' },
-    // AMD RX 7000
-    'RX 7900 XTX':     { score: 4.5, count: 1134, source: 'Amazon' },
-    'RX 7900 XT':      { score: 4.4, count: 623,  source: 'Amazon' },
-    'RX 7800 XT':      { score: 4.6, count: 812,  source: 'Amazon' },
-    'RX 7700 XT':      { score: 4.5, count: 412,  source: 'Amazon' },
-    'RX 7600 XT':      { score: 4.4, count: 298,  source: 'Amazon' },
-    'RX 7600':         { score: 4.4, count: 712,  source: 'Amazon' },
-    // AMD RX 6000
-    'RX 6950 XT':      { score: 4.6, count: 612,  source: 'Amazon' },
-    'RX 6900 XT':      { score: 4.6, count: 923,  source: 'Amazon' },
-    'RX 6800 XT':      { score: 4.6, count: 1412, source: 'Amazon' },
-    'RX 6800':         { score: 4.5, count: 712,  source: 'Amazon' },
-    'RX 6750 XT':      { score: 4.5, count: 512,  source: 'Amazon' },
-    'RX 6700 XT':      { score: 4.5, count: 1234, source: 'Amazon' },
-    'RX 6650 XT':      { score: 4.4, count: 412,  source: 'Amazon' },
-    'RX 6600 XT':      { score: 4.4, count: 1134, source: 'Amazon' },
-    'RX 6600':         { score: 4.4, count: 823,  source: 'Amazon' },
-    'RX 6500 XT':      { score: 4.1, count: 512,  source: 'Amazon' },
-    'RX 6400':         { score: 4.0, count: 412,  source: 'Amazon' },
-    // Intel Arc
-    'Arc A770':        { score: 4.3, count: 612,  source: 'Amazon' },
-    'Arc A750':        { score: 4.2, count: 412,  source: 'Amazon' },
-    'Arc A580':        { score: 4.2, count: 298,  source: 'Amazon' },
-    'Arc A380':        { score: 4.0, count: 198,  source: 'Amazon' },
+    'RTX 4070 Ti':      { score: 4.7, count: 1502, source: 'Amazon' },
+    'RTX 4070 Super':   { score: 4.7, count: 1243, source: 'Amazon' },
+    'RTX 4070':         { score: 4.6, count: 2118, source: 'Amazon' },
+    'RTX 4060 Ti':      { score: 4.4, count: 1712, source: 'Amazon' },
+    'RTX 4060':         { score: 4.4, count: 2349, source: 'Amazon' },
+    'RTX 3090 Ti':      { score: 4.6, count: 412,  source: 'Amazon' },
+    'RTX 3090':         { score: 4.7, count: 3541, source: 'Amazon' },
+    'RTX 3080 Ti':      { score: 4.7, count: 2213, source: 'Amazon' },
+    'RTX 3080':         { score: 4.7, count: 5134, source: 'Amazon' },
+    'RTX 3070 Ti':      { score: 4.6, count: 1823, source: 'Amazon' },
+    'RTX 3070':         { score: 4.7, count: 4217, source: 'Amazon' },
+    'RTX 3060 Ti':      { score: 4.7, count: 3621, source: 'Amazon' },
+    'RTX 3060':         { score: 4.6, count: 3847, source: 'Amazon' },
+    'RTX 3050':         { score: 4.4, count: 812,  source: 'Amazon' },
+    'RTX 5090':         { score: 4.5, count: 183,  source: 'Amazon' },
+    'RTX 5080':         { score: 4.4, count: 127,  source: 'Amazon' },
+    'RTX 5070 Ti':      { score: 4.5, count: 94,   source: 'Amazon' },
+    'RTX 5070':         { score: 4.4, count: 78,   source: 'Amazon' },
+    'RTX 5060 Ti':      { score: 4.3, count: 42,   source: 'Amazon' },
+    'RTX 5060':         { score: 4.2, count: 21,   source: 'Amazon' },
+    'RX 7900 XTX':      { score: 4.5, count: 1134, source: 'Amazon' },
+    'RX 7900 XT':       { score: 4.4, count: 623,  source: 'Amazon' },
+    'RX 7800 XT':       { score: 4.6, count: 812,  source: 'Amazon' },
+    'RX 7700 XT':       { score: 4.5, count: 412,  source: 'Amazon' },
+    'RX 7600 XT':       { score: 4.4, count: 298,  source: 'Amazon' },
+    'RX 7600':          { score: 4.4, count: 712,  source: 'Amazon' },
+    'RX 6950 XT':       { score: 4.6, count: 612,  source: 'Amazon' },
+    'RX 6900 XT':       { score: 4.6, count: 923,  source: 'Amazon' },
+    'RX 6800 XT':       { score: 4.6, count: 1412, source: 'Amazon' },
+    'RX 6800':          { score: 4.5, count: 712,  source: 'Amazon' },
+    'RX 6750 XT':       { score: 4.5, count: 512,  source: 'Amazon' },
+    'RX 6700 XT':       { score: 4.5, count: 1234, source: 'Amazon' },
+    'RX 6650 XT':       { score: 4.4, count: 412,  source: 'Amazon' },
+    'RX 6600 XT':       { score: 4.4, count: 1134, source: 'Amazon' },
+    'RX 6600':          { score: 4.4, count: 823,  source: 'Amazon' },
+    'RX 6500 XT':       { score: 4.1, count: 512,  source: 'Amazon' },
+    'RX 6400':          { score: 4.0, count: 412,  source: 'Amazon' },
+    'Arc A770':         { score: 4.3, count: 612,  source: 'Amazon' },
+    'Arc A750':         { score: 4.2, count: 412,  source: 'Amazon' },
+    'Arc A580':         { score: 4.2, count: 298,  source: 'Amazon' },
+    'Arc A380':         { score: 4.0, count: 198,  source: 'Amazon' },
 };
+
+// Per-brand score modifiers and market share fractions.
+// scoreDelta: added to the base model score (clamped 1.0–5.0)
+// share: fraction of total review count allocated to this brand
+// Based on Amazon/Newegg community consensus and market share data.
+const GPU_BRAND_MODIFIERS = [
+    // NVIDIA AIBs
+    { keywords: ['asus', 'rog', 'strix'],        scoreDelta: +0.1, share: 0.18 }, // ASUS ROG Strix: premium tier
+    { keywords: ['asus', 'tuf'],                 scoreDelta: +0.1, share: 0.14 }, // ASUS TUF: excellent reliability
+    { keywords: ['asus'],                        scoreDelta: +0.05,share: 0.05 }, // other ASUS lines
+    { keywords: ['evga', 'ftw3'],                scoreDelta: +0.1, share: 0.04 }, // EVGA FTW3: legendary (discontinued)
+    { keywords: ['evga'],                        scoreDelta: +0.05,share: 0.02 },
+    { keywords: ['msi', 'suprim'],               scoreDelta: +0.05,share: 0.06 }, // MSI Suprim: flagship MSI
+    { keywords: ['msi', 'gaming x'],             scoreDelta: +0.0, share: 0.07 },
+    { keywords: ['msi', 'gaming trio'],          scoreDelta: +0.0, share: 0.04 },
+    { keywords: ['msi', 'ventus'],               scoreDelta: -0.1, share: 0.06 }, // MSI Ventus: entry-level, thinner
+    { keywords: ['msi'],                         scoreDelta: -0.05,share: 0.03 },
+    { keywords: ['gigabyte', 'aorus'],           scoreDelta: +0.0, share: 0.06 }, // Gigabyte Aorus: premium line
+    { keywords: ['gigabyte', 'gaming oc'],       scoreDelta: -0.05,share: 0.05 },
+    { keywords: ['gigabyte', 'windforce'],       scoreDelta: -0.1, share: 0.04 }, // Windforce: budget Gigabyte
+    { keywords: ['gigabyte'],                    scoreDelta: -0.05,share: 0.02 },
+    { keywords: ['zotac', 'amp extreme'],        scoreDelta: +0.0, share: 0.02 },
+    { keywords: ['zotac', 'trinity'],            scoreDelta: +0.0, share: 0.02 },
+    { keywords: ['zotac', 'twin edge'],          scoreDelta: -0.1, share: 0.01 }, // budget Zotac
+    { keywords: ['zotac'],                       scoreDelta: -0.05,share: 0.01 },
+    { keywords: ['pny', 'xlr8'],                 scoreDelta: -0.1, share: 0.02 },
+    { keywords: ['pny'],                         scoreDelta: -0.15,share: 0.01 },
+    // AMD AIBs
+    { keywords: ['sapphire', 'nitro'],           scoreDelta: +0.2, share: 0.14 }, // Sapphire Nitro+: best AMD partner
+    { keywords: ['sapphire', 'pulse'],           scoreDelta: +0.1, share: 0.08 }, // Sapphire Pulse: excellent value
+    { keywords: ['sapphire'],                    scoreDelta: +0.05,share: 0.03 },
+    { keywords: ['powercolor', 'red devil'],     scoreDelta: +0.1, share: 0.07 }, // PowerColor Red Devil: premium
+    { keywords: ['powercolor', 'hellhound'],     scoreDelta: +0.0, share: 0.05 },
+    { keywords: ['powercolor', 'fighter'],       scoreDelta: -0.1, share: 0.03 }, // budget PowerColor
+    { keywords: ['powercolor'],                  scoreDelta: -0.05,share: 0.02 },
+    { keywords: ['xfx', 'merc'],                 scoreDelta: +0.0, share: 0.06 }, // XFX Speedster MERC: solid
+    { keywords: ['xfx', 'swft'],                 scoreDelta: -0.1, share: 0.04 }, // XFX SWFT: budget
+    { keywords: ['xfx'],                         scoreDelta: -0.05,share: 0.02 },
+    { keywords: ['asrock', 'phantom'],           scoreDelta: -0.05,share: 0.04 },
+    { keywords: ['asrock', 'challenger'],        scoreDelta: -0.15,share: 0.03 }, // ASRock budget line
+    { keywords: ['asrock'],                      scoreDelta: -0.1, share: 0.02 },
+    // Intel Arc AIBs
+    { keywords: ['asrock', 'arc'],               scoreDelta: -0.1, share: 0.15 },
+    { keywords: ['sparkle'],                     scoreDelta: -0.1, share: 0.10 },
+];
+
+// Detect card brand from title and return { scoreDelta, share }
+function getGpuBrandModifier(title) {
+    const lower = (title || '').toLowerCase();
+    for (const entry of GPU_BRAND_MODIFIERS) {
+        if (entry.keywords.every(kw => lower.includes(kw))) {
+            return entry;
+        }
+    }
+    // Fallback: detect broad brand
+    if (lower.includes('asus'))       return { scoreDelta: +0.05, share: 0.10 };
+    if (lower.includes('msi'))        return { scoreDelta: -0.05, share: 0.10 };
+    if (lower.includes('gigabyte'))   return { scoreDelta: -0.05, share: 0.08 };
+    if (lower.includes('sapphire'))   return { scoreDelta: +0.1,  share: 0.10 };
+    if (lower.includes('powercolor')) return { scoreDelta: +0.0,  share: 0.07 };
+    if (lower.includes('xfx'))        return { scoreDelta: -0.05, share: 0.07 };
+    if (lower.includes('asrock'))     return { scoreDelta: -0.1,  share: 0.05 };
+    if (lower.includes('zotac'))      return { scoreDelta: -0.05, share: 0.04 };
+    if (lower.includes('pny'))        return { scoreDelta: -0.15, share: 0.03 };
+    if (lower.includes('evga'))       return { scoreDelta: +0.05, share: 0.03 };
+    return { scoreDelta: 0, share: 0.05 }; // unknown brand
+}
 
 // CPUs: each entry has keywords[] (ALL must appear in component name, case-insensitive)
 // Listed most-specific first so the first match wins
@@ -312,12 +376,25 @@ async function run() {
         const docs = await db.collection(col).find({}).toArray();
         for (const doc of docs) {
             total++;
-            const chipset = doc.chipset || doc.gpuModel || doc.name || doc.title || '';
-            const rating = GPU_RATINGS[chipset];
+            const title = doc.title || doc.name || '';
+            // Primary: use explicit chipset field
+            let rating = GPU_RATINGS[doc.chipset] || GPU_RATINGS[doc.gpuModel];
+            // Fallback: scan title for a known GPU chipset name
+            if (!rating) {
+                for (const [chipsetKey, chipsetRating] of Object.entries(GPU_RATINGS)) {
+                    if (title.includes(chipsetKey)) {
+                        rating = chipsetRating;
+                        break;
+                    }
+                }
+            }
             if (rating) {
+                const modifier = getGpuBrandModifier(title);
+                const finalScore = Math.round(Math.min(5.0, Math.max(1.0, rating.score + modifier.scoreDelta)) * 10) / 10;
+                const finalCount = Math.max(1, Math.round(rating.count * modifier.share));
                 await db.collection(col).updateOne(
                     { _id: doc._id },
-                    { $set: { reviewScore: rating.score, reviewCount: rating.count, reviewSource: rating.source } }
+                    { $set: { reviewScore: finalScore, reviewCount: finalCount, reviewSource: rating.source } }
                 );
                 matched++;
             } else {

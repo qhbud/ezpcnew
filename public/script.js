@@ -7849,6 +7849,7 @@ class PartsDatabase {
         // Star rating widget — shows external review score if available, else community widget
         const partId = this.getPartId(component);
         let starWidget;
+        let ratingBadge = '';
         if (component.reviewScore) {
             const score = component.reviewScore;
             const count = component.reviewCount ? component.reviewCount.toLocaleString() : '0';
@@ -7856,13 +7857,15 @@ class PartsDatabase {
             // Build static filled/half/empty stars from score
             let starsHtml = '';
             for (let i = 1; i <= 5; i++) {
-                if (score >= i - 0.25) starsHtml += '<span class="star full">★</span>';
-                else if (score >= i - 0.75) starsHtml += '<span class="star half">★</span>';
-                else starsHtml += '<span class="star empty">★</span>';
+                if (score >= i - 0.25) starsHtml += '<span style="color:#f59e0b;font-size:14px;">★</span>';
+                else if (score >= i - 0.75) starsHtml += '<span style="color:#f59e0b;opacity:0.5;font-size:14px;">★</span>';
+                else starsHtml += '<span style="color:#d1d5db;font-size:14px;">★</span>';
             }
-            starWidget = `<div class="star-rating-widget already-rated" style="margin-top:6px;" title="${score}/5 based on ${count} reviews on ${source}"><div class="stars-row">${starsHtml}</div><span class="star-count">${score.toFixed(1)} · ${count} reviews · ${source}</span></div>`;
+            // Inline badge (shown next to manufacturer badge)
+            ratingBadge = `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 8px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#b45309;border-radius:4px;font-size:11px;font-weight:600;vertical-align:middle;" title="${score}/5 based on ${count} reviews on ${source}">${starsHtml}<span style="margin-left:2px;">${score.toFixed(1)}</span></span>`;
+            starWidget = `<div class="star-rating-widget already-rated" style="margin-top:4px;display:flex;align-items:center;gap:6px;" title="${score}/5 based on ${count} reviews on ${source}"><div style="display:flex;gap:2px;">${starsHtml}</div><span style="font-size:12px;color:#64748b;">${score.toFixed(1)} · ${count} reviews · ${source}</span></div>`;
         } else {
-            starWidget = `<div class="star-rating-widget" data-part-id="${partId}" style="margin-top:6px;"><div class="stars-row"><span class="star empty" data-val="1">★</span><span class="star empty" data-val="2">★</span><span class="star empty" data-val="3">★</span><span class="star empty" data-val="4">★</span><span class="star empty" data-val="5">★</span></div><span class="star-count">Rate this</span></div>`;
+            starWidget = `<div class="star-rating-widget" data-part-id="${partId}" style="margin-top:4px;"><div class="stars-row"><span class="star empty" data-val="1">★</span><span class="star empty" data-val="2">★</span><span class="star empty" data-val="3">★</span><span class="star empty" data-val="4">★</span><span class="star empty" data-val="5">★</span></div><span class="star-count">Rate this</span></div>`;
         }
 
         // Render different columns based on component type
@@ -8798,6 +8801,18 @@ class PartsDatabase {
                             ${isGreatValue ? '<span class="great-value-badge-small" style="display: inline-block; margin-left: 6px; padding: 2px 6px; background: rgba(34, 197, 94, 0.15); color: #16a34a; border-radius: 3px; font-size: 9px; font-weight: 700; vertical-align: middle;">GREAT VALUE</span>' : ''}
                             ${!meetsPriceFilter ? '<span style="display: inline-block; margin-left: 6px; padding: 2px 6px; background: rgba(0, 0, 0, 0.1); color: #999; border-radius: 3px; font-size: 9px; font-weight: 700; vertical-align: middle;">OUT OF RANGE</span>' : ''}
                         </div>
+                        ${variant.reviewScore ? (() => {
+                            const s = variant.reviewScore;
+                            const c = variant.reviewCount ? variant.reviewCount.toLocaleString() : '0';
+                            const src = variant.reviewSource || 'Amazon';
+                            let stars = '';
+                            for (let i = 1; i <= 5; i++) {
+                                if (s >= i - 0.25) stars += '<span style="color:#f59e0b;font-size:12px;">★</span>';
+                                else if (s >= i - 0.75) stars += '<span style="color:#f59e0b;opacity:0.5;font-size:12px;">★</span>';
+                                else stars += '<span style="color:#d1d5db;font-size:12px;">★</span>';
+                            }
+                            return `<div style="display:flex;align-items:center;gap:4px;margin:3px 0;" title="${s}/5 based on ${c} reviews on ${src}">${stars}<span style="font-size:11px;color:#64748b;">${s.toFixed(1)} · ${c} reviews · ${src}</span></div>`;
+                        })() : ''}
                         <div class="variant-price" style="${cheapestPriceStyle}">
                             ${isOnSale ?
                                 `<span class="original-price">$${variantBasePrice.toFixed(2)}</span>
