@@ -1551,6 +1551,9 @@ class PartsDatabase {
                 console.log('✓ Re-applied single column grid after parts rendered (with !important)');
             }, 100);
         }
+
+        // Batch-load ratings for all rendered cards
+        this.loadAndApplyRatings();
     }
 
     renderGPUs() {
@@ -1637,8 +1640,18 @@ class PartsDatabase {
                 View on Amazon
             </a>
             ` : ''}
+            <div class="star-rating-widget" data-part-id="${this.getPartId(gpu)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
-        
+
         return card;
     }
 
@@ -1677,8 +1690,18 @@ class PartsDatabase {
                 <span class="part-source">${cpu.source || 'Unknown'}</span>
                 ${cpu.sourceUrl ? `<a href="${cpu.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
             </div>
+            <div class="star-rating-widget" data-part-id="${this.getPartId(cpu)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
-        
+
         return card;
     }
 
@@ -1757,8 +1780,18 @@ class PartsDatabase {
                 <span class="part-source">${cooler.source || 'Unknown'}</span>
                 ${this.createCoolerSearchLink(cooler)}
             </div>
+            <div class="star-rating-widget" data-part-id="${this.getPartId(cooler)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
-        
+
         return card;
     }
 
@@ -1864,6 +1897,16 @@ class PartsDatabase {
                 <span class="part-source">${motherboard.source || 'Unknown'}</span>
                 ${motherboard.sourceUrl ? `<a href="${motherboard.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
             </div>
+            <div class="star-rating-widget" data-part-id="${this.getPartId(motherboard)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
 
         return card;
@@ -1923,8 +1966,18 @@ class PartsDatabase {
                 <span class="part-source">${ram.source || 'Unknown'}</span>
                 ${ram.sourceUrl ? `<a href="${ram.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
             </div>
+            <div class="star-rating-widget" data-part-id="${this.getPartId(ram)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
-        
+
         return card;
     }
 
@@ -1998,8 +2051,18 @@ class PartsDatabase {
                 <span class="part-source">${psu.source || 'Unknown'}</span>
                 ${this.createPSUSearchLink(psu)}
             </div>
+            <div class="star-rating-widget" data-part-id="${this.getPartId(psu)}">
+                <div class="stars-row">
+                    <span class="star empty" data-val="1">★</span>
+                    <span class="star empty" data-val="2">★</span>
+                    <span class="star empty" data-val="3">★</span>
+                    <span class="star empty" data-val="4">★</span>
+                    <span class="star empty" data-val="5">★</span>
+                </div>
+                <span class="star-count">—</span>
+            </div>
         `;
-        
+
         return card;
     }
 
@@ -4332,6 +4395,17 @@ class PartsDatabase {
             // Render Price Distribution Pie Chart
             console.log('Rendering Price Distribution chart...');
             this.renderPriceDistributionChart();
+
+            // Render Build Comparison Chart
+            console.log('Rendering Build Comparison chart...');
+            await this.renderBuildComparisonChart();
+
+            // Save this build as a snapshot (once per unique totalPrice to avoid spam)
+            const snapshotKey = `snapshot_${Math.round(this.totalPrice)}`;
+            if (!sessionStorage.getItem(snapshotKey)) {
+                sessionStorage.setItem(snapshotKey, '1');
+                this.submitBuildSnapshot();
+            }
         } else {
             console.log('Hiding statistics section - not all components selected');
             statisticsSection.classList.add('hidden');
@@ -4860,6 +4934,258 @@ class PartsDatabase {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`${percentage.toFixed(0)}%`, centerX, centerY);
+            }
+        });
+    }
+
+    // ===== COMMUNITY STAR RATINGS =====
+
+    getPartId(component) {
+        const raw = String(component._id || component.id || component.title || component.name || '');
+        return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+    }
+
+    async loadAndApplyRatings() {
+        const widgets = document.querySelectorAll('.star-rating-widget[data-part-id]');
+        if (!widgets.length) return;
+        const ids = [...new Set([...widgets].map(w => w.dataset.partId).filter(Boolean))];
+        try {
+            const res = await fetch(`/api/ratings/batch?ids=${encodeURIComponent(ids.join(','))}`);
+            if (!res.ok) return;
+            const map = await res.json();
+            widgets.forEach(widget => {
+                const data = map[widget.dataset.partId] || { average: 0, count: 0 };
+                this.updateStarWidget(widget, data.average, data.count);
+                this.attachStarListeners(widget, widget.dataset.partId);
+            });
+        } catch (e) {
+            // Graceful fallback — just attach listeners with zero rating
+            widgets.forEach(widget => {
+                this.updateStarWidget(widget, 0, 0);
+                this.attachStarListeners(widget, widget.dataset.partId);
+            });
+        }
+    }
+
+    updateStarWidget(widget, average, count) {
+        const avg = typeof average === 'number' && !isNaN(average) ? average : 0;
+        const cnt = typeof count === 'number' && !isNaN(count) ? count : 0;
+        const stars = widget.querySelectorAll('.star');
+        stars.forEach((star, i) => {
+            const val = i + 1;
+            star.classList.remove('full', 'half', 'empty');
+            if (avg >= val - 0.25) star.classList.add('full');
+            else if (avg >= val - 0.75) star.classList.add('half');
+            else star.classList.add('empty');
+        });
+        const countEl = widget.querySelector('.star-count');
+        if (countEl) {
+            countEl.textContent = cnt > 0
+                ? `${avg.toFixed(1)} · ${cnt} rating${cnt !== 1 ? 's' : ''}`
+                : 'Rate this';
+        }
+    }
+
+    attachStarListeners(widget, partId) {
+        if (widget.dataset.listenersAttached) return;
+        widget.dataset.listenersAttached = '1';
+
+        const alreadyRated = localStorage.getItem(`rated_${partId}`);
+        if (alreadyRated) {
+            widget.classList.add('already-rated');
+            widget.title = `You rated this ${alreadyRated}/5`;
+            return;
+        }
+
+        const stars = widget.querySelectorAll('.star');
+        stars.forEach((star, i) => {
+            star.addEventListener('mouseenter', () => {
+                stars.forEach((s, j) => s.classList.toggle('hover', j <= i));
+            });
+            star.addEventListener('mouseleave', () => {
+                stars.forEach(s => s.classList.remove('hover'));
+            });
+            star.addEventListener('click', async () => {
+                const score = i + 1;
+                stars.forEach(s => s.classList.remove('hover'));
+                // Optimistic UI — lock widget immediately so user can't double-click
+                widget.dataset.listenersAttached = 'pending';
+                widget.style.opacity = '0.6';
+                try {
+                    const res = await fetch(`/api/ratings/${encodeURIComponent(partId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ score })
+                    });
+                    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+                    const data = await res.json();
+                    // Only persist after confirmed server save
+                    localStorage.setItem(`rated_${partId}`, score);
+                    widget.classList.add('already-rated');
+                    widget.title = `You rated this ${score}/5`;
+                    widget.style.opacity = '';
+                    this.updateStarWidget(widget, data.average, data.count);
+                } catch (e) {
+                    // Revert lock on failure so user can retry
+                    widget.dataset.listenersAttached = '1';
+                    widget.style.opacity = '';
+                    console.warn('Rating submit failed', e);
+                }
+            });
+        });
+    }
+
+    // ===== BUILD SNAPSHOT + COMPARISON CHART =====
+
+    submitBuildSnapshot() {
+        try {
+            const gpu = this.currentBuild.gpu;
+            const cpu = this.currentBuild.cpu;
+            fetch('/api/builds/snapshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    totalPrice: this.totalPrice,
+                    gpuScore: gpu ? (this.getGpuPerformance(gpu) || 0) : 0,
+                    cpuSingleScore: cpu ? (this.getCpuPerformance(cpu) || 0) : 0,
+                    cpuMultiScore: cpu ? (this.getCpuMultiThreadPerformance(cpu) || 0) : 0
+                })
+            }).catch(() => {});
+        } catch (e) { /* silent fail */ }
+    }
+
+    async renderBuildComparisonChart() {
+        const canvas = document.getElementById('buildComparisonCanvas');
+        if (!canvas) return;
+
+        let averages = { count: 0 };
+        try {
+            const res = await fetch('/api/builds/averages');
+            if (res.ok) averages = await res.json();
+        } catch (e) { /* use empty */ }
+
+        const ctx = canvas.getContext('2d');
+        const W = 600, H = 300;
+        canvas.width = W;
+        canvas.height = H;
+        ctx.clearRect(0, 0, W, H);
+
+        if (!averages || averages.count < 2) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '13px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Complete your build to be among the first compared!', W / 2, H / 2 - 10);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '12px Inter, sans-serif';
+            ctx.fillText('(requires 2+ saved builds)', W / 2, H / 2 + 14);
+            return;
+        }
+
+        const gpu = this.currentBuild.gpu;
+        const cpu = this.currentBuild.cpu;
+        const metrics = [
+            {
+                label: 'Total Price',
+                yours: this.totalPrice,
+                avg: averages.avgPrice,
+                fmt: v => `$${Math.round(v).toLocaleString()}`,
+                color: '#2563eb',
+                max: Math.max(this.totalPrice, averages.avgPrice) * 1.25 || 1
+            },
+            {
+                label: 'GPU Score',
+                yours: +((gpu ? this.getGpuPerformance(gpu) || 0 : 0) * 100).toFixed(1),
+                avg: +((averages.avgGpu || 0) * 100).toFixed(1),
+                fmt: v => `${v.toFixed(1)}%`,
+                color: '#7c3aed',
+                max: 100
+            },
+            {
+                label: 'CPU Single-Thread',
+                yours: +((cpu ? this.getCpuPerformance(cpu) || 0 : 0) * 100).toFixed(1),
+                avg: +((averages.avgCpuSingle || 0) * 100).toFixed(1),
+                fmt: v => `${v.toFixed(1)}%`,
+                color: '#059669',
+                max: 100
+            },
+            {
+                label: 'CPU Multi-Thread',
+                yours: +((cpu ? this.getCpuMultiThreadPerformance(cpu) || 0 : 0) * 100).toFixed(1),
+                avg: +((averages.avgCpuMulti || 0) * 100).toFixed(1),
+                fmt: v => `${v.toFixed(1)}%`,
+                color: '#d97706',
+                max: 100
+            }
+        ];
+
+        const padL = 130, padR = 110, padT = 46, padB = 20;
+        const chartW = W - padL - padR;
+        const rowH = (H - padT - padB) / metrics.length;
+        const barH = 14;
+
+        // Header
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Your Build vs ${averages.count.toLocaleString()} EZPC World Builds`, padL, 20);
+
+        // Legend dots
+        const lx = W - padR + 8;
+        [[`#2563eb`, 'Yours'], [`#cbd5e1`, 'Average']].forEach(([col, label], i) => {
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(lx + 5, 12 + i * 16, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#475569';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(label, lx + 14, 16 + i * 16);
+        });
+
+        metrics.forEach((m, idx) => {
+            const top = padT + idx * rowH;
+            const midY = top + rowH / 2;
+            const yourTop = midY - barH - 3;
+            const avgTop = midY + 3;
+            const maxVal = m.max || 1;
+            const yourW = Math.max((m.yours / maxVal) * chartW, 2);
+            const avgW = Math.max((m.avg / maxVal) * chartW, 2);
+
+            // Row label
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(m.label, padL - 8, midY);
+
+            // Yours bar
+            ctx.fillStyle = m.color;
+            ctx.fillRect(padL, yourTop, yourW, barH);
+
+            // Avg bar
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(padL, avgTop, avgW, barH);
+
+            // Value labels
+            ctx.font = 'bold 10px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = m.color;
+            ctx.fillText(m.fmt(m.yours), padL + yourW + 5, yourTop + barH / 2);
+
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(m.fmt(m.avg), padL + avgW + 5, avgTop + barH / 2);
+
+            // Separator
+            if (idx < metrics.length - 1) {
+                ctx.strokeStyle = '#f1f5f9';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, top + rowH - 2);
+                ctx.lineTo(W, top + rowH - 2);
+                ctx.stroke();
             }
         });
     }
@@ -7066,6 +7392,9 @@ class PartsDatabase {
             tbody.appendChild(row);
         });
 
+        // Load star ratings for all rendered rows
+        this.loadAndApplyRatings();
+
         // Update filter badges display
         this.updateFilterBadgesDisplay();
     }
@@ -7517,6 +7846,25 @@ class PartsDatabase {
             }
         }
 
+        // Star rating widget — shows external review score if available, else community widget
+        const partId = this.getPartId(component);
+        let starWidget;
+        if (component.reviewScore) {
+            const score = component.reviewScore;
+            const count = component.reviewCount ? component.reviewCount.toLocaleString() : '0';
+            const source = component.reviewSource || 'Amazon';
+            // Build static filled/half/empty stars from score
+            let starsHtml = '';
+            for (let i = 1; i <= 5; i++) {
+                if (score >= i - 0.25) starsHtml += '<span class="star full">★</span>';
+                else if (score >= i - 0.75) starsHtml += '<span class="star half">★</span>';
+                else starsHtml += '<span class="star empty">★</span>';
+            }
+            starWidget = `<div class="star-rating-widget already-rated" style="margin-top:6px;" title="${score}/5 based on ${count} reviews on ${source}"><div class="stars-row">${starsHtml}</div><span class="star-count">${score.toFixed(1)} · ${count} reviews · ${source}</span></div>`;
+        } else {
+            starWidget = `<div class="star-rating-widget" data-part-id="${partId}" style="margin-top:6px;"><div class="stars-row"><span class="star empty" data-val="1">★</span><span class="star empty" data-val="2">★</span><span class="star empty" data-val="3">★</span><span class="star empty" data-val="4">★</span><span class="star empty" data-val="5">★</span></div><span class="star-count">Rate this</span></div>`;
+        }
+
         // Render different columns based on component type
         if (componentType === 'motherboard') {
             // Check CPU and RAM compatibility
@@ -7616,6 +7964,7 @@ class PartsDatabase {
                         ${compatibilityBadge}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 <td>${component.formFactor || '-'}</td>
                 <td>${component.socket || '-'}</td>
@@ -7665,6 +8014,7 @@ class PartsDatabase {
                         ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
+                    ${starWidget}
                 </td>
                 <td>${memoryType}</td>
                 <td>${capacityDisplay}</td>
@@ -7698,6 +8048,7 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 <td>${wattage}</td>
                 <td>${certification}</td>
@@ -7747,6 +8098,7 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                     ${socketDebugInfo}
                 </td>
                 <td>${coolerType}</td>
@@ -7815,6 +8167,7 @@ class PartsDatabase {
                         ${compatibilityBadge}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 <td>${formFactor}</td>
                 <td>${hasRGB}</td>
@@ -7856,6 +8209,7 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 <td>${storageType}</td>
                 <td>${capacity}</td>
@@ -7894,6 +8248,7 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${addonSpecsText ? '<div class="component-specs">' + addonSpecsText + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 <td class="price-cell">
                     ${isOnSale ? `
@@ -7937,6 +8292,7 @@ class PartsDatabase {
                         ${hasCoolerIncluded ? `<span class="cooler-included-badge" style="display: inline-block; margin-left: 6px; padding: 2px 8px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle;"><i class="fas fa-snowflake" style="margin-right: 4px;"></i>Cooler Included</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
+                    ${starWidget}
                 </td>
                 ${componentType === 'gpu' ? `<td>${vramDisplay}</td>` : ''}
                 ${componentType === 'gpu' ? `<td style="text-align: center;">${component.releaseYear || '-'}</td>` : ''}
