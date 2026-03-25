@@ -456,9 +456,25 @@ async function run() {
             const text = doc.title || doc.name || '';
             const rating = matchByKeywords(RAM_RATINGS, text);
             if (rating) {
+                // Speed-based delta: faster RAM scores higher within the same product line
+                const speed = parseInt(doc.speed || doc.speedMHz) || 0;
+                const isDDR5 = (doc.memoryType || text).toUpperCase().includes('DDR5');
+                let speedDelta = 0;
+                if (isDDR5) {
+                    if (speed >= 7600)      speedDelta = +0.2;
+                    else if (speed >= 7000) speedDelta = +0.15;
+                    else if (speed >= 6400) speedDelta = +0.1;
+                    else if (speed >= 6000) speedDelta = +0.05;
+                    else if (speed < 5000)  speedDelta = -0.1;
+                } else {
+                    if (speed >= 4000)      speedDelta = +0.1;
+                    else if (speed >= 3600) speedDelta = +0.05;
+                    else if (speed < 3000)  speedDelta = -0.1;
+                }
+                const finalScore = Math.round(Math.min(5.0, Math.max(1.0, rating.score + speedDelta)) * 10) / 10;
                 await db.collection('rams').updateOne(
                     { _id: doc._id },
-                    { $set: { reviewScore: rating.score, reviewCount: rating.count, reviewSource: rating.source } }
+                    { $set: { reviewScore: finalScore, reviewCount: rating.count, reviewSource: rating.source } }
                 );
                 matched++;
             } else {
