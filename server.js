@@ -526,12 +526,21 @@ async function handleGPURequest(req, res) {
                         totalCards: 1,
                         availableCards: isAvailable ? 1 : 0,
                         manufacturer: gpu.manufacturer || 'Unknown',
-                        totalSaveCount: gpu.saveCount || 0
+                        totalSaveCount: gpu.saveCount || 0,
+                        reviewScoreSum: gpu.reviewScore || 0,
+                        reviewScoreCount: gpu.reviewScore ? 1 : 0,
+                        reviewTotalCount: gpu.reviewCount || 0,
+                        reviewSource: gpu.reviewSource || 'Amazon'
                     });
                 } else {
                     const modelData = modelMap.get(modelName);
                     modelData.totalCards++;
                     modelData.totalSaveCount += (gpu.saveCount || 0);
+                    if (gpu.reviewScore) {
+                        modelData.reviewScoreSum += gpu.reviewScore;
+                        modelData.reviewScoreCount++;
+                        modelData.reviewTotalCount += (gpu.reviewCount || 0);
+                    }
 
                     if (isAvailable) {
                         modelData.availableCards++;
@@ -570,9 +579,11 @@ async function handleGPURequest(req, res) {
                     length: card.length,
                     category: 'gpus',
                     collection: card.collection,
-                    reviewScore: card.reviewScore,
-                    reviewCount: card.reviewCount,
-                    reviewSource: card.reviewSource
+                    reviewScore: modelData.reviewScoreCount > 0
+                        ? Math.round((modelData.reviewScoreSum / modelData.reviewScoreCount) * 10) / 10
+                        : null,
+                    reviewCount: modelData.reviewTotalCount || null,
+                    reviewSource: modelData.reviewSource || 'Amazon'
                 };
             });
 
@@ -904,13 +915,92 @@ async function handleRAMRequest(req, res) {
             );
         }
 
+        // Group by model if requested
+        const { groupByModel } = req.query;
+        if (groupByModel === 'true') {
+            const modelMap = new Map();
+            for (const ram of filteredRAM) {
+                const modelName = extractRAMModel(ram.title || ram.name || '');
+                if (!modelMap.has(modelName)) {
+                    modelMap.set(modelName, {
+                        model: modelName,
+                        cheapestCard: ram,
+                        cheapestPrice: parseFloat(ram.currentPrice || ram.price) || Infinity,
+                        totalCards: 1,
+                        manufacturer: ram.manufacturer || 'Unknown',
+                        memoryType: ram.memoryType || '',
+                        reviewScoreSum: ram.reviewScore || 0,
+                        reviewScoreCount: ram.reviewScore ? 1 : 0,
+                        reviewTotalCount: ram.reviewCount || 0,
+                        reviewSource: ram.reviewSource || 'Amazon'
+                    });
+                } else {
+                    const md = modelMap.get(modelName);
+                    md.totalCards++;
+                    const p = parseFloat(ram.currentPrice || ram.price) || Infinity;
+                    if (p < md.cheapestPrice) { md.cheapestPrice = p; md.cheapestCard = ram; }
+                    if (ram.reviewScore) {
+                        md.reviewScoreSum += ram.reviewScore;
+                        md.reviewScoreCount++;
+                        md.reviewTotalCount += (ram.reviewCount || 0);
+                    }
+                }
+            }
+            const grouped = Array.from(modelMap.values()).map(md => {
+                const card = md.cheapestCard;
+                return {
+                    _id: card._id,
+                    name: md.model,
+                    title: md.model,
+                    manufacturer: md.manufacturer,
+                    memoryType: md.memoryType,
+                    currentPrice: md.cheapestPrice !== Infinity ? md.cheapestPrice : null,
+                    basePrice: card.basePrice || card.currentPrice || card.price,
+                    salePrice: card.salePrice,
+                    isOnSale: card.isOnSale || false,
+                    sourceUrl: card.sourceUrl,
+                    totalCards: md.totalCards,
+                    category: 'rams',
+                    collection: 'rams',
+                    modelKey: md.model,
+                    reviewScore: md.reviewScoreCount > 0
+                        ? Math.round((md.reviewScoreSum / md.reviewScoreCount) * 10) / 10
+                        : null,
+                    reviewCount: md.reviewTotalCount || null,
+                    reviewSource: md.reviewSource || 'Amazon'
+                };
+            });
+            console.log(`Returning ${grouped.length} grouped RAM models from ${filteredRAM.length} kits`);
+            return res.json(grouped);
+        }
+
         console.log(`Returning ${filteredRAM.length} RAM modules after filtering`);
         res.json(filteredRAM);
-        
+
     } catch (error) {
         console.error('Error in handleRAMRequest:', error);
         res.status(500).json({ error: 'Failed to fetch RAM data' });
     }
+}
+
+// Extract RAM model name (strip capacity, speed, latency, platform specs)
+function extractRAMModel(title) {
+    let model = title
+        .replace(/\b\d{1,3}GB\s*(\(\d+x\d+GB\))?\s*/gi, '')   // remove capacity: 32GB (2x16GB)
+        .replace(/\b\d{4,5}M[Tt]\/s\b/gi, '')                  // remove MT/s speed
+        .replace(/\b\d{3,5}\s*MHz\b/gi, '')                     // remove MHz speed
+        .replace(/\bCL\d+[-\d]*\b/gi, '')                       // remove CL latency
+        .replace(/\b\d+\.\d+V\b/gi, '')                         // remove voltage
+        .replace(/\bAMD\s+EXPO\b/gi, '')                        // platform
+        .replace(/\bIntel\s+XMP\s*[\d.]*\b/gi, '')              // platform
+        .replace(/\bUDIMM\b|\bDIMM\b|\b288[-\s]?Pin\b/gi, '')  // form factor
+        .replace(/\bRAM\b/gi, '')                               // generic word
+        .replace(/\bKit\b/gi, '')                               // generic word
+        .replace(/\bDesktop\b/gi, '')                           // generic word
+        .replace(/Series\s*$/i, '')                             // trailing word
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    return model || title.slice(0, 40).trim();
 }
 
 // Special handler for PSU collections
@@ -1005,6 +1095,28 @@ async function handlePSURequest(req, res) {
 }
 
 // API endpoint to fetch individual cards from a specific GPU collection
+// RAM variants endpoint — returns individual kits matching a model name
+app.get('/api/parts/rams/variants', async (req, res) => {
+    try {
+        if (!db) return res.status(500).json({ error: 'Database not connected' });
+        const { model } = req.query;
+        if (!model) return res.status(400).json({ error: 'model query param required' });
+        const allRAM = await db.collection('rams').find({}).toArray();
+        const variants = allRAM.filter(ram => {
+            if (!hasValidPrice(ram)) return false;
+            const title = ram.title || ram.name || '';
+            const memType = ram.memoryType || '';
+            if (!memType || memType.toLowerCase() === 'unknown') return false;
+            return extractRAMModel(title) === model;
+        });
+        variants.forEach(r => { r.collection = 'rams'; r.category = 'rams'; });
+        res.json(variants);
+    } catch (err) {
+        console.error('Error fetching RAM variants:', err);
+        res.status(500).json({ error: 'Failed to fetch RAM variants' });
+    }
+});
+
 app.get('/api/parts/gpus/:collection', async (req, res) => {
     try {
         if (!db) {
