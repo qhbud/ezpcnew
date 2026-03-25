@@ -795,7 +795,7 @@ class PartsDatabase {
     async loadAllRAM() {
         this.showLoading();
         try {
-            const response = await fetch('/api/parts/rams');
+            const response = await fetch('/api/parts/rams?groupByModel=true');
             if (response.ok) {
                 this.allRAM = await response.json();
                 console.log('Loaded RAM:', this.allRAM.length);
@@ -3661,8 +3661,12 @@ class PartsDatabase {
                 break;
             case 'ram':
                 if (component.memoryType) specs.push(component.memoryType);
-                if (component.capacity) specs.push(component.capacity);
-                if (component.speed) specs.push(component.speed);
+                if (component.capacityRange) specs.push(component.capacityRange);
+                else if (component.totalCapacity) specs.push(`${component.totalCapacity}GB`);
+                else if (component.capacity) specs.push(`${component.capacity}GB`);
+                if (component.speedRange) specs.push(component.speedRange);
+                else if (component.speed) specs.push(`${component.speed}MHz`);
+                if (component.totalCards > 1) specs.push(`${component.totalCards} kits`);
                 break;
             case 'cooler':
                 // No specs needed - type is shown in column
@@ -7656,7 +7660,7 @@ class PartsDatabase {
 
         // Check if there are variants/individual cards
         // For GPUs, always show chevron since we want all GPUs to be expandable
-        const hasVariants = componentType === 'gpu' || (component.variants && component.variants.length > 0);
+        const hasVariants = componentType === 'gpu' || componentType === 'ram' || (component.variants && component.variants.length > 0);
         const expandIcon = hasVariants ? '<i class="fas fa-chevron-right expand-icon"></i>' : '';
 
         // Determine manufacturer badge color
@@ -8691,6 +8695,13 @@ class PartsDatabase {
     }
 
     async fetchComponentVariants(component, componentType) {
+        if (componentType === 'ram') {
+            const modelKey = component.modelKey || component.name || component.title || '';
+            const response = await fetch(`/api/parts/rams/variants?model=${encodeURIComponent(modelKey)}`);
+            if (!response.ok) throw new Error('Failed to fetch RAM variants');
+            return await response.json();
+        }
+
         if (componentType !== 'gpu' || !component.collection) {
             return [];
         }
@@ -9876,9 +9887,15 @@ class PartsDatabase {
                 return mbSpecs.join(', ');
             case 'ram':
                 const ramSpecs = [];
-                if (component.capacity) ramSpecs.push(component.capacity);
-                if (component.speed) ramSpecs.push(component.speed);
-                return ramSpecs.join(' ');
+                if (component.memoryType) ramSpecs.push(component.memoryType);
+                // Grouped row: show capacity/speed ranges; individual kit: show exact values
+                if (component.capacityRange) ramSpecs.push(component.capacityRange);
+                else if (component.totalCapacity) ramSpecs.push(`${component.totalCapacity}GB`);
+                else if (component.capacity) ramSpecs.push(`${component.capacity}GB`);
+                if (component.speedRange) ramSpecs.push(component.speedRange);
+                else if (component.speed) ramSpecs.push(`${component.speed}MHz`);
+                if (component.totalCards > 1) ramSpecs.push(`${component.totalCards} kits`);
+                return ramSpecs.join(' · ');
             case 'cooler':
                 // No specs needed - type is shown in column
                 return '';

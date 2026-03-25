@@ -921,6 +921,8 @@ async function handleRAMRequest(req, res) {
             const modelMap = new Map();
             for (const ram of filteredRAM) {
                 const modelName = extractRAMModel(ram.title || ram.name || '');
+                const ramCap = parseInt(ram.totalCapacity || ram.capacity) || 0;
+                const ramSpeed = parseInt(ram.speed || ram.speedMHz) || 0;
                 if (!modelMap.has(modelName)) {
                     modelMap.set(modelName, {
                         model: modelName,
@@ -929,6 +931,8 @@ async function handleRAMRequest(req, res) {
                         totalCards: 1,
                         manufacturer: ram.manufacturer || 'Unknown',
                         memoryType: ram.memoryType || '',
+                        minCapacity: ramCap, maxCapacity: ramCap,
+                        minSpeed: ramSpeed, maxSpeed: ramSpeed,
                         reviewScoreSum: ram.reviewScore || 0,
                         reviewScoreCount: ram.reviewScore ? 1 : 0,
                         reviewTotalCount: ram.reviewCount || 0,
@@ -939,6 +943,8 @@ async function handleRAMRequest(req, res) {
                     md.totalCards++;
                     const p = parseFloat(ram.currentPrice || ram.price) || Infinity;
                     if (p < md.cheapestPrice) { md.cheapestPrice = p; md.cheapestCard = ram; }
+                    if (ramCap > 0) { md.minCapacity = Math.min(md.minCapacity, ramCap); md.maxCapacity = Math.max(md.maxCapacity, ramCap); }
+                    if (ramSpeed > 0) { md.minSpeed = Math.min(md.minSpeed, ramSpeed); md.maxSpeed = Math.max(md.maxSpeed, ramSpeed); }
                     if (ram.reviewScore) {
                         md.reviewScoreSum += ram.reviewScore;
                         md.reviewScoreCount++;
@@ -963,6 +969,12 @@ async function handleRAMRequest(req, res) {
                     category: 'rams',
                     collection: 'rams',
                     modelKey: md.model,
+                    capacityRange: md.minCapacity > 0
+                        ? (md.minCapacity === md.maxCapacity ? `${md.minCapacity}GB` : `${md.minCapacity}–${md.maxCapacity}GB`)
+                        : null,
+                    speedRange: md.minSpeed > 0
+                        ? (md.minSpeed === md.maxSpeed ? `${md.minSpeed}MHz` : `${md.minSpeed}–${md.maxSpeed}MHz`)
+                        : null,
                     reviewScore: md.reviewScoreCount > 0
                         ? Math.round((md.reviewScoreSum / md.reviewScoreCount) * 10) / 10
                         : null,
@@ -983,24 +995,35 @@ async function handleRAMRequest(req, res) {
     }
 }
 
-// Extract RAM model name (strip capacity, speed, latency, platform specs)
+// Extract RAM model name: brand + first-product-word + DDR type
+// e.g. "G.SKILL Trident Z5 Neo RGB DDR5 RAM 32GB..." → "G.SKILL Trident DDR5"
+//      "CORSAIR VENGEANCE RGB DDR5 RAM 32GB..."      → "Corsair Vengeance DDR5"
+//      "Patriot Memory Viper Venom DDR5..."           → "Patriot Viper DDR5"
+//      "Crucial 32GB DDR5-5600..."                   → "Crucial DDR5" (no product word)
 function extractRAMModel(title) {
-    let model = title
-        .replace(/\b\d{1,3}GB\s*(\(\d+x\d+GB\))?\s*/gi, '')   // remove capacity: 32GB (2x16GB)
-        .replace(/\b\d{4,5}M[Tt]\/s\b/gi, '')                  // remove MT/s speed
-        .replace(/\b\d{3,5}\s*MHz\b/gi, '')                     // remove MHz speed
-        .replace(/\bCL\d+[-\d]*\b/gi, '')                       // remove CL latency
-        .replace(/\b\d+\.\d+V\b/gi, '')                         // remove voltage
-        .replace(/\bAMD\s+EXPO\b/gi, '')                        // platform
-        .replace(/\bIntel\s+XMP\s*[\d.]*\b/gi, '')              // platform
-        .replace(/\bUDIMM\b|\bDIMM\b|\b288[-\s]?Pin\b/gi, '')  // form factor
-        .replace(/\bRAM\b/gi, '')                               // generic word
-        .replace(/\bKit\b/gi, '')                               // generic word
-        .replace(/\bDesktop\b/gi, '')                           // generic word
-        .replace(/Series\s*$/i, '')                             // trailing word
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-    return model || title.slice(0, 40).trim();
+    const ddrMatch = title.match(/\bDDR[45]\b/i);
+    const ddrType = ddrMatch ? ddrMatch[0].toUpperCase() : '';
+
+    // Everything before the DDR marker
+    const beforeDDR = ddrMatch ? title.slice(0, title.search(/\bDDR[45]\b/i)).trim() : title;
+
+    // Only keep clean alphabetic words; skip noise, numbers, special chars
+    const skip = new Set(['RAM','MEMORY','KIT','SERIES','GAMING','PERFORMANCE','RGB','ARGB',
+                          'WHITE','BLACK','SILVER','PRO','PLUS','ULTRA','ELITE','DESKTOP','MODULE','COMPATIBLE']);
+    const words = beforeDDR
+        .split(/\s+/)
+        .filter(w => w && /^[A-Za-z][A-Za-z0-9.\-]*$/.test(w) && !skip.has(w.toUpperCase()) && !/^\d+$/.test(w));
+
+    const brand = words[0] || '';
+    const product = words[1] || '';  // empty string if title goes straight brand→capacity
+
+    // Normalize to title case so "CORSAIR" and "Corsair" merge; preserve G.SKILL dots
+    const toTitle = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    const brandNorm = brand.includes('.') ? brand : toTitle(brand);
+    const productNorm = product && !/^\d/i.test(product) ? toTitle(product) : '';
+
+    const parts = [brandNorm, productNorm, ddrType].filter(Boolean);
+    return parts.join(' ') || 'Unknown';
 }
 
 // Special handler for PSU collections
