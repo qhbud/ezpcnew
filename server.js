@@ -569,7 +569,10 @@ async function handleGPURequest(req, res) {
                     tdp: card.tdp,
                     length: card.length,
                     category: 'gpus',
-                    collection: card.collection
+                    collection: card.collection,
+                    reviewScore: card.reviewScore,
+                    reviewCount: card.reviewCount,
+                    reviewSource: card.reviewSource
                 };
             });
 
@@ -3427,6 +3430,104 @@ app.post('/api/components/increment-saves', async (req, res) => {
     } catch (error) {
         console.error('Error incrementing save counts:', error);
         res.status(500).json({ error: 'Failed to update save counts' });
+    }
+});
+
+// ===== COMMUNITY RATINGS API =====
+
+// Batch-fetch ratings for multiple part IDs (called after card render)
+app.get('/api/ratings/batch', async (req, res) => {
+    try {
+        const ids = (req.query.ids || '').split(',').filter(Boolean).slice(0, 100);
+        if (!ids.length) return res.json({});
+        const db = getDatabase();
+        const docs = await db.collection('ratings').find({ partId: { $in: ids } }).toArray();
+        const result = {};
+        docs.forEach(d => {
+            result[d.partId] = {
+                average: d.totalRatings > 0 ? +((d.totalScore / d.totalRatings).toFixed(1)) : 0,
+                count: d.totalRatings
+            };
+        });
+        res.json(result);
+    } catch (e) {
+        console.error('Batch ratings error:', e);
+        res.status(500).json({});
+    }
+});
+
+// Submit a star rating (1–5) for a component
+app.post('/api/ratings/:partId', async (req, res) => {
+    try {
+        const score = parseInt(req.body.score);
+        if (isNaN(score) || score < 1 || score > 5) return res.status(400).json({ error: 'Score must be 1–5' });
+        const db = getDatabase();
+        await db.collection('ratings').updateOne(
+            { partId: req.params.partId },
+            { $inc: { totalScore: score, totalRatings: 1 } },
+            { upsert: true }
+        );
+        const doc = await db.collection('ratings').findOne({ partId: req.params.partId });
+        res.json({
+            average: +((doc.totalScore / doc.totalRatings).toFixed(1)),
+            count: doc.totalRatings
+        });
+    } catch (e) {
+        console.error('Rating submit error:', e);
+        res.status(500).json({ error: 'Failed to save rating' });
+    }
+});
+
+// ===== BUILD SNAPSHOTS API =====
+
+// Save a build snapshot when all required components are selected
+app.post('/api/builds/snapshot', async (req, res) => {
+    try {
+        const { totalPrice, gpuScore, cpuSingleScore, cpuMultiScore } = req.body;
+        if (!totalPrice || totalPrice <= 0) return res.status(400).json({ error: 'Invalid build data' });
+        const db = getDatabase();
+        await db.collection('build_snapshots').insertOne({
+            totalPrice: +totalPrice,
+            gpuScore: +gpuScore || 0,
+            cpuSingleScore: +cpuSingleScore || 0,
+            cpuMultiScore: +cpuMultiScore || 0,
+            createdAt: new Date()
+        });
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Build snapshot error:', e);
+        res.status(500).json({ error: 'Failed to save build snapshot' });
+    }
+});
+
+// Get aggregate averages across all saved builds
+app.get('/api/builds/averages', async (req, res) => {
+    try {
+        const db = getDatabase();
+        const agg = await db.collection('build_snapshots').aggregate([
+            {
+                $group: {
+                    _id: null,
+                    avgPrice: { $avg: '$totalPrice' },
+                    avgGpu: { $avg: '$gpuScore' },
+                    avgCpuSingle: { $avg: '$cpuSingleScore' },
+                    avgCpuMulti: { $avg: '$cpuMultiScore' },
+                    count: { $sum: 1 }
+                }
+            }
+        ]).toArray();
+        if (!agg.length) return res.json({ count: 0 });
+        const r = agg[0];
+        res.json({
+            avgPrice: Math.round(r.avgPrice),
+            avgGpu: +r.avgGpu.toFixed(4),
+            avgCpuSingle: +r.avgCpuSingle.toFixed(4),
+            avgCpuMulti: +r.avgCpuMulti.toFixed(4),
+            count: r.count
+        });
+    } catch (e) {
+        console.error('Build averages error:', e);
+        res.status(500).json({ error: 'Failed to get build averages' });
     }
 });
 

@@ -826,88 +826,99 @@
                         </div>
 
                         <!-- Estimated System Power -->
-                        <div id="buildSummaryWattageInfo" style="display: none; margin-top: 16px; padding: 14px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                                <i class="fas fa-bolt" style="color: #3b82f6; font-size: 18px;"></i>
-                                <span style="color: #333; font-weight: 600; font-size: 14px;">Estimated System Power</span>
+                        <div id="buildSummaryWattageInfo" class="wattage-info-box" style="display: none;">
+                            <div class="wattage-info-header">
+                                <i class="fas fa-bolt wattage-icon"></i>
+                                <span class="wattage-title">Estimated System Power</span>
                             </div>
-                            <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <span style="color: #333; font-size: 16px; font-weight: 600;">Total Estimated:</span>
-                                    <span id="buildSummaryTotalWattage" style="color: #333; font-size: 20px; font-weight: 700;">0W</span>
+                            <div class="wattage-total-row">
+                                <div class="wattage-total-inner">
+                                    <span class="wattage-label-text">Total Estimated:</span>
+                                    <span id="buildSummaryTotalWattage" class="wattage-total-value">0W</span>
                                 </div>
-                                <div style="font-size: 12px; color: #666;" id="buildSummaryWattageBreakdown">
+                                <div class="wattage-breakdown" id="buildSummaryWattageBreakdown">
                                     No components selected
                                 </div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px;">
-                                <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 14px;"></i>
-                                <span style="color: #666; font-size: 11px; font-weight: 500;">Recommendation: Choose a PSU with 20-30% overhead</span>
+                            <div class="wattage-tip">
+                                <i class="fas fa-info-circle wattage-tip-icon"></i>
+                                <span class="wattage-tip-text">Recommendation: Choose a PSU with 20-30% overhead</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Contact Info -->
-                    <div id="buildBoxContactInfo" style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #3b82f6; text-align: center;">
-                        <p style="color: #666; margin: 0; font-size: 12px;">Contact <a href="mailto:easypcworlddev@gmail.com" style="color: #3b82f6; text-decoration: none; font-weight: 500;">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*EZPC World is not responsible for any mistakes you make when buying or assembling your PC</p>
+                    <div id="buildBoxContactInfo" class="build-contact-info">
+                        <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*EZPC World is not responsible for any mistakes you make when buying or assembling your PC</p>
                     </div>
                 </div>
             </div>
 
             <!-- Statistics Section - Separate Box -->
-            <div id="buildStatisticsSection" class="build-summary-box hidden" style="margin-top: 20px;">
+            <div id="buildStatisticsSection" class="build-summary-box stats-section hidden">
                 <div class="build-summary-header">
                     <h3><i class="fas fa-chart-line"></i> Performance Statistics</h3>
                 </div>
 
                 <!-- Top Row: Performance Graphs -->
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <div class="stats-top-row">
                     <!-- GPU Statistics -->
-                    <div style="flex: 1; min-width: 300px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                        <h5 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #333; text-align: center;">
-                            <i class="fas fa-microchip"></i> GPU Performance vs Price
+                    <div class="stats-chart-card">
+                        <h5 class="stats-chart-title">
+                            <i class="fas fa-desktop"></i> GPU Performance vs Price
                         </h5>
-                        <div style="position: relative; overflow-x: auto;">
+                        <div class="stats-canvas-wrap">
                             <canvas id="buildGpuStatisticsCanvas" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
 
                     <!-- CPU Single-Thread Statistics -->
-                    <div style="flex: 1; min-width: 300px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                        <h5 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #333; text-align: center;">
+                    <div class="stats-chart-card">
+                        <h5 class="stats-chart-title">
                             <i class="fas fa-microchip"></i> CPU Single-Thread vs Price
                         </h5>
-                        <div style="position: relative; overflow-x: auto;">
+                        <div class="stats-canvas-wrap">
                             <canvas id="buildCpuSingleStatisticsCanvas" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
 
                     <!-- CPU Multi-Thread Statistics -->
-                    <div style="flex: 1; min-width: 300px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                        <h5 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #333; text-align: center;">
-                            <i class="fas fa-microchip"></i> CPU Multi-Thread vs Price
+                    <div class="stats-chart-card">
+                        <h5 class="stats-chart-title">
+                            <i class="fas fa-layer-group"></i> CPU Multi-Thread vs Price
                         </h5>
-                        <div style="position: relative; overflow-x: auto;">
+                        <div class="stats-canvas-wrap">
                             <canvas id="buildCpuMultiStatisticsCanvas" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- Bottom Row: Price Distribution Pie Chart (Full Width) -->
-                <div style="display: flex; justify-content: center;">
-                    <div style="width: 100%; max-width: 600px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                        <h5 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600; color: #333; text-align: center;">
+                <!-- Bottom Row: Comparison + Price Distribution -->
+                <div class="stats-bottom-row">
+                    <!-- Build vs Average Comparison -->
+                    <div class="stats-chart-card">
+                        <h5 class="stats-chart-title">
+                            <i class="fas fa-balance-scale"></i> Your Build vs Community Average
+                        </h5>
+                        <div class="stats-canvas-wrap">
+                            <canvas id="buildComparisonCanvas" style="max-width: 100%;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Price Distribution -->
+                    <div class="stats-chart-card">
+                        <h5 class="stats-chart-title">
                             <i class="fas fa-chart-pie"></i> Price Distribution
                         </h5>
-                        <div style="position: relative; display: flex; justify-content: center; align-items: center;">
+                        <div class="stats-canvas-wrap" style="display: flex; justify-content: center;">
                             <canvas id="buildPriceDistributionCanvas" style="max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Contact Info -->
-                <div id="statsBoxContactInfo" style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #3b82f6; text-align: center; display: none;">
-                    <p style="color: #666; margin: 0; font-size: 12px;">Contact <a href="mailto:easypcworlddev@gmail.com" style="color: #3b82f6; text-decoration: none; font-weight: 500;">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*EZPC World is not responsible for any mistakes you make when buying or assembling your PC</p>
+                <div id="statsBoxContactInfo" class="build-contact-info" style="display: none;">
+                    <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*EZPC World is not responsible for any mistakes you make when buying or assembling your PC</p>
                 </div>
             </div>
         </div>
@@ -1260,7 +1271,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=8"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

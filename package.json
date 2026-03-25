@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "enrich-reviews": "node scripts/enrichReviews.js",
     "setup-db": "node scripts/setupDatabase.js",
     "seed-data": "node scripts/seedData.js",
     "import-gpus": "node scripts/gpuImportRunner.js",
