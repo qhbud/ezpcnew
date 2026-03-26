@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=mobile-fix-3">
+    <link rel="stylesheet" href="styles-v5.css?v=mobile-fix-15">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -91,7 +91,6 @@
     </script>
 </head>
 <body>
-    <canvas id="particles-canvas"></canvas>
     <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode" style="display: none;" aria-label="Toggle debug mode">
         <i class="fas fa-bug"></i>
     </button>
@@ -396,7 +395,9 @@
                         <div class="component-section component-left">
                             <div class="component-selector">
                                 <button id="builderGpuSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-desktop"></i> Choose a GPU...
+                                    <i class="fas fa-desktop"></i>
+                                    <span>Choose a GPU</span>
+                                    <span class="slot-hint">Select your GPU</span>
                                 </button>
                                 <button id="removeGpuBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -411,7 +412,9 @@
                         <div class="component-section component-right">
                             <div class="component-selector">
                                 <button id="builderCpuSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-microchip"></i> Choose a CPU...
+                                    <i class="fas fa-microchip"></i>
+                                    <span>Choose a CPU</span>
+                                    <span class="slot-hint">Select your processor</span>
                                 </button>
                                 <button id="removeCpuBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -429,7 +432,9 @@
                         <div class="component-section component-left">
                             <div class="component-selector">
                                 <button id="builderRamSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-hdd"></i> Choose RAM...
+                                    <i class="fas fa-memory"></i>
+                                    <span>Choose RAM</span>
+                                    <span class="slot-hint">Select your memory kit</span>
                                 </button>
                                 <button id="removeRamBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -444,7 +449,9 @@
                         <div class="component-section component-right">
                             <div class="component-selector">
                                 <button id="builderCoolerSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-snowflake"></i> Choose a Cooler...
+                                    <i class="fas fa-snowflake"></i>
+                                    <span>Choose a Cooler</span>
+                                    <span class="slot-hint">Select your CPU cooler</span>
                                 </button>
                                 <button id="removeCoolerBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -462,7 +469,9 @@
                         <div class="component-section component-left">
                             <div class="component-selector">
                                 <button id="builderPsuSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-plug"></i> Choose a PSU...
+                                    <i class="fas fa-plug"></i>
+                                    <span>Choose a PSU</span>
+                                    <span class="slot-hint">Select your power supply</span>
                                 </button>
                                 <button id="removePsuBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -477,7 +486,9 @@
                         <div class="component-section component-right">
                             <div class="component-selector">
                                 <button id="builderMotherboardSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-memory"></i> Choose a Motherboard...
+                                    <i class="fas fa-server"></i>
+                                    <span>Choose a Motherboard</span>
+                                    <span class="slot-hint">Select your board</span>
                                 </button>
                                 <button id="removeMotherboardBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -495,7 +506,9 @@
                         <div class="component-section component-left">
                             <div class="component-selector">
                                 <button id="builderCaseSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-box"></i> Choose a Case...
+                                    <i class="fas fa-box"></i>
+                                    <span>Choose a Case</span>
+                                    <span class="slot-hint">Select your PC case</span>
                                 </button>
                                 <button id="removeCaseBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -513,7 +526,9 @@
                             </button>
                             <div class="component-selector">
                                 <button id="builderStorageSelectBtn" class="component-select-btn">
-                                    <i class="fas fa-hdd"></i> Choose Storage...
+                                    <i class="fas fa-hdd"></i>
+                                    <span>Choose Storage</span>
+                                    <span class="slot-hint">SSD or HDD</span>
                                 </button>
                                 <button id="removeStorageBtn" class="remove-component-btn" style="display: none;">
                                     <i class="fas fa-times"></i>
@@ -811,7 +826,7 @@
                             <i class="fas fa-trash"></i> Clear Build
                         </button>
                         <button id="shareBuildBtn" class="action-btn primary">
-                            <i class="fas fa-link"></i> Copy Share Link
+                            <i class="fas fa-link"></i> Copy Link
                         </button>
                         <button id="addToAmazonCartBtn" class="action-btn primary">
                             <i class="fab fa-amazon"></i> Add to Amazon Cart
@@ -822,7 +837,7 @@
                     <div class="compatibility-section">
                         <h4 id="compatibilityCheckHeading"><i class="fas fa-check-circle" id="compatibilityIcon"></i> Compatibility Check</h4>
                         <div id="compatibilityResults" class="compatibility-results">
-                            <p class="compatibility-message">✅ No compatibility issues detected</p>
+                            <p class="compatibility-message"><span class="compat-ok-dot"></span>Select components to check</p>
                         </div>
 
                         <!-- Estimated System Power -->
@@ -849,7 +864,8 @@
 
                     <!-- Contact Info -->
                     <div id="buildBoxContactInfo" class="build-contact-info">
-                        <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*EZPC World is not responsible for any mistakes you make when buying or assembling your PC</p>
+                        <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for bugs or suggestions.</p>
+                        <p class="build-contact-text" style="margin-top: 4px;">*EZPC World is not responsible for any mistakes when buying or assembling your PC.</p>
                     </div>
                 </div>
             </div>
@@ -1271,7 +1287,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=18"></script>
+    <script src="script.js?v=22"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

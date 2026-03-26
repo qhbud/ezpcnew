@@ -4248,9 +4248,9 @@ class PartsDatabase {
             results.classList.add('no-warnings');
 
             if (Object.values(this.currentBuild).some(component => component !== null)) {
-                results.innerHTML = '<p class="compatibility-message success">✅ No compatibility issues detected</p>';
+                results.innerHTML = '<p class="compatibility-message success"><span class="compat-ok-dot"></span>No issues detected</p>';
             } else {
-                results.innerHTML = '<p class="compatibility-message">Select components to check compatibility</p>';
+                results.innerHTML = '<p class="compatibility-message" style="color:var(--text-muted);">Select components to check</p>';
             }
         } else {
             // Add warning class and remove success class
@@ -5856,6 +5856,7 @@ class PartsDatabase {
                 { text: 'Release Year', sort: 'releaseYear', icon: true, style: 'width: 120px; min-width: 120px; text-align: center;' },
                 { text: 'Performance', sort: 'performance', icon: true, style: 'width: 150px; min-width: 150px;' },
                 { text: 'Multi-Thread Performance', sort: 'multiThreadPerformance', icon: true, className: 'cpu-only-column', style: 'display: none;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'cpu': [
@@ -5864,6 +5865,7 @@ class PartsDatabase {
                 { text: 'Release Year', sort: 'releaseYear', icon: true, style: 'width: 120px; min-width: 120px; text-align: center;' },
                 { text: 'Single-Thread Performance', sort: 'performance', icon: true, style: 'width: 180px; min-width: 180px;' },
                 { text: 'Multi-Thread Performance', sort: 'multiThreadPerformance', icon: true, className: 'cpu-only-column', style: 'width: 180px; min-width: 180px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'motherboard': [
@@ -5877,6 +5879,7 @@ class PartsDatabase {
                 { text: 'M.2 Slots', sort: 'm2Slots', icon: true },
                 { text: 'PCIe Slots', sort: 'pcieSlots', icon: true },
                 { text: 'WiFi', sort: 'wifi', icon: true, style: 'width: 80px; min-width: 80px; text-align: center;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'ram': [
@@ -5885,12 +5888,14 @@ class PartsDatabase {
                 { text: 'Type', sort: 'memoryType', icon: true },
                 { text: 'Capacity', sort: 'capacity', icon: true },
                 { text: 'Speed', sort: 'speed', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'cooler': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'coolerType', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'psu': [
@@ -5899,6 +5904,7 @@ class PartsDatabase {
                 { text: 'Wattage', sort: 'wattage', icon: true },
                 { text: 'Certification', sort: 'certification', icon: true },
                 { text: 'Modularity', sort: 'modularity', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true }
             ],
             'case': [
@@ -5906,6 +5912,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Form Factor', sort: 'formFactor', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'RGB', sort: 'hasRGB', icon: true, style: 'width: 80px; min-width: 80px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage': [
@@ -5913,6 +5920,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage2': [
@@ -5920,6 +5928,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage3': [
@@ -5927,6 +5936,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage4': [
@@ -5934,6 +5944,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage5': [
@@ -5941,6 +5952,7 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'storage6': [
@@ -5948,31 +5960,37 @@ class PartsDatabase {
                 { text: 'Component', sort: 'name', icon: true },
                 { text: 'Type', sort: 'type', icon: true, style: 'width: 140px; min-width: 140px;' },
                 { text: 'Capacity', sort: 'capacity', icon: true, style: 'width: 120px; min-width: 120px;' },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon2': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon3': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon4': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon5': [
                 { text: 'Image', sort: null, icon: false, style: 'width: 100px; min-width: 100px;' },
                 { text: 'Component', sort: 'name', icon: true },
+                { text: 'Rating', sort: 'reviewScore', icon: true, style: 'width: 100px; min-width: 100px; text-align: center;' },
                 { text: 'Price', sort: 'salePrice', icon: true, style: 'width: 120px; min-width: 120px;' }
             ],
             'addon6': [
@@ -7861,6 +7879,7 @@ class PartsDatabase {
         const partId = this.getPartId(component);
         let starWidget;
         let ratingBadge = '';
+        let ratingColHtml;
         if (component.reviewScore) {
             const score = component.reviewScore;
             const count = component.reviewCount ? component.reviewCount.toLocaleString() : '0';
@@ -7872,11 +7891,12 @@ class PartsDatabase {
                 else if (score >= i - 0.75) starsHtml += '<span style="color:#f59e0b;opacity:0.5;font-size:14px;">★</span>';
                 else starsHtml += '<span style="color:#d1d5db;font-size:14px;">★</span>';
             }
-            // Inline badge (shown next to manufacturer badge)
             ratingBadge = `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 8px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#b45309;border-radius:4px;font-size:11px;font-weight:600;vertical-align:middle;" title="${score}/5 based on ${count} reviews on ${source}">${starsHtml}<span style="margin-left:2px;">${score.toFixed(1)}</span></span>`;
             starWidget = `<div class="star-rating-widget already-rated" style="margin-top:4px;display:flex;align-items:center;gap:6px;" title="${score}/5 based on ${count} reviews on ${source}"><div style="display:flex;gap:2px;">${starsHtml}</div><span style="font-size:12px;color:#64748b;">${score.toFixed(1)} · ${count} reviews · ${source}</span></div>`;
+            ratingColHtml = `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;" title="${score}/5 · ${count} reviews · ${source}"><div style="display:flex;gap:1px;">${starsHtml}</div><span style="font-size:11px;font-weight:700;color:#92400e;">${score.toFixed(1)}</span></div>`;
         } else {
             starWidget = `<div class="star-rating-widget" data-part-id="${partId}" style="margin-top:4px;"><div class="stars-row"><span class="star empty" data-val="1">★</span><span class="star empty" data-val="2">★</span><span class="star empty" data-val="3">★</span><span class="star empty" data-val="4">★</span><span class="star empty" data-val="5">★</span></div><span class="star-count">Rate this</span></div>`;
+            ratingColHtml = `<span style="color:#d1d5db;font-size:14px;">—</span>`;
         }
 
         // Render different columns based on component type
@@ -7978,7 +7998,6 @@ class PartsDatabase {
                         ${compatibilityBadge}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                 </td>
                 <td>${component.formFactor || '-'}</td>
                 <td>${component.socket || '-'}</td>
@@ -7988,6 +8007,7 @@ class PartsDatabase {
                 <td>${m2Slots}</td>
                 <td>${pcieSlots}</td>
                 <td style="text-align: center;">${component.networking?.wifi ? '<span style="color: #10b981; font-size: 16px;" title="WiFi included">✓</span>' : '<span style="color: #6b7280; font-size: 14px;">—</span>'}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8033,11 +8053,11 @@ class PartsDatabase {
                         ${this.debugMode ? `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-radius: 4px; font-size: 10px; font-weight: 600;">[${component.saveCount || 0} saves]</span>` : ''}
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
-                    ${starWidget}
                 </td>
                 <td>${memoryType}</td>
                 <td>${capacityDisplay}</td>
                 <td>${speedDisplay}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8067,11 +8087,11 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                 </td>
                 <td>${wattage}</td>
                 <td>${certification}</td>
                 <td>${modularity}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8117,10 +8137,10 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                     ${socketDebugInfo}
                 </td>
                 <td>${coolerType}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8186,10 +8206,10 @@ class PartsDatabase {
                         ${compatibilityBadge}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                 </td>
                 <td>${formFactor}</td>
                 <td>${hasRGB}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8228,10 +8248,10 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                 </td>
                 <td>${storageType}</td>
                 <td>${capacity}</td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8267,8 +8287,8 @@ class PartsDatabase {
                         ${manufacturer ? `<span class="manufacturer-badge clickable-badge" data-filter-type="manufacturer" data-filter-value="${manufacturer}" style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${badgeBgColor}; color: ${badgeColor}; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">${manufacturer}</span>` : ''}
                     </div>
                     ${addonSpecsText ? '<div class="component-specs">' + addonSpecsText + '</div>' : ''}
-                    ${starWidget}
                 </td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8311,7 +8331,6 @@ class PartsDatabase {
                         ${hasCoolerIncluded ? `<span class="cooler-included-badge" style="display: inline-block; margin-left: 6px; padding: 2px 8px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle;"><i class="fas fa-snowflake" style="margin-right: 4px;"></i>Cooler Included</span>` : ''}
                     </div>
                     ${specs ? '<div class="component-specs">' + specs + '</div>' : ''}
-                    ${starWidget}
                 </td>
                 ${componentType === 'gpu' ? `<td>${vramDisplay}</td>` : ''}
                 ${componentType === 'gpu' ? `<td style="text-align: center;">${component.releaseYear || '-'}</td>` : ''}
@@ -8324,6 +8343,7 @@ class PartsDatabase {
                 <td class="cpu-only-column" style="display: ${componentType === 'cpu' ? '' : 'none'};">
                     ${multiThreadPerformanceScore !== null ? '<span class="performance-score" title="Performance based on data from https://www.tomshardware.com/" style="background: ' + this.getPerformanceColor(multiThreadPerformanceScore * 100) + '; color: white; font-weight: 600; padding: 4px 12px; border-radius: 4px; display: inline-block; cursor: help;">' + (multiThreadPerformanceScore * 100).toFixed(1) + '%</span>' : '-'}
                 </td>
+                <td style="text-align:center;vertical-align:middle;">${ratingColHtml}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -9461,8 +9481,8 @@ class PartsDatabase {
         // Create detailed component card similar to details panel
         const detailsHTML = `
             <div class="builder-component-card ${!isCompatible ? 'incompatible-build-card' : ''}">
-                <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Swap Component">
-                    <i class="fas fa-exchange-alt"></i>
+                <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Change Component">
+                    <i class="fas fa-exchange-alt"></i> Change
                 </button>
                 ${stockCoolerBtn}
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
@@ -9662,8 +9682,8 @@ class PartsDatabase {
 
         const detailsHTML = `
             <div class="builder-component-card stock-cooler-card" style="padding-bottom: 12px;">
-                <button class="swap-component-btn" onclick="pcBuilder.swapComponent('cooler')" title="Upgrade Cooler">
-                    <i class="fas fa-exchange-alt"></i>
+                <button class="swap-component-btn" onclick="pcBuilder.swapComponent('cooler')" title="Change Cooler">
+                    <i class="fas fa-exchange-alt"></i> Change
                 </button>
                 <div class="stock-cooler-badge" style="position: absolute; top: 25px; right: 85px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; z-index: 10; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
                     <i class="fas fa-gift" style="margin-right: 4px;"></i>INCLUDED
@@ -14289,81 +14309,6 @@ function toggleCpuPerformanceMode() {
     }
 }
 
-// Particle System for Background Animation
-class ParticleSystem {
-    constructor() {
-        this.canvas = document.getElementById('particles-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.particles = [];
-        this.particleCount = 50;
-        this.resize();
-        this.createParticles();
-        this.animate();
-
-        window.addEventListener('resize', () => this.resize());
-    }
-
-    resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-    }
-
-    createParticles() {
-        for (let i = 0; i < this.particleCount; i++) {
-            this.particles.push({
-                x: Math.random() * this.canvas.width,
-                y: Math.random() * this.canvas.height,
-                size: Math.random() * 3 + 1,
-                speedX: (Math.random() - 0.5) * 0.5,
-                speedY: (Math.random() - 0.5) * 0.5,
-                opacity: Math.random() * 0.5 + 0.2
-            });
-        }
-    }
-
-    animate() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        this.particles.forEach(particle => {
-            // Update position
-            particle.x += particle.speedX;
-            particle.y += particle.speedY;
-
-            // Wrap around screen edges
-            if (particle.x < 0) particle.x = this.canvas.width;
-            if (particle.x > this.canvas.width) particle.x = 0;
-            if (particle.y < 0) particle.y = this.canvas.height;
-            if (particle.y > this.canvas.height) particle.y = 0;
-
-            // Draw particle
-            this.ctx.beginPath();
-            this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            this.ctx.fillStyle = `rgba(96, 165, 250, ${particle.opacity})`;
-            this.ctx.fill();
-        });
-
-        // Draw connections between nearby particles
-        for (let i = 0; i < this.particles.length; i++) {
-            for (let j = i + 1; j < this.particles.length; j++) {
-                const dx = this.particles[i].x - this.particles[j].x;
-                const dy = this.particles[i].y - this.particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < 150) {
-                    this.ctx.beginPath();
-                    this.ctx.strokeStyle = `rgba(96, 165, 250, ${0.15 * (1 - distance / 150)})`;
-                    this.ctx.lineWidth = 1;
-                    this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
-                    this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
-                    this.ctx.stroke();
-                }
-            }
-        }
-
-        requestAnimationFrame(() => this.animate());
-    }
-}
-
 // Initialize the parts database frontend when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     pcBuilder = new PartsDatabase();
@@ -14397,9 +14342,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 componentSelectors.classList.remove('layout-double');
         }
     }
-
-    // Initialize particle system
-    new ParticleSystem();
 
     // Debug: Check initial window dimensions
     console.log(`=== PAGE LOAD DEBUG ===`);

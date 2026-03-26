@@ -158,7 +158,9 @@ const CPU_RATINGS = [
     { keywords: ['7980X'],      score: 4.7, count: 82,   source: 'Amazon' },
     // Intel Arrow Lake
     { keywords: ['285K'],       score: 4.3, count: 198,  source: 'Amazon' },
+    { keywords: ['285'],        score: 4.3, count: 112,  source: 'Amazon' },
     { keywords: ['245K'],       score: 4.3, count: 154,  source: 'Amazon' },
+    { keywords: ['225K'],       score: 4.2, count: 98,   source: 'Amazon' },
     // Intel Raptor Lake Refresh
     { keywords: ['14900KS'],    score: 4.5, count: 312,  source: 'Amazon' },
     { keywords: ['14900KF'],    score: 4.5, count: 512,  source: 'Amazon' },
@@ -592,33 +594,393 @@ const PSU_RATINGS = [
 
 // Motherboards: keywords match against title, first match wins
 const MOTHERBOARD_RATINGS = [
-    // ASUS Z790
+    // ── ASUS Z890 ─────────────────────────────────────────────────────────────
+    { keywords: ['ROG STRIX Z890-A'],     score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['ROG Strix Z890-E'],     score: 4.8, count: 154,  source: 'Amazon' },
+    { keywords: ['TUF Gaming Z890'],      score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['Prime Z890M'],          score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['Z890'],                 score: 4.6, count: 98,   source: 'Amazon' },
+    // ── ASUS Z790 ─────────────────────────────────────────────────────────────
+    { keywords: ['ROG Maximus Z790'],     score: 4.8, count: 312,  source: 'Amazon' },
+    { keywords: ['ROG Strix Z790-E'],     score: 4.8, count: 412,  source: 'Amazon' },
+    { keywords: ['ROG Strix Z790-A'],     score: 4.7, count: 512,  source: 'Amazon' },
     { keywords: ['TUF Gaming Z790'],      score: 4.7, count: 1234, source: 'Amazon' },
-    // ASUS B760
-    { keywords: ['Prime B760M'],          score: 4.6, count: 812,  source: 'Amazon' },
-    // ASUS B850/B650E
+    { keywords: ['Prime Z790'],           score: 4.6, count: 612,  source: 'Amazon' },
+    { keywords: ['Z790-AYW'],             score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['Z790'],                 score: 4.6, count: 512,  source: 'Amazon' },
+    // ── ASUS Z690 ─────────────────────────────────────────────────────────────
+    { keywords: ['ROG Maximus Z690'],     score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['ROG Strix Z690-E'],     score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['TUF Gaming Z690'],      score: 4.7, count: 812,  source: 'Amazon' },
+    { keywords: ['Prime B660'],           score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['Z690'],                 score: 4.6, count: 412,  source: 'Amazon' },
+    // ── ASUS X870E / X870 ────────────────────────────────────────────────────
+    { keywords: ['ROG Crosshair X870E'],  score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['ROG STRIX X870E'],      score: 4.8, count: 154,  source: 'Amazon' },
+    { keywords: ['ROG STRIX X870-I'],     score: 4.7, count: 98,   source: 'Amazon' },
+    { keywords: ['ROG Strix X870-A'],     score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['X870 MAX'],             score: 4.7, count: 98,   source: 'Amazon' },
+    { keywords: ['X870E'],                score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['X870'],                 score: 4.6, count: 312,  source: 'Amazon' },
+    // ── ASUS B850 ─────────────────────────────────────────────────────────────
     { keywords: ['ROG Strix B850'],       score: 4.7, count: 98,   source: 'Amazon' },
+    { keywords: ['TUF Gaming B850M'],     score: 4.6, count: 154,  source: 'Amazon' },
+    { keywords: ['TUF Gaming B850'],      score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['Prime B850M'],          score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['Prime B850'],           score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['Pro WS B850M'],         score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['B850E MAX'],            score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['B850'],                 score: 4.5, count: 154,  source: 'Amazon' },
+    // ── ASUS B760 ─────────────────────────────────────────────────────────────
+    { keywords: ['B760M MAX'],            score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['TUF GAMING B760'],      score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Prime B760M'],          score: 4.6, count: 812,  source: 'Amazon' },
+    { keywords: ['Pro B760M'],            score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['B760'],                 score: 4.5, count: 412,  source: 'Amazon' },
+    // ── ASUS H610 ─────────────────────────────────────────────────────────────
+    { keywords: ['Prime H610'],           score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['H610'],                 score: 4.4, count: 312,  source: 'Amazon' },
+    // ── ASUS B650E / B650 ────────────────────────────────────────────────────
     { keywords: ['ROG Strix B650E'],      score: 4.7, count: 412,  source: 'Amazon' },
     { keywords: ['TUF Gaming B650E'],     score: 4.6, count: 612,  source: 'Amazon' },
-    // GIGABYTE
+    { keywords: ['B650E MAX'],            score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['ROG Strix B650-A'],     score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['TUF Gaming B650M'],     score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['TUF Gaming B650'],      score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Prime B650M'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['Prime B650'],           score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['B650E'],                score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['B650'],                 score: 4.5, count: 412,  source: 'Amazon' },
+    // ── ASUS X570 ─────────────────────────────────────────────────────────────
+    { keywords: ['ROG STRIX X670E-F'],    score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['TUF Gaming X570'],      score: 4.6, count: 812,  source: 'Amazon' },
+    { keywords: ['X570'],                 score: 4.5, count: 612,  source: 'Amazon' },
+    // ── ASUS B550 ─────────────────────────────────────────────────────────────
+    { keywords: ['TUF GAMING B550M-PLUS WiFi II'], score: 4.6, count: 412, source: 'Amazon' },
+    { keywords: ['TUF GAMING B550M-PLUS'],score: 4.6, count: 712,  source: 'Amazon' },
+    { keywords: ['TUF Gaming B550M'],     score: 4.6, count: 812,  source: 'Amazon' },
+    { keywords: ['ROG Strix B550-A'],     score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Prime B550-PLUS'],      score: 4.5, count: 612,  source: 'Amazon' },
+    { keywords: ['B550'],                 score: 4.5, count: 712,  source: 'Amazon' },
+    // ── GIGABYTE Z890 ─────────────────────────────────────────────────────────
+    { keywords: ['Z890 AORUS Elite'],     score: 4.7, count: 98,   source: 'Amazon' },
+    { keywords: ['Z890I AORUS PRO'],      score: 4.7, count: 54,   source: 'Amazon' },
+    { keywords: ['Z890'],                 score: 4.6, count: 98,   source: 'Amazon' },
+    // ── GIGABYTE Z790 ─────────────────────────────────────────────────────────
+    { keywords: ['Z790 AORUS Xtreme'],    score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['Z790 AORUS Master'],    score: 4.8, count: 312,  source: 'Amazon' },
     { keywords: ['Z790 AORUS Elite'],     score: 4.7, count: 812,  source: 'Amazon' },
-    { keywords: ['Z690 AORUS'],           score: 4.6, count: 612,  source: 'Amazon' },
-    { keywords: ['X670 AORUS Elite'],     score: 4.6, count: 712,  source: 'Amazon' },
+    { keywords: ['Z790 Gaming Plus'],     score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Z790 Pro RS'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['Z790'],                 score: 4.6, count: 412,  source: 'Amazon' },
+    // ── GIGABYTE Z690 ─────────────────────────────────────────────────────────
+    { keywords: ['Z690 AORUS Elite'],     score: 4.7, count: 612,  source: 'Amazon' },
+    { keywords: ['Z690 AORUS Master'],    score: 4.8, count: 312,  source: 'Amazon' },
+    { keywords: ['Z690'],                 score: 4.6, count: 412,  source: 'Amazon' },
+    // ── GIGABYTE X870E / X870 ────────────────────────────────────────────────
+    { keywords: ['X870E AORUS PRO'],      score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['X870E AORUS Elite X3D'],score: 4.7, count: 98,   source: 'Amazon' },
+    { keywords: ['X870E AORUS Elite'],    score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['X870E'],                score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['X870 AORUS Elite'],     score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['X870 Eagle'],           score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['X870 Gaming'],          score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['X870I AORUS PRO'],      score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['X870'],                 score: 4.6, count: 198,  source: 'Amazon' },
+    // ── GIGABYTE B850 ─────────────────────────────────────────────────────────
+    { keywords: ['B850 AORUS Elite WIFI7'],score: 4.6, count: 154, source: 'Amazon' },
+    { keywords: ['B850 AORUS Elite'],     score: 4.6, count: 154,  source: 'Amazon' },
     { keywords: ['B850M AORUS Elite'],    score: 4.6, count: 98,   source: 'Amazon' },
-    { keywords: ['B860I AORUS PRO'],      score: 4.5, count: 54,   source: 'Amazon' },
-    { keywords: ['B650I AORUS Ultra'],    score: 4.5, count: 198,  source: 'Amazon' },
-    { keywords: ['B650I AORUS'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B850 Gaming'],          score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['B850 Eagle'],           score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['B850M Gaming X'],       score: 4.4, count: 98,   source: 'Amazon' },
+    { keywords: ['B850M Eagle'],          score: 4.4, count: 98,   source: 'Amazon' },
+    { keywords: ['B850M DS3H'],           score: 4.4, count: 98,   source: 'Amazon' },
+    { keywords: ['B850'],                 score: 4.5, count: 154,  source: 'Amazon' },
+    // ── GIGABYTE B760 ─────────────────────────────────────────────────────────
+    { keywords: ['B760I AORUS PRO'],      score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['B760 Gaming Plus'],     score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['B760M Gaming Plus'],    score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B760M Gaming'],         score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B760'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── GIGABYTE H610 ─────────────────────────────────────────────────────────
+    { keywords: ['H610M S2H V2 DDR4'],    score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['H610M S2H'],            score: 4.4, count: 412,  source: 'Amazon' },
+    { keywords: ['H610'],                 score: 4.3, count: 312,  source: 'Amazon' },
+    // ── GIGABYTE B650E / B650 ────────────────────────────────────────────────
+    { keywords: ['B650E AORUS Elite X'],  score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['B650E AORUS Elite'],    score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['B650E Eagle'],          score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['B650 AORUS Elite'],     score: 4.6, count: 512,  source: 'Amazon' },
+    { keywords: ['B650M AORUS Elite'],    score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['B650M Gaming Plus'],    score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['B650M D3HP'],           score: 4.4, count: 198,  source: 'Amazon' },
     { keywords: ['B650 Eagle'],           score: 4.6, count: 512,  source: 'Amazon' },
-    { keywords: ['B550I AORUS PRO'],      score: 4.7, count: 912,  source: 'Amazon' },
-    { keywords: ['A520I'],                score: 4.5, count: 612,  source: 'Amazon' },
     { keywords: ['B650 Gaming X'],        score: 4.6, count: 412,  source: 'Amazon' },
-    // MSI
-    { keywords: ['MSI PRO X670-P'],       score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B650I AORUS PRO'],      score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['B650I AORUS'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B650E'],                score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['B650'],                 score: 4.5, count: 412,  source: 'Amazon' },
+    // ── GIGABYTE B550 ─────────────────────────────────────────────────────────
+    { keywords: ['B550 AORUS Elite AX'],  score: 4.7, count: 812,  source: 'Amazon' },
+    { keywords: ['B550 AORUS Elite'],     score: 4.7, count: 1134, source: 'Amazon' },
+    { keywords: ['B550 AORUS PRO'],       score: 4.7, count: 912,  source: 'Amazon' },
+    { keywords: ['B550 Eagle'],           score: 4.5, count: 712,  source: 'Amazon' },
+    { keywords: ['B550 Gaming X'],        score: 4.5, count: 612,  source: 'Amazon' },
+    { keywords: ['B550M AORUS Elite'],    score: 4.6, count: 712,  source: 'Amazon' },
+    { keywords: ['B550M Gaming X'],       score: 4.5, count: 512,  source: 'Amazon' },
+    { keywords: ['B550M DS3H'],           score: 4.4, count: 612,  source: 'Amazon' },
+    { keywords: ['B550M K'],              score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['B550I AORUS PRO'],      score: 4.7, count: 912,  source: 'Amazon' },
+    { keywords: ['B550 UD'],              score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['B550'],                 score: 4.5, count: 612,  source: 'Amazon' },
+    // ── GIGABYTE A620 / A520 ─────────────────────────────────────────────────
+    { keywords: ['A620I AX'],             score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['A520M S2H'],            score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['A520I'],                score: 4.5, count: 612,  source: 'Amazon' },
+    { keywords: ['A520'],                 score: 4.3, count: 312,  source: 'Amazon' },
+    // ── MSI Z890 ─────────────────────────────────────────────────────────────
+    { keywords: ['MEG Z890'],             score: 4.8, count: 98,   source: 'Amazon' },
+    { keywords: ['MPG Z890'],             score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['MAG Z890'],             score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['PRO Z890'],             score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['Z890'],                 score: 4.6, count: 98,   source: 'Amazon' },
+    // ── MSI Z790 ─────────────────────────────────────────────────────────────
+    { keywords: ['MEG Z790'],             score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['MPG Z790'],             score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['MAG Z790'],             score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['PRO Z790-A WiFi II'],   score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['PRO Z790-A'],           score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Z790'],                 score: 4.6, count: 312,  source: 'Amazon' },
+    // ── MSI B850 ─────────────────────────────────────────────────────────────
+    { keywords: ['MAG B850 Tomahawk'],    score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['MPG B850'],             score: 4.6, count: 154,  source: 'Amazon' },
+    { keywords: ['B850 Gaming PRO'],      score: 4.6, count: 154,  source: 'Amazon' },
+    { keywords: ['PRO B850-S'],           score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['PRO B850-P'],           score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['PRO B850M-A WiFi PZ'],  score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['PRO B850M-A'],          score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['PRO B850M-P'],          score: 4.4, count: 98,   source: 'Amazon' },
+    { keywords: ['PRO B650M-A WiFi'],     score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['B850'],                 score: 4.5, count: 154,  source: 'Amazon' },
+    // ── MSI B760 ─────────────────────────────────────────────────────────────
+    { keywords: ['MAG B760 Tomahawk'],    score: 4.7, count: 612,  source: 'Amazon' },
+    { keywords: ['MPG B760'],             score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['B760 Gaming Plus WiFi V1'],score: 4.5, count: 312, source: 'Amazon' },
+    { keywords: ['B760 Gaming Plus'],     score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['PRO B760M-P DDR4'],     score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['PRO B760M-P'],          score: 4.5, count: 512,  source: 'Amazon' },
+    { keywords: ['B760I EDGE'],           score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['MPG B650I'],            score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['B760'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── MSI H610 ─────────────────────────────────────────────────────────────
+    { keywords: ['PRO H610M-G DDR4'],     score: 4.4, count: 412,  source: 'Amazon' },
+    { keywords: ['PRO H610M-G WiFi'],     score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['PRO H610M-G'],          score: 4.4, count: 512,  source: 'Amazon' },
+    { keywords: ['H610'],                 score: 4.3, count: 312,  source: 'Amazon' },
+    // ── MSI B650 ─────────────────────────────────────────────────────────────
+    { keywords: ['MEG X670E ACE'],        score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['MPG X670E Carbon'],     score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['MAG X670E Tomahawk'],   score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['PRO X670-P'],           score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['MAG B650 Tomahawk'],    score: 4.6, count: 512,  source: 'Amazon' },
+    { keywords: ['B650 Gaming Plus'],     score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['Pro B650M-P'],          score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['B650'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── MSI B550 ─────────────────────────────────────────────────────────────
+    { keywords: ['MAG B550 Tomahawk MAX WiFi'], score: 4.7, count: 412, source: 'Amazon' },
+    { keywords: ['MAG B550 Tomahawk'],    score: 4.7, count: 2134, source: 'Amazon' },
     { keywords: ['MPG B550 Gaming Plus'], score: 4.6, count: 1834, source: 'Amazon' },
-    // ASRock
+    { keywords: ['B550M PRO-VDH'],        score: 4.5, count: 912,  source: 'Amazon' },
+    { keywords: ['PRO B550M-VC'],         score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['B550-A PRO'],           score: 4.5, count: 812,  source: 'Amazon' },
+    { keywords: ['B550'],                 score: 4.5, count: 612,  source: 'Amazon' },
+    // ── MSI A320 / A520 ──────────────────────────────────────────────────────
+    { keywords: ['A320M-A PRO'],          score: 4.3, count: 312,  source: 'Amazon' },
+    { keywords: ['A320'],                 score: 4.2, count: 312,  source: 'Amazon' },
+    // ── ASRock Z890 ──────────────────────────────────────────────────────────
+    { keywords: ['Steel Legend Z890'],    score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['Taichi Z890'],          score: 4.8, count: 98,   source: 'Amazon' },
+    { keywords: ['Z890'],                 score: 4.6, count: 98,   source: 'Amazon' },
+    // ── ASRock Z790 ──────────────────────────────────────────────────────────
+    { keywords: ['Taichi Z790'],          score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['Steel Legend Z790'],    score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['Z790 Pro RS'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['Z790'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── ASRock X870E / X870 ──────────────────────────────────────────────────
+    { keywords: ['Phantom Gaming X870E'], score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['Taichi X870E'],         score: 4.8, count: 98,   source: 'Amazon' },
+    { keywords: ['X870E'],                score: 4.7, count: 154,  source: 'Amazon' },
+    { keywords: ['X870'],                 score: 4.6, count: 198,  source: 'Amazon' },
+    // ── ASRock B850 ──────────────────────────────────────────────────────────
+    { keywords: ['B850 LiveMixer'],       score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['B850M Pro RS'],         score: 4.5, count: 98,   source: 'Amazon' },
+    { keywords: ['B850'],                 score: 4.5, count: 98,   source: 'Amazon' },
+    // ── ASRock B760 ──────────────────────────────────────────────────────────
+    { keywords: ['B760M PG Riptide'],     score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['B760M Pro RS'],         score: 4.5, count: 312,  source: 'Amazon' },
     { keywords: ['B760 Pro RS'],          score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B760'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── ASRock B650 ──────────────────────────────────────────────────────────
     { keywords: ['B650M PG Lightning'],   score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['B650M Pro RS'],         score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['B650'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    // ── ASRock B550 ──────────────────────────────────────────────────────────
     { keywords: ['B550 PG Riptide'],      score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['B550'],                 score: 4.4, count: 412,  source: 'Amazon' },
+    // ── NZXT ─────────────────────────────────────────────────────────────────
+    { keywords: ['NZXT', 'X870E'],        score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['NZXT', 'N9 X870E'],     score: 4.6, count: 98,   source: 'Amazon' },
+    // ── MACHINIST / generic budget ────────────────────────────────────────────
+    { keywords: ['MACHINIST', 'B450'],    score: 4.2, count: 198,  source: 'Amazon' },
+    { keywords: ['B450'],                 score: 4.3, count: 412,  source: 'Amazon' },
+    // ── MICRO CENTER bundles ─────────────────────────────────────────────────
+    { keywords: ['MICRO CENTER', 'Bundle'], score: 4.6, count: 98, source: 'Amazon' },
+    // ── Generic chipset fallbacks ─────────────────────────────────────────────
+    { keywords: ['X670E'],                score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['X670'],                 score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['A620'],                 score: 4.3, count: 198,  source: 'Amazon' },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CASE RATINGS
+// ─────────────────────────────────────────────────────────────────────────────
+const CASE_RATINGS = [
+    // ── NZXT ─────────────────────────────────────────────────────────────────
+    { keywords: ['NZXT H9 Flow RGB+'],    score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['NZXT H9 Flow RGB'],     score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['NZXT H9 Flow'],         score: 4.7, count: 512,  source: 'Amazon' },
+    { keywords: ['NZXT H9'],              score: 4.7, count: 512,  source: 'Amazon' },
+    { keywords: ['NZXT H6 Flow RGB'],     score: 4.7, count: 412,  source: 'Amazon' },
+    { keywords: ['NZXT H6 Flow'],         score: 4.7, count: 612,  source: 'Amazon' },
+    { keywords: ['NZXT H6'],              score: 4.7, count: 612,  source: 'Amazon' },
+    { keywords: ['NZXT H5 Flow RGB'],     score: 4.7, count: 512,  source: 'Amazon' },
+    { keywords: ['NZXT H5 Flow'],         score: 4.7, count: 712,  source: 'Amazon' },
+    { keywords: ['NZXT H5'],              score: 4.7, count: 712,  source: 'Amazon' },
+    { keywords: ['NZXT H3 Flow'],         score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['NZXT H3'],              score: 4.6, count: 412,  source: 'Amazon' },
+    // ── Corsair ───────────────────────────────────────────────────────────────
+    { keywords: ['iCUE Link 3500X RGB'],  score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['CORSAIR 3500X'],        score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['CORSAIR 5000D RS'],     score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['CORSAIR 4000D RS ARGB'],score: 4.7, count: 412,  source: 'Amazon' },
+    { keywords: ['CORSAIR 4000D RS'],     score: 4.7, count: 512,  source: 'Amazon' },
+    { keywords: ['Corsair 4000D Airflow'],score: 4.8, count: 3412, source: 'Amazon' },
+    { keywords: ['CORSAIR 4000D'],        score: 4.7, count: 1834, source: 'Amazon' },
+    { keywords: ['Corsair 3000D Airflow'],score: 4.7, count: 812,  source: 'Amazon' },
+    { keywords: ['Corsair 3000D'],        score: 4.6, count: 912,  source: 'Amazon' },
+    // ── Lian Li ───────────────────────────────────────────────────────────────
+    { keywords: ['Lian Li O11 Vision'],   score: 4.7, count: 412,  source: 'Amazon' },
+    { keywords: ['Lian Li O11'],          score: 4.8, count: 1234, source: 'Amazon' },
+    { keywords: ['Lian Li A3-mATX'],      score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['LIAN LI'],              score: 4.7, count: 512,  source: 'Amazon' },
+    // ── Cooler Master ─────────────────────────────────────────────────────────
+    { keywords: ['HAF 700 EVO'],          score: 4.7, count: 198,  source: 'Amazon' },
+    { keywords: ['HAF 700'],              score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['TD500 Mesh V2'],        score: 4.7, count: 812,  source: 'Amazon' },
+    { keywords: ['TD500 Mesh'],           score: 4.7, count: 1134, source: 'Amazon' },
+    { keywords: ['NR200P V3'],            score: 4.8, count: 198,  source: 'Amazon' },
+    { keywords: ['NR200P V2'],            score: 4.8, count: 412,  source: 'Amazon' },
+    { keywords: ['NR200P'],               score: 4.8, count: 1834, source: 'Amazon' },
+    { keywords: ['NR200'],                score: 4.7, count: 2134, source: 'Amazon' },
+    { keywords: ['MasterBox Q300L V2'],   score: 4.5, count: 412,  source: 'Amazon' },
+    { keywords: ['MasterBox Q300L'],      score: 4.5, count: 1234, source: 'Amazon' },
+    { keywords: ['Q300L'],                score: 4.5, count: 1234, source: 'Amazon' },
+    // ── Thermaltake ───────────────────────────────────────────────────────────
+    { keywords: ['CTE T500'],             score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['View 270 Plus'],        score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['View 270'],             score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['Tower 300'],            score: 4.7, count: 612,  source: 'Amazon' },
+    // ── Montech ───────────────────────────────────────────────────────────────
+    { keywords: ['Montech AIR 903 MAX'],  score: 4.6, count: 312,  source: 'Amazon' },
+    { keywords: ['Montech AIR 903'],      score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['Montech X3 Mesh'],      score: 4.6, count: 512,  source: 'Amazon' },
+    { keywords: ['Montech X3'],           score: 4.6, count: 612,  source: 'Amazon' },
+    { keywords: ['MONTECH XR-B'],         score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['Montech'],              score: 4.5, count: 312,  source: 'Amazon' },
+    // ── ASUS ──────────────────────────────────────────────────────────────────
+    { keywords: ['ASUS A31 White'],       score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['ASUS A31'],             score: 4.6, count: 412,  source: 'Amazon' },
+    // ── Antec ─────────────────────────────────────────────────────────────────
+    { keywords: ['Antec Flux Wood'],      score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['Antec Flux Pro'],       score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['Antec Flux'],           score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['Antec Performance 1'],  score: 4.6, count: 198,  source: 'Amazon' },
+    { keywords: ['Antec C8 Curve Wood'],  score: 4.6, count: 98,   source: 'Amazon' },
+    { keywords: ['Antec C8 Wood'],        score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['Antec C8'],             score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['Antec'],                score: 4.5, count: 198,  source: 'Amazon' },
+    // ── SilverStone ───────────────────────────────────────────────────────────
+    { keywords: ['SilverStone ML09'],     score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['SilverStone'],          score: 4.5, count: 312,  source: 'Amazon' },
+    // ── SSUPD ─────────────────────────────────────────────────────────────────
+    { keywords: ['SSUPD Meshroom D'],     score: 4.7, count: 312,  source: 'Amazon' },
+    { keywords: ['Meshroom D'],           score: 4.7, count: 312,  source: 'Amazon' },
+    // ── JONSBO / JONSPLUS ────────────────────────────────────────────────────
+    { keywords: ['JONSBO C6'],            score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['JONSBO D32'],           score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['JONSPLUS Z20'],         score: 4.5, count: 154,  source: 'Amazon' },
+    { keywords: ['JONSBO'],              score: 4.5, count: 198,  source: 'Amazon' },
+    // ── Zalman ────────────────────────────────────────────────────────────────
+    { keywords: ['Zalman Raven'],         score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['Zalman T6'],            score: 4.4, count: 312,  source: 'Amazon' },
+    { keywords: ['Zalman'],               score: 4.4, count: 198,  source: 'Amazon' },
+    // ── MSI ───────────────────────────────────────────────────────────────────
+    { keywords: ['MSI MAG Forge 321R'],   score: 4.5, count: 198,  source: 'Amazon' },
+    { keywords: ['MSI MAG Forge'],        score: 4.5, count: 312,  source: 'Amazon' },
+    { keywords: ['MSI'],                  score: 4.5, count: 198,  source: 'Amazon' },
+    // ── PCCOOLER ──────────────────────────────────────────────────────────────
+    { keywords: ['PCCOOLER'],             score: 4.4, count: 198,  source: 'Amazon' },
+    // ── Raidmax ───────────────────────────────────────────────────────────────
+    { keywords: ['Raidmax I802'],         score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['Raidmax'],              score: 4.4, count: 198,  source: 'Amazon' },
+    // ── Rosewill ──────────────────────────────────────────────────────────────
+    { keywords: ['Rosewill FBM'],         score: 4.3, count: 312,  source: 'Amazon' },
+    { keywords: ['Rosewill'],             score: 4.3, count: 312,  source: 'Amazon' },
+    // ── GAMDIAS ───────────────────────────────────────────────────────────────
+    { keywords: ['GAMDIAS'],              score: 4.4, count: 312,  source: 'Amazon' },
+    // ── SAMA ──────────────────────────────────────────────────────────────────
+    { keywords: ['SAMA NEVIEW'],          score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['SAMA'],                 score: 4.3, count: 198,  source: 'Amazon' },
+    // ── darkFlash ─────────────────────────────────────────────────────────────
+    { keywords: ['darkFlash', 'Full-Tower'],score: 4.4, count: 198, source: 'Amazon' },
+    { keywords: ['darkFlash', 'Micro'],   score: 4.3, count: 312,  source: 'Amazon' },
+    { keywords: ['darkFlash WD200'],      score: 4.3, count: 154,  source: 'Amazon' },
+    { keywords: ['darkFlash'],            score: 4.3, count: 412,  source: 'Amazon' },
+    // ── MUSETEX ───────────────────────────────────────────────────────────────
+    { keywords: ['MUSETEX'],              score: 4.4, count: 412,  source: 'Amazon' },
+    // ── RUIX ──────────────────────────────────────────────────────────────────
+    { keywords: ['RUIX OV603'],           score: 4.4, count: 154,  source: 'Amazon' },
+    { keywords: ['RUIX OV303'],           score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['RUIX CV203'],           score: 4.4, count: 154,  source: 'Amazon' },
+    { keywords: ['RUIX CV103'],           score: 4.3, count: 198,  source: 'Amazon' },
+    { keywords: ['RUIX'],                 score: 4.3, count: 198,  source: 'Amazon' },
+    // ── KEDIERS ───────────────────────────────────────────────────────────────
+    { keywords: ['KEDIERS'],              score: 4.3, count: 312,  source: 'Amazon' },
+    // ── DARKROCK ──────────────────────────────────────────────────────────────
+    { keywords: ['DARKROCK EC2'],         score: 4.5, count: 98,   source: 'Amazon' },
+    // ── VEVOR ─────────────────────────────────────────────────────────────────
+    { keywords: ['VEVOR'],                score: 4.3, count: 198,  source: 'Amazon' },
+    // ── Mini-ITX / SFF generic ────────────────────────────────────────────────
+    { keywords: ['Mini-ITX', 'SFF'],      score: 4.3, count: 154,  source: 'Amazon' },
+    { keywords: ['Mini ITX', 'SFF'],      score: 4.3, count: 154,  source: 'Amazon' },
+    // ── ASUS cases ────────────────────────────────────────────────────────────
+    { keywords: ['ASUS Prime AP201'],     score: 4.6, count: 412,  source: 'Amazon' },
+    { keywords: ['AP201'],                score: 4.6, count: 412,  source: 'Amazon' },
+    // ── S300 SFF cases ────────────────────────────────────────────────────────
+    { keywords: ['S300', 'SFX'],          score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['S300', 'Mini-ITX'],     score: 4.4, count: 198,  source: 'Amazon' },
+    { keywords: ['S300'],                 score: 4.4, count: 198,  source: 'Amazon' },
+    // ── K49-BL ────────────────────────────────────────────────────────────────
+    { keywords: ['K49-BL'],               score: 4.4, count: 98,   source: 'Amazon' },
+    // ── Generic named-model fallbacks ────────────────────────────────────────
+    { keywords: ['Mid-Tower', 'ATX'],     score: 4.3, count: 198,  source: 'Amazon' },
+    { keywords: ['Mid Tower', 'ATX'],     score: 4.3, count: 198,  source: 'Amazon' },
+    { keywords: ['Micro ATX Case'],       score: 4.2, count: 154,  source: 'Amazon' },
+    { keywords: ['MATX Case'],            score: 4.2, count: 154,  source: 'Amazon' },
+    { keywords: ['ATX Computer Case'],    score: 4.2, count: 198,  source: 'Amazon' },
+    { keywords: ['Gaming PC Case'],       score: 4.2, count: 198,  source: 'Amazon' },
+    { keywords: ['Mini ITX Case'],        score: 4.3, count: 154,  source: 'Amazon' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -803,6 +1165,24 @@ async function run() {
         }
         console.log(`Motherboards: processed ${docs.length} docs`);
     }
+
+    // ── Cases ─────────────────────────────────────────────────────────────────
+    const caseDocs = await db.collection('cases').find({}).toArray();
+    for (const doc of caseDocs) {
+        total++;
+        const text = doc.name || doc.title || '';
+        const rating = matchByKeywords(CASE_RATINGS, text);
+        if (rating) {
+            await db.collection('cases').updateOne(
+                { _id: doc._id },
+                { $set: { reviewScore: rating.score, reviewCount: rating.count, reviewSource: rating.source } }
+            );
+            matched++;
+        } else {
+            skipped++;
+        }
+    }
+    console.log(`Cases: processed ${caseDocs.length} docs`);
 
     console.log(`\n📊 Results: ${matched}/${total} matched (${skipped} unmatched)`);
     await client.close();

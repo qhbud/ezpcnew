@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=mobile-fix-3">
+    <link rel="stylesheet" href="styles-v5.css?v=mobile-fix-15">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -151,7 +151,6 @@
     </script>
 </head>
 <body>
-    <canvas id="particles-canvas"></canvas>
     <button id="debugBtn" class="debug-btn" onclick="pcBuilder.toggleDebugMode()" title="Toggle Debug Mode">
         <i class="fas fa-bug"></i>
     </button>
@@ -879,7 +878,7 @@
                             <i class="fas fa-trash"></i> Clear Build
                         </button>
                         <button id="shareBuildBtn" class="action-btn primary">
-                            <i class="fas fa-link"></i> Copy Share Link
+                            <i class="fas fa-link"></i> Copy Link
                         </button>
                         <button id="addToAmazonCartBtn" class="action-btn primary">
                             <i class="fab fa-amazon"></i> Add to Amazon Cart
@@ -890,7 +889,7 @@
                     <div class="compatibility-section">
                         <h4 id="compatibilityCheckHeading"><i class="fas fa-check-circle" id="compatibilityIcon"></i> Compatibility Check</h4>
                         <div id="compatibilityResults" class="compatibility-results">
-                            <p class="compatibility-message">✅ No compatibility issues detected</p>
+                            <p class="compatibility-message"><span class="compat-ok-dot"></span>Select components to check</p>
                         </div>
 
                         <!-- Estimated System Power -->
@@ -917,7 +916,8 @@
 
                     <!-- Contact Info -->
                     <div id="buildBoxContactInfo" class="build-contact-info">
-                        <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*I am not responsible for any mistakes you make when buying or assembling your PC</p>
+                        <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for bugs or suggestions.</p>
+                        <p class="build-contact-text" style="margin-top: 4px;">*EZPC World is not responsible for any mistakes when buying or assembling your PC.</p>
                     </div>
                 </div>
             </div>
@@ -986,7 +986,8 @@
 
                 <!-- Contact Info -->
                 <div id="statsBoxContactInfo" class="build-contact-info" style="display: none;">
-                    <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for any bugs or suggestions<br>*I am not responsible for any mistakes you make when buying or assembling your PC</p>
+                    <p class="build-contact-text">Contact <a href="mailto:easypcworlddev@gmail.com" class="build-contact-link">easypcworlddev@gmail.com</a> for bugs or suggestions.</p>
+                    <p class="build-contact-text" style="margin-top: 4px;">*EZPC World is not responsible for any mistakes when buying or assembling your PC.</p>
                 </div>
             </div>
         </div>
@@ -2776,7 +2777,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=18"></script>
+    <script src="script.js?v=22"></script>
     <script>
         // Budget Modal Functions
         let isUnlimited = false;
