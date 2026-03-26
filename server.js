@@ -923,9 +923,16 @@ async function handleRAMRequest(req, res) {
                 const modelName = extractRAMModel(ram.title || ram.name || '');
                 const ramCap = parseInt(ram.totalCapacity || ram.capacity) || 0;
                 const ramSpeed = parseInt(ram.speed || ram.speedMHz) || 0;
-                if (!modelMap.has(modelName)) {
-                    modelMap.set(modelName, {
+                const isDDR5 = (ram.memoryType || '').toUpperCase().includes('DDR5');
+                // Split groups by speed tier so low-speed (entry/compatible) kits don't mix with high-speed gaming kits
+                const speedTier = ramSpeed > 0
+                    ? (isDDR5 ? (ramSpeed <= 5200 ? 'base' : 'perf') : (ramSpeed <= 2666 ? 'entry' : 'std'))
+                    : '';
+                const groupKey = speedTier ? `${modelName}::${speedTier}` : modelName;
+                if (!modelMap.has(groupKey)) {
+                    modelMap.set(groupKey, {
                         model: modelName,
+                        groupKey: groupKey,
                         cheapestCard: ram,
                         cheapestPrice: parseFloat(ram.currentPrice || ram.price) || Infinity,
                         totalCards: 1,
@@ -939,7 +946,7 @@ async function handleRAMRequest(req, res) {
                         reviewSource: ram.reviewSource || 'Amazon'
                     });
                 } else {
-                    const md = modelMap.get(modelName);
+                    const md = modelMap.get(groupKey);
                     md.totalCards++;
                     const p = parseFloat(ram.currentPrice || ram.price) || Infinity;
                     if (p < md.cheapestPrice) { md.cheapestPrice = p; md.cheapestCard = ram; }
@@ -968,7 +975,7 @@ async function handleRAMRequest(req, res) {
                     totalCards: md.totalCards,
                     category: 'rams',
                     collection: 'rams',
-                    modelKey: md.model,
+                    modelKey: md.groupKey || md.model,
                     capacityRange: md.minCapacity > 0
                         ? (md.minCapacity === md.maxCapacity ? `${md.minCapacity}GB` : `${md.minCapacity}–${md.maxCapacity}GB`)
                         : null,
@@ -982,8 +989,53 @@ async function handleRAMRequest(req, res) {
                     reviewSource: md.reviewSource || 'Amazon'
                 };
             });
-            console.log(`Returning ${grouped.length} grouped RAM models from ${filteredRAM.length} kits`);
-            return res.json(grouped);
+            // Filter out bare "DDR4"/"DDR5" groups (no brand detected)
+            const cleanGrouped = grouped.filter(g => g.name && !g.name.match(/^DDR[45]$/i));
+
+            // Merge single-kit groups into "Other DDR4" / "Other DDR5" catch-alls
+            const mainGroups = cleanGrouped.filter(g => g.totalCards > 1);
+            const singleKit = cleanGrouped.filter(g => g.totalCards === 1);
+
+            const otherBuckets = {};
+            for (const g of singleKit) {
+                const key = g.memoryType && g.memoryType.toUpperCase().includes('DDR5') ? 'Other DDR5' : 'Other DDR4';
+                if (!otherBuckets[key]) {
+                    otherBuckets[key] = {
+                        name: key, modelKey: key, memoryType: key === 'Other DDR5' ? 'DDR5' : 'DDR4',
+                        totalCards: 0, manufacturer: 'Various',
+                        minCap: Infinity, maxCap: 0, minSpd: Infinity, maxSpd: 0,
+                        scoreSum: 0, scoreCount: 0, totalCount: 0, source: 'Amazon'
+                    };
+                }
+                const b = otherBuckets[key];
+                b.totalCards += g.totalCards;
+                if (g.capacityRange) {
+                    const caps = g.capacityRange.replace(/GB/g,'').split('–').map(Number).filter(Boolean);
+                    if (caps[0] < b.minCap) b.minCap = caps[0];
+                    if ((caps[1]||caps[0]) > b.maxCap) b.maxCap = caps[1]||caps[0];
+                }
+                if (g.speedRange) {
+                    const spds = g.speedRange.replace(/MHz/g,'').split('–').map(Number).filter(Boolean);
+                    if (spds[0] < b.minSpd) b.minSpd = spds[0];
+                    if ((spds[1]||spds[0]) > b.maxSpd) b.maxSpd = spds[1]||spds[0];
+                }
+                if (g.reviewScore) { b.scoreSum += g.reviewScore; b.scoreCount++; }
+                if (g.reviewCount) b.totalCount += g.reviewCount;
+            }
+
+            const otherGroups = Object.values(otherBuckets).map(b => ({
+                name: b.name, modelKey: b.modelKey, memoryType: b.memoryType,
+                totalCards: b.totalCards, manufacturer: b.manufacturer,
+                capacityRange: b.minCap === Infinity ? null : b.minCap === b.maxCap ? `${b.minCap}GB` : `${b.minCap}–${b.maxCap}GB`,
+                speedRange: b.minSpd === Infinity ? null : b.minSpd === b.maxSpd ? `${b.minSpd}MHz` : `${b.minSpd}–${b.maxSpd}MHz`,
+                reviewScore: b.scoreCount > 0 ? Math.round((b.scoreSum / b.scoreCount) * 10) / 10 : null,
+                reviewCount: b.totalCount || null,
+                reviewSource: b.source
+            }));
+
+            const finalGrouped = [...mainGroups, ...otherGroups];
+            console.log(`Returning ${finalGrouped.length} grouped RAM models (${otherGroups.length} Other buckets) from ${filteredRAM.length} kits`);
+            return res.json(finalGrouped);
         }
 
         console.log(`Returning ${filteredRAM.length} RAM modules after filtering`);
@@ -1007,20 +1059,45 @@ function extractRAMModel(title) {
     // Everything before the DDR marker
     const beforeDDR = ddrMatch ? title.slice(0, title.search(/\bDDR[45]\b/i)).trim() : title;
 
-    // Only keep clean alphabetic words; skip noise, numbers, special chars
+    // Common OEM/system brands that appear after "for" in A-tech replacement RAM titles
+    const oemBrands = new Set(['ASUS','DELL','HP','LENOVO','APPLE','ACER','MSI','GIGABYTE','ASROCK',
+                               'ALIENWARE','RAZER','SAMSUNG','INTEL','AMD','ROG','STRIX','INSPIRON',
+                               'THINKPAD','PAVILION','SPECTRE','ENVY','PREDATOR','NITRO','SWIFT']);
+    // Only keep clean alphabetic product-name words; skip noise, numbers, special chars
     const skip = new Set(['RAM','MEMORY','KIT','SERIES','GAMING','PERFORMANCE','RGB','ARGB',
-                          'WHITE','BLACK','SILVER','PRO','PLUS','ULTRA','ELITE','DESKTOP','MODULE','COMPATIBLE']);
+                          'WHITE','BLACK','SILVER','PRO','PLUS','ULTRA','ELITE','DESKTOP','MODULE','COMPATIBLE',
+                          'FOR','THE','WITH','AND','OR','BY','IN','OF','ON','AT','TO','AN',
+                          'LAPTOP','NOTEBOOK','SODIMM','DIMM','ECC','UNBUFFERED','REGISTERED',
+                          'UPGRADE','REPLACEMENT','PREMIUM','TECHNOLOGY','COMPUTER']);
     const words = beforeDDR
         .split(/\s+/)
-        .filter(w => w && /^[A-Za-z][A-Za-z0-9.\-]*$/.test(w) && !skip.has(w.toUpperCase()) && !/^\d+$/.test(w));
+        .filter(w => {
+            if (!w || w.length < 2) return false;                               // skip single chars
+            if (w.includes('.')) return true;                                   // allow G.SKILL
+            if (!/^[A-Za-z][A-Za-z\-]*$/.test(w)) return false;               // must be pure letters
+            if (oemBrands.has(w.toUpperCase())) return false;                  // skip OEM/system brands
+            return !skip.has(w.toUpperCase());
+        });
 
     const brand = words[0] || '';
-    const product = words[1] || '';  // empty string if title goes straight brand→capacity
+    let product = words[1] || '';  // empty string if title goes straight brand→capacity
 
     // Normalize to title case so "CORSAIR" and "Corsair" merge; preserve G.SKILL dots
     const toTitle = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
     const brandNorm = brand.includes('.') ? brand : toTitle(brand);
-    const productNorm = product && !/^\d/i.test(product) ? toTitle(product) : '';
+
+    // Normalize known typos/variant spellings
+    const productFix = { 'vengence': 'vengeance', 'vengance': 'vengeance' };
+    const productLower = product.toLowerCase();
+    if (productFix[productLower]) product = productFix[productLower];
+
+    // Strip trailing series-letter suffix from mixed-case product names (e.g. "RipjawsV" → "Ripjaws")
+    // Only strip if word is mixed-case AND ends with uppercase series letter (not all-caps words)
+    const isMixedCase = product.length > 1 && product[0] === product[0].toUpperCase() && product.slice(1) !== product.slice(1).toUpperCase();
+    const productClean = isMixedCase ? product.replace(/([A-Za-z]{4,})[A-Z]$/, '$1') : product;
+
+    // Only use product word if pure letters (no digits = no model numbers like XLR8)
+    const productNorm = productClean && !/\d/.test(productClean) ? toTitle(productClean) : '';
 
     const parts = [brandNorm, productNorm, ddrType].filter(Boolean);
     return parts.join(' ') || 'Unknown';
@@ -1125,12 +1202,49 @@ app.get('/api/parts/rams/variants', async (req, res) => {
         const { model } = req.query;
         if (!model) return res.status(400).json({ error: 'model query param required' });
         const allRAM = await db.collection('rams').find({}).toArray();
+
+        // Build the same grouped model keys to find which ones are "single-kit" (end up in Other)
+        const groupCounts = {};
+        allRAM.forEach(ram => {
+            if (!hasValidPrice(ram)) return;
+            const title = ram.title || ram.name || '';
+            const memType = ram.memoryType || '';
+            if (!memType || memType.toLowerCase() === 'unknown') return;
+            const key = extractRAMModel(title);
+            if (key && !key.match(/^DDR[45]$/i)) groupCounts[key] = (groupCounts[key] || 0) + 1;
+        });
+
+        // Reconstruct the same speed-tier compound key used in grouping
+        function getSpeedTier(speed, isDDR5) {
+            if (!speed) return '';
+            return isDDR5 ? (speed <= 5200 ? 'base' : 'perf') : (speed <= 2666 ? 'entry' : 'std');
+        }
+
         const variants = allRAM.filter(ram => {
             if (!hasValidPrice(ram)) return false;
             const title = ram.title || ram.name || '';
             const memType = ram.memoryType || '';
             if (!memType || memType.toLowerCase() === 'unknown') return false;
-            return extractRAMModel(title) === model;
+            const key = extractRAMModel(title);
+            if (!key || key.match(/^DDR[45]$/i)) return false;
+
+            // "Other DDR5" / "Other DDR4" — match items whose group has only 1 kit
+            if (model === 'Other DDR5' || model === 'Other DDR4') {
+                const targetDDR = model === 'Other DDR5' ? 'ddr5' : 'ddr4';
+                const isDDR = (memType || title).toLowerCase().includes(targetDDR);
+                return isDDR && groupCounts[key] === 1;
+            }
+
+            // If model contains '::' it's a speed-tiered key — match both base name and tier
+            if (model.includes('::')) {
+                const speed = parseInt(ram.speed || ram.speedMHz) || 0;
+                const isDDR5 = memType.toUpperCase().includes('DDR5');
+                const tier = getSpeedTier(speed, isDDR5);
+                const compoundKey = tier ? `${key}::${tier}` : key;
+                return compoundKey === model;
+            }
+
+            return key === model;
         });
         variants.forEach(r => { r.collection = 'rams'; r.category = 'rams'; });
         res.json(variants);

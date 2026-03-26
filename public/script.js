@@ -3337,15 +3337,15 @@ class PartsDatabase {
                 case 'formfactor': // Motherboard form factor
                     return (a.formFactor || '').localeCompare(b.formFactor || '');
                 
-                case 'capacity': // RAM capacity
-                    const capA = parseInt(a.capacity) || 0;
-                    const capB = parseInt(b.capacity) || 0;
-                    return capB - capA;
-                
-                case 'speed': // RAM speed
-                    const speedA = parseInt(a.speed) || 0;
-                    const speedB = parseInt(b.speed) || 0;
-                    return speedB - speedA;
+                case 'capacity': // RAM capacity — handle both grouped (capacityRange) and individual (capacity)
+                    const parseCapA = a.capacityRange ? parseInt(a.capacityRange.replace(/.*–/,'')) || parseInt(a.capacityRange) || 0 : parseInt(a.capacity) || 0;
+                    const parseCapB = b.capacityRange ? parseInt(b.capacityRange.replace(/.*–/,'')) || parseInt(b.capacityRange) || 0 : parseInt(b.capacity) || 0;
+                    return parseCapB - parseCapA;
+
+                case 'speed': // RAM speed — handle both grouped (speedRange) and individual (speed)
+                    const parseSpdA = a.speedRange ? parseInt(a.speedRange.replace(/.*–/,'')) || parseInt(a.speedRange) || 0 : parseInt(a.speed) || 0;
+                    const parseSpdB = b.speedRange ? parseInt(b.speedRange.replace(/.*–/,'')) || parseInt(b.speedRange) || 0 : parseInt(b.speed) || 0;
+                    return parseSpdB - parseSpdA;
                 
                 case 'type': // Storage type sorting
                     const typeA = (a.type || '').toLowerCase();
@@ -3452,10 +3452,14 @@ class PartsDatabase {
             case 'ram':
                 const ramSpecs = [];
                 if (component.memoryType) ramSpecs.push(component.memoryType);
-                if (component.capacity) ramSpecs.push(component.capacity);
-                if (component.speed) ramSpecs.push(component.speed);
-                return ramSpecs.join(', ');
-            
+                if (component.capacityRange) ramSpecs.push(component.capacityRange);
+                else if (component.totalCapacity) ramSpecs.push(`${component.totalCapacity}GB`);
+                else if (component.capacity) ramSpecs.push(`${component.capacity}GB`);
+                if (component.speedRange) ramSpecs.push(component.speedRange);
+                else if (component.speed) ramSpecs.push(`${component.speed}MHz`);
+                if (component.totalCards > 1) ramSpecs.push(`${component.totalCards} kits`);
+                return ramSpecs.join(' · ');
+
             case 'cooler':
                 const coolerSpecs = [];
                 if (component.coolerType) coolerSpecs.push(component.coolerType);
@@ -7660,7 +7664,10 @@ class PartsDatabase {
 
         // Check if there are variants/individual cards
         // For GPUs, always show chevron since we want all GPUs to be expandable
-        const hasVariants = componentType === 'gpu' || componentType === 'ram' || (component.variants && component.variants.length > 0);
+        // For RAM, only show chevron if there are 2+ kits in the group (single-kit groups select directly)
+        const hasVariants = componentType === 'gpu' ||
+            (componentType === 'ram' && (component.totalCards == null || component.totalCards > 1)) ||
+            (component.variants && component.variants.length > 0);
         const expandIcon = hasVariants ? '<i class="fas fa-chevron-right expand-icon"></i>' : '';
 
         // Determine manufacturer badge color
@@ -7996,19 +8003,24 @@ class PartsDatabase {
             const memoryType = component.memoryType || '-';
             const imageUrl = component.imageUrl || component.image || '';
 
-            // Format capacity as "2x16GB" if kitConfiguration exists, otherwise use capacity field
+            // Grouped row: use ranges; individual kit: use exact values
             let capacityDisplay = '-';
-            if (component.kitConfiguration) {
+            if (component.capacityRange) {
+                capacityDisplay = component.capacityRange;
+            } else if (component.kitConfiguration) {
                 capacityDisplay = component.kitConfiguration;
             } else if (component.kitSize && component.capacity) {
-                // Build kit configuration from kitSize and capacity (e.g., 2 sticks of 16GB = "2x16GB")
                 capacityDisplay = `${component.kitSize}x${component.capacity}GB`;
             } else if (component.capacity) {
-                // Fallback to just capacity if available
                 capacityDisplay = typeof component.capacity === 'string' ? component.capacity : `${component.capacity}GB`;
             }
 
-            const speed = component.speed ? (typeof component.speed === 'string' ? component.speed : `${component.speed} MHz`) : '-';
+            let speedDisplay = '-';
+            if (component.speedRange) {
+                speedDisplay = component.speedRange;
+            } else if (component.speed) {
+                speedDisplay = typeof component.speed === 'string' ? component.speed : `${component.speed} MHz`;
+            }
 
             row.innerHTML = `
                 <td style="padding: 8px; text-align: center; width: 100px;">
@@ -8025,7 +8037,7 @@ class PartsDatabase {
                 </td>
                 <td>${memoryType}</td>
                 <td>${capacityDisplay}</td>
-                <td>${speed}</td>
+                <td>${speedDisplay}</td>
                 <td class="price-cell">
                     ${isOnSale ? `
                         <div class="sale-price">$${salePrice.toFixed(2)}</div>
@@ -8760,12 +8772,14 @@ class PartsDatabase {
         }
 
         // Sort variants by price (cheapest first), preserving original index for cache lookups
+        // Cap at 12 to keep the expanded list manageable
+        const MAX_VARIANTS = 12;
         const sortedVariants = variants.map((variant, originalIndex) => {
             const sp = parseFloat(variant.salePrice || variant.currentPrice) || 0;
             const bp = parseFloat(variant.basePrice) || 0;
             const effectivePrice = sp > 0 ? sp : bp;
             return { variant, originalIndex, effectivePrice };
-        }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+        }).sort((a, b) => a.effectivePrice - b.effectivePrice).slice(0, MAX_VARIANTS);
 
         let html = '<div class="variants-grid">';
 
@@ -8839,6 +8853,12 @@ class PartsDatabase {
         });
 
         html += '</div>';
+
+        // Show "X of Y" note if capped
+        if (variants.length > MAX_VARIANTS) {
+            html += `<div style="text-align:center;font-size:11px;color:#94a3b8;padding:6px 0 2px;">Showing ${MAX_VARIANTS} of ${variants.length} options · sorted by price</div>`;
+        }
+
         return html;
     }
 
@@ -10015,12 +10035,12 @@ class PartsDatabase {
                     bVal = (b.networking?.wifi || false) ? 0 : 1;
                     break;
                 case 'capacity':
-                    aVal = parseInt(a.capacity) || 0;
-                    bVal = parseInt(b.capacity) || 0;
+                    aVal = a.capacityRange ? parseInt(a.capacityRange.replace(/.*–/,'')) || parseInt(a.capacityRange) || 0 : parseInt(a.capacity) || 0;
+                    bVal = b.capacityRange ? parseInt(b.capacityRange.replace(/.*–/,'')) || parseInt(b.capacityRange) || 0 : parseInt(b.capacity) || 0;
                     break;
                 case 'speed':
-                    aVal = parseInt(a.speed) || 0;
-                    bVal = parseInt(b.speed) || 0;
+                    aVal = a.speedRange ? parseInt(a.speedRange.replace(/.*–/,'')) || parseInt(a.speedRange) || 0 : parseInt(a.speed) || 0;
+                    bVal = b.speedRange ? parseInt(b.speedRange.replace(/.*–/,'')) || parseInt(b.speedRange) || 0 : parseInt(b.speed) || 0;
                     break;
                 case 'coolerType':
                     aVal = (a.coolerType || '').toLowerCase();
