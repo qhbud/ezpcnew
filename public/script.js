@@ -9484,6 +9484,9 @@ class PartsDatabase {
                 <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Change Component">
                     <i class="fas fa-exchange-alt"></i> Change
                 </button>
+                <button class="remove-from-build-btn" onclick="pcBuilder.removeBuilderComponent('${componentType}')" title="Remove Component">
+                    <i class="fas fa-times"></i>
+                </button>
                 ${stockCoolerBtn}
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
                     <div class="detail-image-container ${!isCompatible ? 'incompatible-build-component' : ''}" style="position: relative;">
