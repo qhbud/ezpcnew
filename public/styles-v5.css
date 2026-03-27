@@ -1516,6 +1516,7 @@ tr.incompatible td {
 /* PC Build Container — two-column layout: cards left, sidebar right */
 .pc-build-container {
     display: flex;
+    flex-direction: row;
     align-items: flex-start;
     gap: 20px;
 }
@@ -3166,18 +3167,19 @@ tr.incompatible td {
 
         .component-selectors.layout-single .component-section {
             width: 100%;
-            min-height: 110px;
+            min-height: 200px;
             position: relative;
         }
 
         .component-selectors.layout-single .component-select-btn {
             width: 100% !important;
-            height: 110px !important;
-            font-size: 0.9rem !important;
+            height: auto !important;
+            min-height: 200px !important;
+            font-size: 1rem !important;
         }
 
         .component-selectors.layout-single .component-select-btn i {
-            font-size: 1.2rem;
+            font-size: 1.6rem;
         }
 
         /* ============================================
