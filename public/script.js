@@ -5,7 +5,7 @@ class PartsDatabase {
         this.currentManufacturer = '';
 
         // Layout mode: 'single' or 'double'
-        this.layoutMode = 'double'; // Change to 'single' for 1-column layout
+        this.layoutMode = 'single';
 
         // Modal state
         this.currentModalType = '';
@@ -308,30 +308,6 @@ class PartsDatabase {
             this.openComponentModal('storage');
         });
 
-        document.getElementById('builderStorage2SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage2');
-        });
-
-        document.getElementById('builderStorage3SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage3');
-        });
-
-        document.getElementById('builderStorage4SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage4');
-        });
-
-        document.getElementById('builderStorage5SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage5');
-        });
-
-        document.getElementById('builderStorage6SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage6');
-        });
-
-        document.getElementById('builderStorage7SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage7');
-        });
-
         // Remove component buttons
         document.getElementById('removeGpuBtn').addEventListener('click', () => {
             this.removeBuilderComponent('gpu');
@@ -365,178 +341,14 @@ class PartsDatabase {
             this.removeBuilderComponent('storage');
         });
 
-        document.getElementById('removeStorage2Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage2');
-        });
-
-        document.getElementById('removeStorage3Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage3');
-        });
-
-        document.getElementById('removeStorage4Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage4');
-        });
-
-        document.getElementById('removeStorage5Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage5');
-        });
-
-        document.getElementById('removeStorage6Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage6');
-        });
-
-        document.getElementById('removeStorage7Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('storage7');
-        });
-
-        // Close storage section buttons
-        document.getElementById('closeStorage2Btn').addEventListener('click', () => {
-            this.closeStorageSection(2);
-        });
-
-        document.getElementById('closeStorage3Btn').addEventListener('click', () => {
-            this.closeStorageSection(3);
-        });
-
-        document.getElementById('closeStorage4Btn').addEventListener('click', () => {
-            this.closeStorageSection(4);
-        });
-
-        document.getElementById('closeStorage5Btn').addEventListener('click', () => {
-            this.closeStorageSection(5);
-        });
-
-        document.getElementById('closeStorage6Btn').addEventListener('click', () => {
-            this.closeStorageSection(6);
-        });
-
-        document.getElementById('closeStorage7Btn').addEventListener('click', () => {
-            this.closeStorageSection(7);
-        });
-
-        // Add storage section buttons
-        document.getElementById('addStorageBtn1').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn2').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn3').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn4').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn5').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn6').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
-        document.getElementById('addStorageBtn7').addEventListener('click', () => {
-            this.addStorageSection();
-        });
-
         // Addon select buttons
         document.getElementById('builderAddonSelectBtn').addEventListener('click', () => {
             this.openComponentModal('addon');
         });
 
-        document.getElementById('builderAddon2SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon2');
-        });
-
-        document.getElementById('builderAddon3SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon3');
-        });
-
-        document.getElementById('builderAddon4SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon4');
-        });
-
-        document.getElementById('builderAddon5SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon5');
-        });
-
-        document.getElementById('builderAddon6SelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon6');
-        });
-
         // Remove addon buttons
         document.getElementById('removeAddonBtn').addEventListener('click', () => {
             this.removeBuilderComponent('addon');
-        });
-
-        document.getElementById('removeAddon2Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('addon2');
-        });
-
-        document.getElementById('removeAddon3Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('addon3');
-        });
-
-        document.getElementById('removeAddon4Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('addon4');
-        });
-
-        document.getElementById('removeAddon5Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('addon5');
-        });
-
-        document.getElementById('removeAddon6Btn').addEventListener('click', () => {
-            this.removeBuilderComponent('addon6');
-        });
-
-        // Close addon section buttons
-        document.getElementById('closeAddon2Btn').addEventListener('click', () => {
-            this.closeAddonSection(2);
-        });
-
-        document.getElementById('closeAddon3Btn').addEventListener('click', () => {
-            this.closeAddonSection(3);
-        });
-
-        document.getElementById('closeAddon4Btn').addEventListener('click', () => {
-            this.closeAddonSection(4);
-        });
-
-        document.getElementById('closeAddon5Btn').addEventListener('click', () => {
-            this.closeAddonSection(5);
-        });
-
-        document.getElementById('closeAddon6Btn').addEventListener('click', () => {
-            this.closeAddonSection(6);
-        });
-
-        // Add addon section buttons
-        document.getElementById('addAddonBtn1').addEventListener('click', () => {
-            this.addAddonSection();
-        });
-
-        document.getElementById('addAddonBtn2').addEventListener('click', () => {
-            this.addAddonSection();
-        });
-
-        document.getElementById('addAddonBtn3').addEventListener('click', () => {
-            this.addAddonSection();
-        });
-
-        document.getElementById('addAddonBtn4').addEventListener('click', () => {
-            this.addAddonSection();
-        });
-
-        document.getElementById('addAddonBtn5').addEventListener('click', () => {
-            this.addAddonSection();
-        });
-
-        document.getElementById('addAddonBtn6').addEventListener('click', () => {
-            this.addAddonSection();
         });
 
         // Build action buttons
