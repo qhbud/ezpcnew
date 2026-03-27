@@ -385,37 +385,21 @@ class PartsDatabase {
         this.updateHeaderForTab();
         
         if (tabName === 'gpu') {
-            this.allParts = this.allGPUs;
-            this.currentCategory = 'gpus';
-            this.loadGPUStats();
-            this.setActiveManufacturer('gpus');
+            // GPU tab is now an informational guide — no parts grid needed
         } else if (tabName === 'cpu') {
-            this.allParts = this.allCPUs;
-            this.currentCategory = 'cpus';
-            this.loadCPUStats();
-            this.setActiveManufacturer('cpus');
+            // CPU tab is now an informational guide — no parts grid needed
         } else if (tabName === 'motherboard') {
-            this.allParts = this.allMotherboards;
-            this.currentCategory = 'motherboards';
-            this.loadMotherboardStats();
-            this.setActiveManufacturer('motherboards');
+            // Motherboard tab is now an informational guide — no parts grid needed
         } else if (tabName === 'ram') {
-            this.allParts = this.allRAM;
-            this.currentCategory = 'rams';
-            this.loadRAMStats();
-            this.setActiveManufacturer('rams');
+            // RAM tab is now an informational guide — no parts grid needed
         } else if (tabName === 'psu') {
-            this.allParts = this.allPSUs;
-            this.currentCategory = 'psus';
-            this.loadPSUStats();
-            this.setActiveManufacturer('psus');
+            // PSU tab is now an informational guide — no parts grid needed
         } else if (tabName === 'cooler') {
-            this.allParts = this.allCoolers;
-            this.currentCategory = 'coolers';
-            this.loadCoolerStats();
-            this.setActiveManufacturer('coolers');
+            // Cooler tab is now an informational guide — no parts grid needed
         } else if (tabName === 'builder') {
             this.initializePCBuilder();
+        } else if (tabName === 'guides') {
+            // Guides tab is static — nothing to load
         }
     }
 
@@ -1301,8 +1285,8 @@ class PartsDatabase {
     }
 
     renderParts() {
-        // Don't render parts grid on the builder tab
-        if (this.currentTab === 'builder') {
+        // All tabs are now informational guides or the builder — no parts grid needed
+        if (this.currentTab === 'builder' || this.currentTab === 'guides' || this.currentTab === 'gpu' || this.currentTab === 'cpu' || this.currentTab === 'motherboard' || this.currentTab === 'ram' || this.currentTab === 'psu' || this.currentTab === 'cooler') {
             const partsGrid = document.getElementById('partsGrid');
             partsGrid.innerHTML = '';
             document.getElementById('noResults').classList.add('hidden');

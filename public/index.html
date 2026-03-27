@@ -102,285 +102,1026 @@
             </button>
             <p id="headerDescription">Build your custom PC by selecting components</p>
         </header>
+        <nav class="main-nav">
+            <button class="main-tab active" data-tab="builder"><i class="fas fa-cogs"></i> Builder</button>
+            <button class="main-tab" data-tab="guides"><i class="fas fa-book-open"></i> Guides</button>
+            <button class="main-tab" data-tab="gpu"><i class="fas fa-desktop"></i> GPUs</button>
+            <button class="main-tab" data-tab="cpu"><i class="fas fa-microchip"></i> CPUs</button>
+            <button class="main-tab" data-tab="motherboard"><i class="fas fa-memory"></i> Motherboards</button>
+            <button class="main-tab" data-tab="ram"><i class="fas fa-hdd"></i> RAM</button>
+            <button class="main-tab" data-tab="psu"><i class="fas fa-plug"></i> PSUs</button>
+            <button class="main-tab" data-tab="cooler"><i class="fas fa-snowflake"></i> Coolers</button>
+        </nav>
 
         <!-- GPU Tab Content -->
         <div class="tab-content" id="gpu-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="gpus">All GPUs</button>
-                <button class="nav-btn" data-category="nvidia">NVIDIA</button>
-                <button class="nav-btn" data-category="amd">AMD</button>
-                <button class="nav-btn" data-category="intel">Intel</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="gpu-selector-section">
-                <h2><i class="fas fa-desktop"></i> GPU Selector</h2>
-                <p>Select a GPU to build your PC around</p>
-                <div class="gpu-selector">
-                    <select id="gpuSelect" class="gpu-select">
-                        <option value="">Choose a GPU...</option>
-                    </select>
-                    <button id="selectGpuBtn" class="select-gpu-btn" disabled>
-                        <i class="fas fa-check"></i> Select This GPU
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-desktop"></i> GPU Guide</h2>
+                    <p>Everything you need to know about graphics cards before you buy.</p>
                 </div>
-                <div id="selectedGpu" class="selected-gpu hidden">
-                    <div class="gpu-card-large">
-                        <div class="gpu-image">
-                            <i class="fas fa-microchip"></i>
+
+                <!-- 1. What is a GPU -->
+                <section class="cg-section">
+                    <h3>What is a GPU?</h3>
+                    <p>A GPU (Graphics Processing Unit) is a chip dedicated to rendering images, video, and animations on your screen. Unlike a CPU, which handles a few complex tasks at once, a GPU excels at running thousands of smaller tasks in parallel — exactly what rendering 3D graphics, ray-traced lighting, and high-resolution video requires. For gaming, the GPU is almost always the single biggest factor in how many frames per second you get. For creative work like 3D rendering or video editing, a faster GPU dramatically cuts down processing time.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-memory"></i></div>
+                            <h4>VRAM</h4>
+                            <p>Video RAM is the GPU's dedicated memory for textures, frame buffers, and assets. Running out of VRAM causes stutters and crashes.</p>
+                            <ul>
+                                <li><strong>8 GB</strong> — minimum for 1080p/1440p gaming today</li>
+                                <li><strong>12 GB</strong> — comfortable for 1440p, modded games, some AI</li>
+                                <li><strong>16 GB+</strong> — 4K gaming, video editing, ML workloads</li>
+                            </ul>
                         </div>
-                        <div class="gpu-details">
-                            <h3 id="selectedGpuName"></h3>
-                            <p id="selectedGpuSpecs"></p>
-                            <div class="gpu-price">
-                                <span class="price" id="selectedGpuPrice"></span>
-                                <span class="availability" id="selectedGpuAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            <h4>Clock Speed</h4>
+                            <p>Measured in MHz. <strong>Base clock</strong> is the minimum sustained speed; <strong>boost clock</strong> is the peak the GPU hits under load. A higher boost clock generally means better performance, but architecture matters more than raw clock speed.</p>
                         </div>
-                        <div class="gpu-actions">
-                            <button id="changeGpuBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change GPU
-                            </button>
-                            <button id="buildAroundGpuBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This GPU
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-bolt"></i></div>
+                            <h4>TDP / Power Draw</h4>
+                            <p>Thermal Design Power is how many watts the GPU consumes at peak. This directly determines what PSU you need. High-end GPUs (RTX 4090: 450W) require 850W+ PSUs with multiple PCIe power connectors. Always add 100–150W of headroom above your total system power draw.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-exchange-alt"></i></div>
+                            <h4>Memory Bandwidth</h4>
+                            <p>How fast data moves between the GPU and its VRAM, measured in GB/s. Higher bandwidth reduces bottlenecks when textures and frame data need to be fetched quickly. This is especially important at 4K where more data is processed per frame.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-microchip"></i></div>
+                            <h4>Architecture</h4>
+                            <p>The GPU's underlying design generation. Newer architectures bring better performance-per-watt, improved ray tracing, and new features like upscaling. Current generations:</p>
+                            <ul>
+                                <li><strong>NVIDIA</strong> — Ada Lovelace (RTX 40 series), Blackwell (RTX 50 series)</li>
+                                <li><strong>AMD</strong> — RDNA 3 (RX 7000 series), RDNA 4 (RX 9000 series)</li>
+                                <li><strong>Intel</strong> — Xe-HPG / Arc Battlemage (Arc B-series)</li>
+                            </ul>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. NVIDIA vs AMD vs Intel -->
+                <section class="cg-section">
+                    <h3>NVIDIA vs AMD vs Intel Arc</h3>
+                    <div class="cg-brand-table">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header nvidia-header">
+                                <span class="cg-brand-logo">NVIDIA</span>
+                                <span class="cg-brand-series">GeForce RTX</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Best ray tracing performance</li>
+                                <li>DLSS upscaling (very high quality)</li>
+                                <li>Strong driver stability</li>
+                                <li>Best for AI / CUDA workloads</li>
+                                <li>Wide game compatibility</li>
+                            </ul>
+                            <div class="cg-brand-con">Generally more expensive per frame</div>
+                            <div class="cg-brand-best">Best for: gaming, AI work, content creation</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header amd-header">
+                                <span class="cg-brand-logo">AMD</span>
+                                <span class="cg-brand-series">Radeon RX</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Better rasterization value per dollar</li>
+                                <li>FSR upscaling (open, works on any GPU)</li>
+                                <li>No proprietary ecosystem lock-in</li>
+                                <li>Strong open-source driver support on Linux</li>
+                            </ul>
+                            <div class="cg-brand-con">Ray tracing lags behind NVIDIA</div>
+                            <div class="cg-brand-best">Best for: budget/mid-range gaming, Linux users</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header intel-header">
+                                <span class="cg-brand-logo">Intel</span>
+                                <span class="cg-brand-series">Arc</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Competitive budget pricing</li>
+                                <li>XeSS upscaling (good quality)</li>
+                                <li>Good performance in DX12/Vulkan titles</li>
+                                <li>Solid video encode/decode (AV1)</li>
+                            </ul>
+                            <div class="cg-brand-con">Newer, smaller ecosystem; some older game issues</div>
+                            <div class="cg-brand-best">Best for: budget builders, video creators</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. GPU Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>GPU Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $300 — Budget</div>
+                            <p>Good for 1080p gaming at medium-high settings. Not ideal for ray tracing or 4K.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">RX 7600</span>
+                                <span class="cg-pick">RTX 4060</span>
+                                <span class="cg-pick">Arc B580</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$300–$600 — Mid-Range</div>
+                            <p>The sweet spot. Comfortable 1440p gaming, capable ray tracing, enough VRAM for modern titles.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">RTX 4070</span>
+                                <span class="cg-pick">RX 7800 XT</span>
+                                <span class="cg-pick">RX 7900 GRE</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$600+ — High-End</div>
+                            <p>For 4K gaming, max settings, or professional workloads like 3D rendering and ML inference.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">RTX 4080 Super</span>
+                                <span class="cg-pick">RX 7900 XTX</span>
+                                <span class="cg-pick">RTX 5080</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying a GPU</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>CPU bottlenecking</strong> — Pairing a high-end GPU with a very old or weak CPU means the CPU can't feed the GPU fast enough, wasting GPU performance. Match your CPU tier to your GPU tier.</li>
+                        <li><strong>Not checking PSU wattage</strong> — A high-end GPU on an underpowered PSU can cause crashes, instability, or even hardware damage. Always check GPU TDP and leave 150W+ headroom in your PSU rating.</li>
+                        <li><strong>Ignoring physical size</strong> — Flagship GPUs can be 330–360mm long and 3+ slots thick. Confirm your case supports the length and that nothing blocks the PCIe slot area before buying.</li>
+                        <li><strong>Overpaying for VRAM you won't use</strong> — VRAM matters, but 16 GB is overkill for most 1440p gaming builds today. Don't pay a large premium for VRAM headroom you won't realistically need for 2–3 years.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <select id="gpuSelect"><option value="">Choose a GPU...</option></select>
+                <button id="selectGpuBtn"></button>
+                <div id="selectedGpu">
+                    <h3 id="selectedGpuName"></h3>
+                    <p id="selectedGpuSpecs"></p>
+                    <span id="selectedGpuPrice"></span>
+                    <span id="selectedGpuAvailability"></span>
+                    <button id="changeGpuBtn"></button>
+                    <button id="buildAroundGpuBtn"></button>
                 </div>
             </div>
         </div>
 
         <!-- CPU Tab Content -->
         <div class="tab-content" id="cpu-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="cpus">All CPUs</button>
-                <button class="nav-btn" data-category="intel-cpu">Intel</button>
-                <button class="nav-btn" data-category="amd-cpu">AMD</button>
-                <button class="nav-btn" data-category="flagship">Flagship</button>
-                <button class="nav-btn" data-category="mainstream">Mainstream</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="cpu-selector-section">
-                <h2><i class="fas fa-microchip"></i> CPU Selector</h2>
-                <p>Select a CPU to build your PC around</p>
-                <div class="cpu-selector">
-                    <button id="browseCpusBtn" class="component-select-btn">
-                        <i class="fas fa-microchip"></i> Browse CPUs...
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-microchip"></i> CPU Guide</h2>
+                    <p>Everything you need to know about processors before you buy.</p>
                 </div>
-                <div id="selectedCpu" class="selected-cpu hidden">
-                    <div class="cpu-card-large">
-                        <div class="cpu-image">
-                            <i class="fas fa-microchip"></i>
+
+                <!-- 1. What is a CPU -->
+                <section class="cg-section">
+                    <h3>What is a CPU?</h3>
+                    <p>A CPU (Central Processing Unit) is the brain of your PC — it handles every instruction your software sends, from running the operating system to executing game logic and processing physics. Unlike a GPU which runs thousands of tiny parallel tasks, a CPU excels at running a smaller number of complex, sequential tasks very fast. For gaming, a strong single-core speed matters most; for creative work like video editing or 3D rendering, having more cores significantly reduces processing time.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-layer-group"></i></div>
+                            <h4>Core Count</h4>
+                            <p>The number of physical processing units. More cores help with multitasking and parallel workloads, but most games still rely more on single-core speed.</p>
+                            <ul>
+                                <li><strong>6 cores</strong> — fine for gaming, light productivity</li>
+                                <li><strong>8–12 cores</strong> — gaming + streaming, video editing</li>
+                                <li><strong>16+ cores</strong> — heavy rendering, compiling, professional workloads</li>
+                            </ul>
                         </div>
-                        <div class="cpu-details">
-                            <h3 id="selectedCpuName"></h3>
-                            <p id="selectedCpuSpecs"></p>
-                            <div class="cpu-price">
-                                <span class="price" id="selectedCpuPrice"></span>
-                                <span class="availability" id="selectedCpuAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            <h4>Clock Speed</h4>
+                            <p>Measured in GHz. <strong>Base clock</strong> is the default operating speed; <strong>boost clock</strong> is the maximum speed reached under single-core load. A higher boost clock generally means snappier single-threaded performance, which matters most for gaming.</p>
                         </div>
-                        <div class="cpu-actions">
-                            <button id="changeCpuBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change CPU
-                            </button>
-                            <button id="buildAroundCpuBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This CPU
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-bolt"></i></div>
+                            <h4>TDP / Power Draw</h4>
+                            <p>How many watts the CPU consumes at peak load. Higher-end CPUs (125W+) generate more heat and require a capable cooler — stock coolers are often insufficient. TDP also affects your total system power budget when sizing a PSU.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-database"></i></div>
+                            <h4>Cache (L3)</h4>
+                            <p>On-chip memory that stores frequently used data for ultra-fast access. A larger L3 cache reduces latency for gaming workloads. AMD's 3D V-Cache technology dramatically increases cache size and measurably improves gaming frame rates.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-plug"></i></div>
+                            <h4>Socket &amp; Platform</h4>
+                            <p>The CPU socket must match your motherboard. Sockets are not interchangeable between brands or generations.</p>
+                            <ul>
+                                <li><strong>AMD AM5</strong> — Ryzen 7000/9000 series, DDR5</li>
+                                <li><strong>Intel LGA1700</strong> — 12th–14th Gen, DDR4 or DDR5</li>
+                                <li><strong>Intel LGA1851</strong> — Core Ultra 200 series, DDR5</li>
+                            </ul>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-memory"></i></div>
+                            <h4>Memory Support</h4>
+                            <p>CPUs specify which DDR generation they support (DDR4 or DDR5) and the maximum officially supported speed. Running RAM at its rated speed (via XMP/Expo) can noticeably improve performance, especially on AMD Ryzen platforms.</p>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. Intel vs AMD -->
+                <section class="cg-section">
+                    <h3>Intel vs AMD</h3>
+                    <div class="cg-brand-table" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header intel-header">
+                                <span class="cg-brand-logo">Intel</span>
+                                <span class="cg-brand-series">Core / Core Ultra</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Historically strong single-core performance</li>
+                                <li>Broad motherboard and memory compatibility</li>
+                                <li>Integrated graphics on most CPUs (useful without a GPU)</li>
+                                <li>Good platform longevity on LGA1700</li>
+                                <li>Competitive gaming performance at mid-range</li>
+                            </ul>
+                            <div class="cg-brand-con">13th/14th Gen had instability issues at high power; higher power draw on flagship chips</div>
+                            <div class="cg-brand-best">Best for: gaming builds, budget builds with iGPU, broad compatibility</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header amd-header">
+                                <span class="cg-brand-logo">AMD</span>
+                                <span class="cg-brand-series">Ryzen 7000 / 9000</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Excellent multi-core performance per dollar</li>
+                                <li>3D V-Cache variants are top gaming CPUs</li>
+                                <li>AM5 platform designed for long-term upgrades</li>
+                                <li>Lower power draw on efficiency-tuned chips</li>
+                                <li>Strong for productivity and creative work</li>
+                            </ul>
+                            <div class="cg-brand-con">Most AM5 CPUs lack integrated graphics; DDR5 only (higher platform cost)</div>
+                            <div class="cg-brand-best">Best for: gaming (3D V-Cache), productivity, future-proofing</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. CPU Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>CPU Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $200 — Budget</div>
+                            <p>Solid gaming performance, handles most tasks without bottlenecking mid-range GPUs.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Ryzen 5 5600</span>
+                                <span class="cg-pick">Core i5-12400F</span>
+                                <span class="cg-pick">Ryzen 5 7600</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$200–$350 — Mid-Range</div>
+                            <p>Strong gaming and productivity balance. Great for gaming + streaming simultaneously.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Ryzen 7 7700X</span>
+                                <span class="cg-pick">Core i5-14600K</span>
+                                <span class="cg-pick">Ryzen 7 7800X3D</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$350+ — High-End</div>
+                            <p>For no-compromise gaming, heavy multitasking, video production, or 3D work.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Ryzen 9 9950X</span>
+                                <span class="cg-pick">Core i9-14900K</span>
+                                <span class="cg-pick">Ryzen 9 7950X3D</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying a CPU</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>Chasing core count for gaming</strong> — More cores don't automatically mean more FPS. Most games are still limited by single-core speed. A 6-core CPU with a high boost clock will outperform a 16-core CPU with a slow one in most titles.</li>
+                        <li><strong>Wrong socket for your motherboard</strong> — Intel and AMD use completely different sockets, and even within a brand, generations don't always share sockets. Always confirm CPU–motherboard socket compatibility before buying.</li>
+                        <li><strong>Skipping XMP/Expo</strong> — By default, most motherboards run RAM at 2133–4800 MHz regardless of what speed it's rated for. Enable XMP (Intel) or Expo (AMD) in the BIOS to unlock your RAM's full rated speed, which can meaningfully improve performance.</li>
+                        <li><strong>Undercooling a high-TDP chip</strong> — CPUs rated at 125W+ will throttle and underperform on a cheap or stock cooler. Match your cooler's TDP rating to your CPU, and for overclocked builds, go even higher.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <button id="browseCpusBtn"></button>
+                <div id="selectedCpu">
+                    <h3 id="selectedCpuName"></h3>
+                    <p id="selectedCpuSpecs"></p>
+                    <span id="selectedCpuPrice"></span>
+                    <span id="selectedCpuAvailability"></span>
+                    <button id="changeCpuBtn"></button>
+                    <button id="buildAroundCpuBtn"></button>
                 </div>
             </div>
         </div>
 
         <!-- Motherboard Tab Content -->
         <div class="tab-content" id="motherboard-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="motherboards">All Motherboards</button>
-                <button class="nav-btn" data-category="intel-mb">Intel</button>
-                <button class="nav-btn" data-category="amd-mb">AMD</button>
-                <button class="nav-btn" data-category="atx">ATX</button>
-                <button class="nav-btn" data-category="micro-atx">Micro ATX</button>
-                <button class="nav-btn" data-category="mini-itx">Mini ITX</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="motherboard-selector-section">
-                <h2><i class="fas fa-memory"></i> Motherboard Selector</h2>
-                <p>Select a motherboard to build your PC around</p>
-                <div class="motherboard-selector">
-                    <select id="motherboardSelect" class="motherboard-select">
-                        <option value="">Choose a Motherboard...</option>
-                    </select>
-                    <button id="selectMotherboardBtn" class="select-motherboard-btn" disabled>
-                        <i class="fas fa-check"></i> Select This Motherboard
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-memory"></i> Motherboard Guide</h2>
+                    <p>Everything you need to know about motherboards before you buy.</p>
                 </div>
-                <div id="selectedMotherboard" class="selected-motherboard hidden">
-                    <div class="motherboard-card-large">
-                        <div class="motherboard-image">
-                            <i class="fas fa-memory"></i>
+
+                <!-- 1. What is a Motherboard -->
+                <section class="cg-section">
+                    <h3>What is a Motherboard?</h3>
+                    <p>A motherboard is the main circuit board that connects every component in your PC — the CPU, RAM, GPU, storage, and power supply all plug into or communicate through it. It determines which CPUs and RAM are compatible with your build, how many storage drives you can connect, and what expansion options you have. Choosing the right motherboard means matching it to your CPU socket, your use case, and your budget — a more expensive board doesn't always mean better performance, but it does unlock features like overclocking, more USB ports, and better power delivery.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-plug"></i></div>
+                            <h4>CPU Socket</h4>
+                            <p>The physical slot the CPU locks into. Socket must exactly match your CPU — there is no cross-compatibility.</p>
+                            <ul>
+                                <li><strong>AM4</strong> — AMD Ryzen 1000–5000 series</li>
+                                <li><strong>AM5</strong> — AMD Ryzen 7000/9000 series</li>
+                                <li><strong>LGA1700</strong> — Intel 12th–14th Gen</li>
+                                <li><strong>LGA1851</strong> — Intel Core Ultra 200 series</li>
+                            </ul>
                         </div>
-                        <div class="motherboard-details">
-                            <h3 id="selectedMotherboardName"></h3>
-                            <p id="selectedMotherboardSpecs"></p>
-                            <div class="motherboard-price">
-                                <span class="price" id="selectedMotherboardPrice"></span>
-                                <span class="availability" id="selectedMotherboardAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-microchip"></i></div>
+                            <h4>Chipset</h4>
+                            <p>Controls which features are available: overclocking support, number of PCIe lanes, USB ports, and M.2 slots. Higher chipsets cost more but unlock more capability.</p>
+                            <ul>
+                                <li><strong>AMD</strong>: A620 → B650 → X670/X870 (ascending capability)</li>
+                                <li><strong>Intel</strong>: H610 → B760 → Z790 (Z boards allow CPU OC)</li>
+                            </ul>
                         </div>
-                        <div class="motherboard-actions">
-                            <button id="changeMotherboardBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change Motherboard
-                            </button>
-                            <button id="buildAroundMotherboardBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This Motherboard
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-expand-arrows-alt"></i></div>
+                            <h4>Form Factor</h4>
+                            <p>The physical size of the board — determines what cases it fits in and how many slots it has.</p>
+                            <ul>
+                                <li><strong>ATX</strong> — Full-size, most slots, fits mid/full-tower cases</li>
+                                <li><strong>Micro ATX</strong> — Smaller, fewer slots, fits most cases</li>
+                                <li><strong>Mini ITX</strong> — Compact, limited slots, small form factor cases only</li>
+                            </ul>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-memory"></i></div>
+                            <h4>RAM Slots &amp; Support</h4>
+                            <p>Most ATX boards have 4 DIMM slots; Micro ATX usually 4; Mini ITX typically 2. Check the maximum supported RAM capacity and speeds. Always verify your RAM kit is on the motherboard's QVL (qualified vendor list) for guaranteed compatibility.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-hdd"></i></div>
+                            <h4>M.2 &amp; SATA Slots</h4>
+                            <p>M.2 slots are for fast NVMe SSDs. More slots = more high-speed storage. SATA ports connect older SSDs and HDDs. Budget boards may have 1–2 M.2 slots; high-end boards can have 4+. Check whether slots support PCIe Gen 4 or Gen 5 for maximum SSD speed.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-bolt"></i></div>
+                            <h4>VRM &amp; Power Delivery</h4>
+                            <p>The Voltage Regulator Module (VRM) controls power to the CPU. A stronger VRM is essential for overclocking or running high-TDP CPUs. Budget boards with weak VRMs can throttle or overheat under sustained load with powerful processors.</p>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. Intel vs AMD Platforms -->
+                <section class="cg-section">
+                    <h3>Intel Platform vs AMD Platform</h3>
+                    <div class="cg-brand-table" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header intel-header">
+                                <span class="cg-brand-logo">Intel</span>
+                                <span class="cg-brand-series">LGA1700 / LGA1851</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Wide range of chipset and price options</li>
+                                <li>DDR4 support on LGA1700 (lower platform cost)</li>
+                                <li>B760 boards offer great value for non-OC builds</li>
+                                <li>Z790 unlocks full CPU overclocking</li>
+                                <li>Broad availability from many manufacturers</li>
+                            </ul>
+                            <div class="cg-brand-con">LGA1700 platform aging out; LGA1851 is DDR5-only and newer/pricier</div>
+                            <div class="cg-brand-best">Best for: budget builds (B760 + DDR4), established platform reliability</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header amd-header">
+                                <span class="cg-brand-logo">AMD</span>
+                                <span class="cg-brand-series">AM5 (B650 / X670 / X870)</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>AM5 platform intended to last multiple CPU generations</li>
+                                <li>PCIe 5.0 on X670/X870 for next-gen SSDs and GPUs</li>
+                                <li>B650 boards hit a solid mid-range price point</li>
+                                <li>Expo support for easy DDR5 overclocking</li>
+                                <li>Strong feature set even on mid-tier chipsets</li>
+                            </ul>
+                            <div class="cg-brand-con">DDR5-only increases upfront platform cost; no DDR4 option on AM5</div>
+                            <div class="cg-brand-best">Best for: future-proofing, high-end builds, PCIe 5.0 storage</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. Motherboard Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>Motherboard Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $150 — Budget</div>
+                            <p>Solid for non-overclocked builds. Enough M.2 slots and USB for most users. Skip if pairing with a high-TDP CPU.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">MSI B760M Mortar</span>
+                                <span class="cg-pick">ASUS B650M-A</span>
+                                <span class="cg-pick">Gigabyte B650 Eagle</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$150–$300 — Mid-Range</div>
+                            <p>Better VRMs, more M.2 slots, more USB, and usually overclocking support. The right tier for most builds.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">ASUS ROG Strix B650-A</span>
+                                <span class="cg-pick">MSI MAG Z790 Tomahawk</span>
+                                <span class="cg-pick">Gigabyte X670 Aorus Elite</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$300+ — High-End</div>
+                            <p>Flagship VRMs for extreme overclocking, PCIe 5.0 M.2, premium audio, and extensive connectivity.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">ASUS ROG Crosshair X870E</span>
+                                <span class="cg-pick">MSI MEG Z790 Ace</span>
+                                <span class="cg-pick">Gigabyte Z790 Aorus Master</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying a Motherboard</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>Wrong socket for your CPU</strong> — This is the most common and most expensive mistake. An AMD Ryzen 7000 CPU needs an AM5 board; it will not fit an AM4 board. Always double-check socket compatibility before purchasing.</li>
+                        <li><strong>Overlooking VRM quality for powerful CPUs</strong> — A cheap B-series board with a weak VRM paired with a 125W+ CPU will throttle under sustained load. If you're running a high-end CPU, spend appropriately on the board's power delivery.</li>
+                        <li><strong>Not checking M.2 slot sharing</strong> — Some motherboards disable SATA ports or share PCIe bandwidth when certain M.2 slots are occupied. Read the manual's "bandwidth sharing" section before planning your storage layout.</li>
+                        <li><strong>Buying a Z-series board without overclocking</strong> — Z790 and X670 boards are great, but if you don't plan to overclock, a B760 or B650 board at half the price delivers nearly identical real-world performance.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <select id="motherboardSelect"><option value="">Choose a Motherboard...</option></select>
+                <button id="selectMotherboardBtn"></button>
+                <div id="selectedMotherboard">
+                    <h3 id="selectedMotherboardName"></h3>
+                    <p id="selectedMotherboardSpecs"></p>
+                    <span id="selectedMotherboardPrice"></span>
+                    <span id="selectedMotherboardAvailability"></span>
+                    <button id="changeMotherboardBtn"></button>
+                    <button id="buildAroundMotherboardBtn"></button>
                 </div>
             </div>
         </div>
 
         <!-- RAM Tab Content -->
         <div class="tab-content" id="ram-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="rams">All RAM</button>
-                <button class="nav-btn" data-category="ddr5">DDR5</button>
-                <button class="nav-btn" data-category="ddr4">DDR4</button>
-                <button class="nav-btn" data-category="high-speed">High Speed</button>
-                <button class="nav-btn" data-category="rgb-ram">RGB</button>
-                <button class="nav-btn" data-category="32gb-kit">32GB Kits</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="ram-selector-section">
-                <h2><i class="fas fa-hdd"></i> RAM Selector</h2>
-                <p>Select memory for your PC build</p>
-                <div class="ram-selector">
-                    <select id="ramSelect" class="ram-select">
-                        <option value="">Choose RAM...</option>
-                    </select>
-                    <button id="selectRamBtn" class="select-ram-btn" disabled>
-                        <i class="fas fa-check"></i> Select This RAM
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-memory"></i> RAM Guide</h2>
+                    <p>Everything you need to know about system memory before you buy.</p>
                 </div>
-                <div id="selectedRam" class="selected-ram hidden">
-                    <div class="ram-card-large">
-                        <div class="ram-image">
-                            <i class="fas fa-hdd"></i>
+
+                <!-- 1. What is RAM -->
+                <section class="cg-section">
+                    <h3>What is RAM?</h3>
+                    <p>RAM (Random Access Memory) is your PC's short-term working memory. When you open a game, browser, or application, it loads data from your storage drive into RAM so the CPU can access it instantly — storage is far too slow for real-time use. More RAM means more things can run at once without slowdown; faster RAM means data gets to the CPU more quickly. Unlike storage, RAM is volatile — everything in it is cleared when the PC powers off.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-layer-group"></i></div>
+                            <h4>Capacity</h4>
+                            <p>How much data RAM can hold at once. More capacity lets you run more programs simultaneously without the OS swapping to slower storage.</p>
+                            <ul>
+                                <li><strong>8 GB</strong> — bare minimum, tight for modern gaming</li>
+                                <li><strong>16 GB</strong> — recommended minimum for gaming today</li>
+                                <li><strong>32 GB</strong> — gaming + streaming, creative work</li>
+                                <li><strong>64 GB+</strong> — video editing, 3D rendering, VMs</li>
+                            </ul>
                         </div>
-                        <div class="ram-details">
-                            <h3 id="selectedRamName"></h3>
-                            <p id="selectedRamSpecs"></p>
-                            <div class="ram-price">
-                                <span class="price" id="selectedRamPrice"></span>
-                                <span class="availability" id="selectedRamAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            <h4>Speed (MHz)</h4>
+                            <p>How many data transfers per second the RAM can perform. Faster RAM reduces latency between CPU and memory. AMD Ryzen is especially sensitive to RAM speed — running at the rated speed (via Expo) can noticeably improve gaming FPS.</p>
+                            <ul>
+                                <li><strong>DDR4</strong>: sweet spot at 3200–3600 MHz</li>
+                                <li><strong>DDR5</strong>: sweet spot at 6000–6400 MHz</li>
+                            </ul>
                         </div>
-                        <div class="ram-actions">
-                            <button id="changeRamBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change RAM
-                            </button>
-                            <button id="buildAroundRamBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This RAM
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-microchip"></i></div>
+                            <h4>DDR Generation</h4>
+                            <p>DDR4 and DDR5 are not interchangeable — the physical slots are different. Your CPU and motherboard dictate which generation you use. DDR5 is faster and the current standard for new platforms, but DDR4 is cheaper and still very capable.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-stopwatch"></i></div>
+                            <h4>Timings (Latency)</h4>
+                            <p>Expressed as numbers like <strong>CL16</strong> or <strong>CL30</strong>. Lower CL numbers mean faster response. Timings and speed work together — a DDR5-6000 CL30 kit can outperform a DDR5-6400 CL36 kit. Don't focus on speed alone.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-columns"></i></div>
+                            <h4>Dual Channel</h4>
+                            <p>Using two matched sticks instead of one activates dual-channel mode, effectively doubling the memory bandwidth available to the CPU. This is one of the easiest free performance gains — always use RAM in pairs (e.g., 2×16 GB instead of 1×32 GB).</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-check-circle"></i></div>
+                            <h4>XMP / Expo</h4>
+                            <p>RAM ships running at a conservative default speed (often 2133–4800 MHz) regardless of its rated speed. XMP (Intel) and Expo (AMD) are BIOS profiles that unlock the rated speed with one toggle. Always enable this after building — it's safe and often free performance.</p>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. DDR4 vs DDR5 -->
+                <section class="cg-section">
+                    <h3>DDR4 vs DDR5</h3>
+                    <div class="cg-brand-table" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #4b5563;">
+                                <span class="cg-brand-logo">DDR4</span>
+                                <span class="cg-brand-series">Previous Generation</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Significantly cheaper per GB</li>
+                                <li>Lower latency at equivalent speeds</li>
+                                <li>Mature, widely compatible ecosystem</li>
+                                <li>Still very capable for gaming and productivity</li>
+                                <li>Available on Intel LGA1700 platforms</li>
+                            </ul>
+                            <div class="cg-brand-con">Peak bandwidth lower than DDR5; no upgrade path on newer platforms</div>
+                            <div class="cg-brand-best">Best for: budget builds, LGA1700 Intel systems, upgrading existing rigs</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #2563eb;">
+                                <span class="cg-brand-logo">DDR5</span>
+                                <span class="cg-brand-series">Current Generation</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Higher peak bandwidth and speeds</li>
+                                <li>Required for AM5 (AMD) and LGA1851 (Intel)</li>
+                                <li>Better performance scaling at high core counts</li>
+                                <li>On-die ECC for improved reliability</li>
+                                <li>Future-proof for new platforms</li>
+                            </ul>
+                            <div class="cg-brand-con">Higher price per GB; higher base latency than DDR4</div>
+                            <div class="cg-brand-best">Best for: new builds on AM5 or LGA1851, content creation, future-proofing</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. RAM Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>RAM Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $60 — Budget</div>
+                            <p>16 GB DDR4 or entry DDR5. Handles everyday gaming and general use without issue.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Corsair Vengeance DDR4-3200 16GB</span>
+                                <span class="cg-pick">Kingston Fury Beast DDR4-3200 16GB</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$60–$120 — Mid-Range</div>
+                            <p>32 GB DDR4 or fast 32 GB DDR5. Ideal for gaming + multitasking or light creative work.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">G.Skill Trident Z5 DDR5-6000 32GB</span>
+                                <span class="cg-pick">Corsair Vengeance DDR5-6000 32GB</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$120+ — High-End</div>
+                            <p>64 GB DDR5 or high-speed 32 GB kits with tight timings. For video editing, 3D work, or heavy multitasking.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">G.Skill Trident Z5 DDR5-6400 64GB</span>
+                                <span class="cg-pick">Kingston Fury Renegade DDR5-6400 32GB</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying RAM</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>Not enabling XMP/Expo</strong> — This is the most common mistake. RAM defaults to a slow speed out of the box. If you don't enable XMP or Expo in the BIOS, your expensive 6000 MHz kit runs at 4800 MHz. One toggle in BIOS fixes it.</li>
+                        <li><strong>Buying a single stick instead of a kit</strong> — A single 32 GB stick runs in single-channel mode, cutting your memory bandwidth roughly in half versus two 16 GB sticks. Always buy matched kits and install them in the correct paired slots (usually A2/B2).</li>
+                        <li><strong>Mixing RAM kits</strong> — Adding a second kit from a different brand, speed, or batch can cause instability or force both kits to run at the slower speed. Buy all your RAM at once from the same kit if possible.</li>
+                        <li><strong>Overkill capacity for gaming</strong> — 64 GB of RAM gives no gaming performance benefit over 32 GB. Spend the difference on a better GPU or CPU where it actually shows up in frame rates.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <select id="ramSelect"><option value="">Choose RAM...</option></select>
+                <button id="selectRamBtn"></button>
+                <div id="selectedRam">
+                    <h3 id="selectedRamName"></h3>
+                    <p id="selectedRamSpecs"></p>
+                    <span id="selectedRamPrice"></span>
+                    <span id="selectedRamAvailability"></span>
+                    <button id="changeRamBtn"></button>
+                    <button id="buildAroundRamBtn"></button>
                 </div>
             </div>
         </div>
 
         <!-- PSU Tab Content -->
         <div class="tab-content" id="psu-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="psus">All PSUs</button>
-                <button class="nav-btn" data-category="high-wattage">750W+</button>
-                <button class="nav-btn" data-category="modular">Modular</button>
-                <button class="nav-btn" data-category="80plus-gold">80+ Gold</button>
-                <button class="nav-btn" data-category="80plus-platinum">80+ Platinum</button>
-                <button class="nav-btn" data-category="sfx">SFX/SFX-L</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="psu-selector-section">
-                <h2><i class="fas fa-plug"></i> PSU Selector</h2>
-                <p>Select a power supply for your PC build</p>
-                <div class="psu-selector">
-                    <select id="psuSelect" class="psu-select">
-                        <option value="">Choose a PSU...</option>
-                    </select>
-                    <button id="selectPsuBtn" class="select-psu-btn" disabled>
-                        <i class="fas fa-check"></i> Select This PSU
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-plug"></i> PSU Guide</h2>
+                    <p>Everything you need to know about power supplies before you buy.</p>
                 </div>
-                <div id="selectedPsu" class="selected-psu hidden">
-                    <div class="psu-card-large">
-                        <div class="psu-image">
-                            <i class="fas fa-plug"></i>
+
+                <!-- 1. What is a PSU -->
+                <section class="cg-section">
+                    <h3>What is a PSU?</h3>
+                    <p>A Power Supply Unit (PSU) converts AC power from your wall outlet into the stable DC voltages your PC components need to run. Every component in your build — CPU, GPU, storage, fans — draws power through the PSU. Choosing the right one means matching wattage to your system's demands, picking a reliable unit with a good efficiency rating, and leaving enough headroom so the PSU isn't running at its limit. A low-quality or underpowered PSU is one of the most common causes of system crashes, instability, and in extreme cases, component damage.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-bolt"></i></div>
+                            <h4>Wattage</h4>
+                            <p>The total continuous power the PSU can deliver. Add up your CPU TDP + GPU TDP + ~100W for the rest of the system, then add 20–30% headroom.</p>
+                            <ul>
+                                <li><strong>550–650W</strong> — budget/mid-range builds (RTX 4060 tier)</li>
+                                <li><strong>750–850W</strong> — mid-high builds (RTX 4070–4080 tier)</li>
+                                <li><strong>1000W+</strong> — flagship GPUs (RTX 4090 / RX 7900 XTX)</li>
+                            </ul>
                         </div>
-                        <div class="psu-details">
-                            <h3 id="selectedPsuName"></h3>
-                            <p id="selectedPsuSpecs"></p>
-                            <div class="psu-price">
-                                <span class="price" id="selectedPsuPrice"></span>
-                                <span class="availability" id="selectedPsuAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-star"></i></div>
+                            <h4>80 Plus Efficiency Rating</h4>
+                            <p>Measures how efficiently the PSU converts AC to DC. A higher rating wastes less power as heat, runs cooler, and costs less to operate. The rating tiers from lowest to highest:</p>
+                            <ul>
+                                <li><strong>80+ White</strong> — 80% efficiency, avoid if possible</li>
+                                <li><strong>80+ Bronze</strong> — acceptable for budget builds</li>
+                                <li><strong>80+ Gold</strong> — recommended sweet spot</li>
+                                <li><strong>80+ Platinum / Titanium</strong> — premium efficiency</li>
+                            </ul>
                         </div>
-                        <div class="psu-actions">
-                            <button id="changePsuBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change PSU
-                            </button>
-                            <button id="buildAroundPsuBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This PSU
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-plug"></i></div>
+                            <h4>Modularity</h4>
+                            <p>Determines which cables are permanently attached to the PSU.</p>
+                            <ul>
+                                <li><strong>Non-modular</strong> — all cables permanently attached; cheap but messy</li>
+                                <li><strong>Semi-modular</strong> — essential cables fixed, rest detachable; good balance</li>
+                                <li><strong>Fully modular</strong> — all cables detachable; best cable management, higher cost</li>
+                            </ul>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-certificate"></i></div>
+                            <h4>Voltage Rails</h4>
+                            <p>Modern PSUs deliver power primarily on a single +12V rail. The 12V rail powers the CPU and GPU — the components with the highest power demand. Check that the PSU's 12V amperage rating matches the combined draw of your CPU and GPU, not just total wattage.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-shield-alt"></i></div>
+                            <h4>Protection Features</h4>
+                            <p>Quality PSUs include hardware protections that cut power before damage occurs:</p>
+                            <ul>
+                                <li><strong>OVP</strong> — Over Voltage Protection</li>
+                                <li><strong>OCP</strong> — Over Current Protection</li>
+                                <li><strong>OTP</strong> — Over Temperature Protection</li>
+                                <li><strong>SCP</strong> — Short Circuit Protection</li>
+                            </ul>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-ruler-horizontal"></i></div>
+                            <h4>Form Factor</h4>
+                            <p>Most desktop builds use <strong>ATX</strong> PSUs. Small form factor builds may require <strong>SFX</strong> or <strong>SFX-L</strong> units, which are physically smaller but often cost more per watt. Always check your case's PSU size spec before buying.</p>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. Brand comparison -->
+                <section class="cg-section">
+                    <h3>Reputable PSU Brands</h3>
+                    <div class="cg-brand-table" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #f59e0b;">
+                                <span class="cg-brand-logo">Seasonic</span>
+                                <span class="cg-brand-series">Industry Benchmark</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Manufactures PSUs for many other brands</li>
+                                <li>Exceptional build quality and reliability</li>
+                                <li>Long warranty (up to 12 years on some models)</li>
+                                <li>Very low ripple and tight voltage regulation</li>
+                            </ul>
+                            <div class="cg-brand-con">Premium pricing compared to alternatives</div>
+                            <div class="cg-brand-best">Best for: long-term builds, high-end systems</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #3b82f6;">
+                                <span class="cg-brand-logo">Corsair</span>
+                                <span class="cg-brand-series">RM / HX Series</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Widely available and well-reviewed</li>
+                                <li>RM series is a consistent value pick</li>
+                                <li>Zero RPM fan mode for silent operation at low load</li>
+                                <li>Good warranty support (7–10 years)</li>
+                            </ul>
+                            <div class="cg-brand-con">Some lower-tier models (CX) are less impressive</div>
+                            <div class="cg-brand-best">Best for: most builds, easy to find on sale</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #10b981;">
+                                <span class="cg-brand-logo">be quiet!</span>
+                                <span class="cg-brand-series">Pure / Straight Power</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Extremely quiet operation</li>
+                                <li>Strong build quality and voltage stability</li>
+                                <li>Good efficiency across the load range</li>
+                                <li>5–7 year warranties standard</li>
+                            </ul>
+                            <div class="cg-brand-con">Slightly higher price for equivalent wattage vs Corsair</div>
+                            <div class="cg-brand-best">Best for: silent builds, noise-sensitive environments</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. PSU Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>PSU Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $80 — Budget</div>
+                            <p>650W 80+ Bronze or Gold. Reliable for mid-range builds. Stick to known brands — cheap no-name PSUs at this tier are a risk.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Corsair CX650M</span>
+                                <span class="cg-pick">EVGA 650 BQ</span>
+                                <span class="cg-pick">Seasonic Focus GX-650</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$80–$150 — Mid-Range</div>
+                            <p>750–850W 80+ Gold, fully modular. The right pick for most gaming builds including RTX 4070/4080 tier.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Corsair RM850x</span>
+                                <span class="cg-pick">be quiet! Pure Power 12M 850W</span>
+                                <span class="cg-pick">Seasonic Focus GX-850</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$150+ — High-End</div>
+                            <p>1000W+ 80+ Gold/Platinum, fully modular. Required for RTX 4090 / RX 7900 XTX builds or dual-GPU workstations.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Corsair HX1000</span>
+                                <span class="cg-pick">Seasonic Prime TX-1000</span>
+                                <span class="cg-pick">be quiet! Dark Power 13 1000W</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying a PSU</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>Buying a no-name or unrated PSU to save money</strong> — A cheap PSU is the one place you should never cut corners. A failing PSU can send voltage spikes through your system and kill your CPU, GPU, or motherboard. Stick to established brands with at least an 80+ Bronze rating.</li>
+                        <li><strong>Underestimating wattage requirements</strong> — Running a PSU at 90–100% of its rated capacity stresses it, shortens its lifespan, and causes voltage instability. Always leave at least 20% headroom. For an RTX 4090 build, a 850W PSU is not enough — go 1000W or higher.</li>
+                        <li><strong>Ignoring the 12VHPWR connector for new GPUs</strong> — RTX 40/50 series and RX 7900 cards may use the 16-pin 12VHPWR connector. Ensure your PSU either includes this cable natively or that the adapter is rated for your GPU's power draw. Using a poorly seated adapter has caused GPU fires.</li>
+                        <li><strong>Buying more wattage than needed</strong> — A 1600W PSU on a 300W system wastes money and runs less efficiently at low load. Right-size your PSU — more headroom is good, but excessive headroom just costs more without benefit.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <select id="psuSelect"><option value="">Choose a PSU...</option></select>
+                <button id="selectPsuBtn"></button>
+                <div id="selectedPsu">
+                    <h3 id="selectedPsuName"></h3>
+                    <p id="selectedPsuSpecs"></p>
+                    <span id="selectedPsuPrice"></span>
+                    <span id="selectedPsuAvailability"></span>
+                    <button id="changePsuBtn"></button>
+                    <button id="buildAroundPsuBtn"></button>
                 </div>
             </div>
         </div>
 
         <!-- Cooler Tab Content -->
         <div class="tab-content" id="cooler-tab">
-            <nav class="category-nav">
-                <button class="nav-btn active" data-category="coolers">All Coolers</button>
-                <button class="nav-btn" data-category="air-cooler">Air Coolers</button>
-                <button class="nav-btn" data-category="liquid-cooler">Liquid Coolers</button>
-                <button class="nav-btn" data-category="high-end-cooler">High-End</button>
-                <button class="nav-btn" data-category="rgb-cooler">RGB</button>
-                <button class="nav-btn" data-category="low-profile">Low Profile</button>
-            </nav>
+            <div class="component-guide">
 
-            <div class="cooler-selector-section">
-                <h2><i class="fas fa-snowflake"></i> Cooler Selector</h2>
-                <p>Select a CPU cooler for your PC build</p>
-                <div class="cooler-selector">
-                    <select id="coolerSelect" class="cooler-select">
-                        <option value="">Choose a Cooler...</option>
-                    </select>
-                    <button id="selectCoolerBtn" class="select-cooler-btn" disabled>
-                        <i class="fas fa-check"></i> Select This Cooler
-                    </button>
+                <div class="cg-intro">
+                    <h2><i class="fas fa-snowflake"></i> CPU Cooler Guide</h2>
+                    <p>Everything you need to know about CPU cooling before you buy.</p>
                 </div>
-                <div id="selectedCooler" class="selected-cooler hidden">
-                    <div class="cooler-card-large">
-                        <div class="cooler-image">
-                            <i class="fas fa-snowflake"></i>
+
+                <!-- 1. What is a CPU Cooler -->
+                <section class="cg-section">
+                    <h3>What is a CPU Cooler?</h3>
+                    <p>A CPU cooler draws heat away from the processor and dissipates it into the surrounding air. CPUs generate significant heat under load — without a cooler, a modern CPU would overheat and shut down within seconds. The cooler sits directly on top of the CPU, connected via a thin layer of thermal paste that fills microscopic gaps and improves heat transfer. A better cooler keeps temperatures lower, which allows the CPU to sustain higher boost clocks for longer, reduces fan noise, and extends the component's lifespan.</p>
+                </section>
+
+                <!-- 2. Key Specs -->
+                <section class="cg-section">
+                    <h3>Key Specs to Look For</h3>
+                    <div class="cg-specs-grid">
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-thermometer-half"></i></div>
+                            <h4>TDP Rating</h4>
+                            <p>Thermal Design Power — the maximum heat load the cooler is rated to handle, in watts. Match or exceed your CPU's TDP rating. For overclocked or high-end CPUs, go higher than the rated TDP to give yourself thermal headroom.</p>
+                            <ul>
+                                <li><strong>65W CPU</strong> — budget air cooler is sufficient</li>
+                                <li><strong>105–125W CPU</strong> — mid-range tower or 240mm AIO</li>
+                                <li><strong>170W+ CPU</strong> — high-end tower or 280/360mm AIO</li>
+                            </ul>
                         </div>
-                        <div class="cooler-details">
-                            <h3 id="selectedCoolerName"></h3>
-                            <p id="selectedCoolerSpecs"></p>
-                            <div class="cooler-price">
-                                <span class="price" id="selectedCoolerPrice"></span>
-                                <span class="availability" id="selectedCoolerAvailability">In Stock</span>
-                            </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-volume-mute"></i></div>
+                            <h4>Noise Level (dBA)</h4>
+                            <p>Measured in decibels. Lower is quieter. Most coolers list noise at maximum fan speed — real-world use is often much quieter since fans rarely hit 100% under normal gaming loads. Anything under 35 dBA is considered quiet; under 25 dBA is near-silent.</p>
                         </div>
-                        <div class="cooler-actions">
-                            <button id="changeCoolerBtn" class="change-btn">
-                                <i class="fas fa-exchange-alt"></i> Change Cooler
-                            </button>
-                            <button id="buildAroundCoolerBtn" class="build-btn">
-                                <i class="fas fa-cogs"></i> Build PC Around This Cooler
-                            </button>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-arrows-alt-v"></i></div>
+                            <h4>Cooler Height</h4>
+                            <p>Air tower coolers can be 150–170mm tall. Check your case's maximum CPU cooler clearance before buying — a cooler that's too tall simply won't fit with the side panel on. Low-profile coolers (under 60mm) are available for compact builds.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-plug"></i></div>
+                            <h4>Socket Compatibility</h4>
+                            <p>Coolers mount via a bracket that must match your CPU socket. Most modern coolers support both Intel (LGA1700, LGA1851) and AMD (AM4, AM5), but always verify before purchasing. AM5 in particular has seen some cooler compatibility issues with older mounting hardware.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-wind"></i></div>
+                            <h4>Fan Speed (RPM)</h4>
+                            <p>Higher RPM moves more air but creates more noise. Good coolers use PWM (Pulse Width Modulation) fans that automatically adjust speed based on CPU temperature — fast when needed, near-silent at idle. Look for PWM support when comparing fans.</p>
+                        </div>
+                        <div class="cg-spec-card">
+                            <div class="cg-spec-icon"><i class="fas fa-tint"></i></div>
+                            <h4>Radiator Size (AIO)</h4>
+                            <p>For All-in-One liquid coolers, the radiator size determines cooling capacity. Larger radiators have more surface area to dissipate heat.</p>
+                            <ul>
+                                <li><strong>120/240mm</strong> — mid-range CPUs, compact cases</li>
+                                <li><strong>280mm</strong> — strong cooling, slightly smaller than 360</li>
+                                <li><strong>360mm</strong> — high-end CPUs, maximum thermal headroom</li>
+                            </ul>
                         </div>
                     </div>
+                </section>
+
+                <!-- 3. Air vs AIO vs Custom Loop -->
+                <section class="cg-section">
+                    <h3>Air Cooling vs AIO vs Custom Loop</h3>
+                    <div class="cg-brand-table">
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #6b7280;">
+                                <span class="cg-brand-logo">Air Cooling</span>
+                                <span class="cg-brand-series">Heatsink + Fan</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Simple, reliable, no moving liquid parts</li>
+                                <li>No risk of leaks</li>
+                                <li>Lower cost for equivalent performance</li>
+                                <li>Easier to install and maintain</li>
+                                <li>Top towers rival 240mm AIOs in performance</li>
+                            </ul>
+                            <div class="cg-brand-con">Can be tall and bulky; may block RAM slots on some boards</div>
+                            <div class="cg-brand-best">Best for: most builds, budget to mid-range, reliability-focused</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #2563eb;">
+                                <span class="cg-brand-logo">AIO Liquid</span>
+                                <span class="cg-brand-series">All-in-One Cooler</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Cleaner look inside the case</li>
+                                <li>No RAM clearance issues</li>
+                                <li>360mm AIOs handle the most demanding CPUs</li>
+                                <li>Better sustained performance on high-TDP chips</li>
+                                <li>Easy to RGB-light for aesthetics</li>
+                            </ul>
+                            <div class="cg-brand-con">Higher cost; pump can fail; small leak risk over time</div>
+                            <div class="cg-brand-best">Best for: high-TDP CPUs, aesthetics, compact tower cases</div>
+                        </div>
+                        <div class="cg-brand-col">
+                            <div class="cg-brand-header" style="background: #7c3aed;">
+                                <span class="cg-brand-logo">Custom Loop</span>
+                                <span class="cg-brand-series">DIY Liquid Cooling</span>
+                            </div>
+                            <ul class="cg-brand-pros">
+                                <li>Maximum cooling performance possible</li>
+                                <li>Can cool CPU and GPU in one loop</li>
+                                <li>Highly customizable aesthetics</li>
+                                <li>Quietest option when properly configured</li>
+                            </ul>
+                            <div class="cg-brand-con">Expensive, complex to build, requires maintenance, real leak risk</div>
+                            <div class="cg-brand-best">Best for: enthusiast/extreme overclockers, showcase builds</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. Cooler Tiers by Budget -->
+                <section class="cg-section">
+                    <h3>Cooler Tiers by Budget</h3>
+                    <div class="cg-tiers">
+                        <div class="cg-tier">
+                            <div class="cg-tier-label budget">Under $50 — Budget</div>
+                            <p>Solid air coolers for CPUs up to 125W. A major step up from stock coolers with better temperatures and quieter operation.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Cooler Master Hyper 212</span>
+                                <span class="cg-pick">be quiet! Pure Rock 2</span>
+                                <span class="cg-pick">Thermalright Assassin X 120</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label midrange">$50–$100 — Mid-Range</div>
+                            <p>High-performance air towers or 240mm AIOs. Handles most CPUs including 125W+ chips with excellent thermals.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Noctua NH-U12S</span>
+                                <span class="cg-pick">DeepCool AK620</span>
+                                <span class="cg-pick">Arctic Liquid Freezer III 240</span>
+                            </div>
+                        </div>
+                        <div class="cg-tier">
+                            <div class="cg-tier-label highend">$100+ — High-End</div>
+                            <p>Flagship dual-tower air coolers or 280/360mm AIOs. For overclocking, 170W+ CPUs, or silent builds.</p>
+                            <div class="cg-tier-picks">
+                                <span class="cg-pick">Noctua NH-D15</span>
+                                <span class="cg-pick">be quiet! Dark Rock Pro 5</span>
+                                <span class="cg-pick">Arctic Liquid Freezer III 360</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Common Mistakes -->
+                <section class="cg-section">
+                    <h3>Common Mistakes When Buying a CPU Cooler</h3>
+                    <ul class="cg-mistakes">
+                        <li><strong>Using the stock cooler on a high-TDP CPU</strong> — Stock coolers are designed to barely meet thermal limits, not exceed them. On a 125W+ CPU under sustained load, a stock cooler will throttle the CPU to protect it, reducing performance. An aftermarket cooler is always worth it.</li>
+                        <li><strong>Not checking case clearance</strong> — A 165mm air tower in a case with 155mm of clearance means the side panel won't close. Always check your case's maximum CPU cooler height spec before buying a large tower cooler.</li>
+                        <li><strong>Skipping thermal paste application</strong> — Most coolers come with pre-applied or included thermal paste. If you're reusing a cooler or replacing it, clean off old paste completely and apply a fresh pea-sized amount. Dried or improperly applied paste significantly raises temperatures.</li>
+                        <li><strong>Assuming bigger AIO always beats air</strong> — A high-end dual-tower air cooler like the Noctua NH-D15 consistently matches or beats 240mm AIOs in temperature. A 240mm AIO is not a guaranteed upgrade over a good air cooler — often it's a lateral move that costs more.</li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Hidden legacy elements kept for JS compatibility -->
+            <div style="display:none">
+                <select id="coolerSelect"><option value="">Choose a Cooler...</option></select>
+                <button id="selectCoolerBtn"></button>
+                <div id="selectedCooler">
+                    <h3 id="selectedCoolerName"></h3>
+                    <p id="selectedCoolerSpecs"></p>
+                    <span id="selectedCoolerPrice"></span>
+                    <span id="selectedCoolerAvailability"></span>
+                    <button id="changeCoolerBtn"></button>
+                    <button id="buildAroundCoolerBtn"></button>
                 </div>
             </div>
         </div>
@@ -848,6 +1589,267 @@
                 </div>
             </div>
         </div>
+
+        <!-- Guides Tab Content -->
+        <div class="tab-content" id="guides-tab">
+            <div class="guides-container">
+
+                <!-- Category filter -->
+                <nav class="guides-category-nav">
+                    <button class="guides-cat-btn active" data-cat="all">All Guides</button>
+                    <button class="guides-cat-btn" data-cat="howto">How to Build</button>
+                    <button class="guides-cat-btn" data-cat="picking">Picking Parts</button>
+                    <button class="guides-cat-btn" data-cat="budgets">Budget Builds</button>
+                    <button class="guides-cat-btn" data-cat="tuning">Overclocking & Tuning</button>
+                </nav>
+
+                <div class="guides-grid" id="guidesGrid">
+
+                    <!-- HOW TO BUILD -->
+                    <article class="guide-card" data-cat="howto">
+                        <div class="guide-card-header">
+                            <span class="guide-badge howto">How to Build</span>
+                            <h3>How to Build a PC: Complete Beginner's Guide</h3>
+                            <p>A step-by-step walkthrough of assembling your first PC — from unboxing parts to first boot.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ol class="guide-steps">
+                                <li><strong>Prepare your workspace</strong> — Use an anti-static mat or work on a hard surface. Keep a Phillips-head screwdriver handy.</li>
+                                <li><strong>Install the CPU</strong> — Lift the socket lever, align the CPU triangle marker with the socket corner, lower gently, and lock the lever. Never force it.</li>
+                                <li><strong>Install RAM</strong> — Match the notch on the stick to the slot, then press firmly until both clips snap. Use the A2/B2 slots for dual-channel if using 2 sticks.</li>
+                                <li><strong>Mount the CPU cooler</strong> — Apply a pea-sized amount of thermal paste to the CPU if not pre-applied, then secure the cooler with the mounting brackets.</li>
+                                <li><strong>Install the M.2 SSD</strong> (if applicable) — Slide it into the M.2 slot at an angle and screw it down.</li>
+                                <li><strong>Place the motherboard in the case</strong> — Install standoffs first, align the I/O shield, then screw in the motherboard.</li>
+                                <li><strong>Install the GPU</strong> — Snap it into the top PCIe x16 slot and secure the bracket screw. Remove the I/O slot covers first.</li>
+                                <li><strong>Install the PSU</strong> — Mount it in the PSU bay (fan down if there's a bottom vent) and route cables through the case.</li>
+                                <li><strong>Connect all cables</strong> — 24-pin ATX, 8-pin CPU power, PCIe power to GPU, SATA power for drives, front panel connectors (power button, USB, audio).</li>
+                                <li><strong>First boot</strong> — Connect monitor, keyboard, and power. Press the power button. If it posts, enter BIOS, set boot device to your SSD, and install Windows/Linux.</li>
+                            </ol>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="howto">
+                        <div class="guide-card-header">
+                            <span class="guide-badge howto">How to Build</span>
+                            <h3>Cable Management Tips</h3>
+                            <p>Keep your build clean and airflow-efficient with these simple cable management habits.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li>Route cables behind the motherboard tray whenever possible — most modern cases have grommets for this.</li>
+                                <li>Use the included velcro straps or zip ties to bundle cables together. Don't overtighten — it can damage cables over time.</li>
+                                <li>Connect the 8-pin CPU cable before mounting the motherboard — it's much easier to reach.</li>
+                                <li>Measure and tuck excess cable length into unused drive bays or behind the shroud.</li>
+                                <li>Group cables by type: power cables together, data cables (SATA) together.</li>
+                                <li>Check that no cables are blocking fans or the GPU cooler intake.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <!-- PICKING PARTS -->
+                    <article class="guide-card" data-cat="picking">
+                        <div class="guide-card-header">
+                            <span class="guide-badge picking">Picking Parts</span>
+                            <h3>How to Choose a GPU</h3>
+                            <p>What to look for when picking a graphics card for gaming, content creation, or AI work.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Target resolution first</strong> — 1080p: RTX 4060 / RX 7600 tier. 1440p: RTX 4070 / RX 7700 XT tier. 4K: RTX 4080 / RX 7900 XTX tier.</li>
+                                <li><strong>VRAM matters</strong> — 8 GB is the current minimum for 1440p gaming. 12 GB+ is better for modded games and high-res textures. 16 GB+ for AI or creative workloads.</li>
+                                <li><strong>NVIDIA vs AMD</strong> — NVIDIA has better ray tracing and DLSS upscaling. AMD cards offer better rasterization performance per dollar and FidelityFX Super Resolution. Both are excellent.</li>
+                                <li><strong>Check your PSU wattage</strong> — High-end GPUs (RTX 4080/4090) require 850W+ PSUs. Mid-range cards are fine with 650–750W.</li>
+                                <li><strong>Measure your case</strong> — Flagship GPUs can be 330mm+ long. Confirm your case supports the GPU length.</li>
+                                <li><strong>Future-proofing</strong> — The next generation is always coming. Buy what fits your budget today; upgrade in 3–4 years.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="picking">
+                        <div class="guide-card-header">
+                            <span class="guide-badge picking">Picking Parts</span>
+                            <h3>How to Choose a CPU</h3>
+                            <p>Intel vs AMD, core counts, and what specs actually matter for gaming and productivity.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Gaming</strong> — Prioritize single-core performance. Intel Core i5/i7 and AMD Ryzen 5/7 are both excellent for gaming. A 6-core CPU is plenty for most games.</li>
+                                <li><strong>Productivity/streaming</strong> — More cores help. Ryzen 9 or Intel Core i9 for video editing, 3D rendering, or heavy multitasking.</li>
+                                <li><strong>Platform matters</strong> — Pick AMD or Intel first, then the CPU. They use different sockets and motherboards. AMD AM5 supports future CPUs; Intel LGA1700/1851 is platform-specific.</li>
+                                <li><strong>TDP and cooler</strong> — Higher-end CPUs (125W+) need capable air or AIO coolers. Budget CPUs often include a stock cooler.</li>
+                                <li><strong>Don't overspend on CPU for gaming</strong> — A Ryzen 5 7600X paired with a strong GPU will outperform a Ryzen 9 with a weaker GPU in most games.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="picking">
+                        <div class="guide-card-header">
+                            <span class="guide-badge picking">Picking Parts</span>
+                            <h3>How to Choose RAM</h3>
+                            <p>Speed, capacity, and whether DDR4 vs DDR5 matters for your build.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>How much RAM?</strong> — 16 GB is the minimum for gaming today. 32 GB is recommended for gaming + streaming or light productivity. 64 GB+ for professional workloads.</li>
+                                <li><strong>Speed</strong> — DDR4-3600 is the sweet spot for AMD Ryzen. DDR5-6000 is the sweet spot for modern AMD platforms. Intel is less picky about speed.</li>
+                                <li><strong>Dual channel</strong> — Always use RAM in pairs (2 sticks) for ~10–15% performance improvement over a single stick.</li>
+                                <li><strong>DDR4 vs DDR5</strong> — DDR5 is faster but more expensive. If you're on a modern Intel or AMD AM5 platform, DDR5 is worth it. Older platforms are DDR4 only.</li>
+                                <li><strong>Check motherboard QVL</strong> — Not all RAM kits are guaranteed compatible. Check the motherboard's qualified vendor list for your exact kit.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="picking">
+                        <div class="guide-card-header">
+                            <span class="guide-badge picking">Picking Parts</span>
+                            <h3>How to Choose a PSU</h3>
+                            <p>Wattage, efficiency ratings, and why skimping on the power supply is a bad idea.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Calculate your needs</strong> — Add up CPU TDP + GPU TDP, then add 100–150W headroom. Use a PSU calculator for a precise estimate.</li>
+                                <li><strong>80 Plus rating</strong> — Bronze is fine. Gold is better efficiency (less heat, lower electricity cost). Avoid unrated PSUs entirely.</li>
+                                <li><strong>Modular vs non-modular</strong> — Fully modular PSUs let you only connect cables you need, making cable management easier. Worth it for mid-range and above builds.</li>
+                                <li><strong>Brand matters</strong> — Corsair, Seasonic, EVGA, and Be Quiet! are reliable. Avoid cheap no-name PSUs — a failing PSU can damage other components.</li>
+                                <li><strong>Don't under-buy</strong> — A 650W PSU for an RTX 4090 build is dangerous. Headroom also extends PSU lifespan.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <!-- BUDGET BUILDS -->
+                    <article class="guide-card" data-cat="budgets">
+                        <div class="guide-card-header">
+                            <span class="guide-badge budgets">Budget Builds</span>
+                            <h3>Best $500 Budget Gaming PC</h3>
+                            <p>A capable 1080p gaming rig that won't break the bank.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>CPU:</strong> AMD Ryzen 5 5600 (~$100) — Six cores, great single-thread performance for gaming.</li>
+                                <li><strong>GPU:</strong> RX 6600 or RTX 4060 (~$200–220) — Excellent 1080p performance.</li>
+                                <li><strong>Motherboard:</strong> B550M board (~$80) — Solid feature set for AM4.</li>
+                                <li><strong>RAM:</strong> 16 GB DDR4-3600 (~$40) — Two 8 GB sticks in dual channel.</li>
+                                <li><strong>Storage:</strong> 500 GB NVMe SSD (~$40) — Fast enough for OS + games.</li>
+                                <li><strong>PSU:</strong> 650W 80+ Bronze (~$55) — Reliable and leaves headroom.</li>
+                                <li><strong>Case:</strong> Budget mid-tower (~$40) — Prioritize airflow over aesthetics at this price.</li>
+                                <li><strong>Expected performance:</strong> 60–100+ FPS at 1080p High/Ultra in most modern games.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="budgets">
+                        <div class="guide-card-header">
+                            <span class="guide-badge budgets">Budget Builds</span>
+                            <h3>Best $1000 Mid-Range Gaming PC</h3>
+                            <p>Strong 1440p gaming with room for upgrades later.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>CPU:</strong> AMD Ryzen 5 7600X or Intel Core i5-14600K (~$200) — Both excellent for 1440p gaming.</li>
+                                <li><strong>GPU:</strong> RTX 4070 or RX 7800 XT (~$450–500) — Solid 1440p 60–100+ FPS performance.</li>
+                                <li><strong>Motherboard:</strong> B650 (AMD) or B760 (Intel) (~$120) — Modern platform with PCIe 5.0.</li>
+                                <li><strong>RAM:</strong> 32 GB DDR5-6000 (~$80) — DDR5 sweet spot for Ryzen 7000.</li>
+                                <li><strong>Storage:</strong> 1 TB NVMe SSD (~$70) — Plenty of space for an OS drive + games.</li>
+                                <li><strong>PSU:</strong> 750W 80+ Gold (~$80) — Efficient and headroom for the GPU.</li>
+                                <li><strong>Case:</strong> Mid-tower with good airflow (~$70) — Fractal, Lian Li, or NZXT are solid picks.</li>
+                                <li><strong>Expected performance:</strong> 60–120+ FPS at 1440p High/Ultra in most modern games.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="budgets">
+                        <div class="guide-card-header">
+                            <span class="guide-badge budgets">Budget Builds</span>
+                            <h3>Best $2000+ High-End Gaming / Workstation PC</h3>
+                            <p>No-compromise 4K gaming or a capable creative workstation.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>CPU:</strong> AMD Ryzen 9 7900X or Intel Core i7-14700K (~$350) — Strong multi-core for creative work, no bottleneck for gaming.</li>
+                                <li><strong>GPU:</strong> RTX 4080 Super or RX 7900 XTX (~$800–1000) — High-end 4K gaming and fast render times.</li>
+                                <li><strong>Motherboard:</strong> X670E (AMD) or Z790 (Intel) (~$250) — Full PCIe 5.0 and overclocking support.</li>
+                                <li><strong>RAM:</strong> 32–64 GB DDR5-6000 (~$120–200) — 64 GB if doing video editing or 3D work.</li>
+                                <li><strong>Storage:</strong> 2 TB NVMe SSD Gen4 (~$150) — Fast load times for large projects.</li>
+                                <li><strong>PSU:</strong> 850W–1000W 80+ Gold or Platinum (~$130) — Required headroom for RTX 4080/4090.</li>
+                                <li><strong>Case:</strong> Premium mid-tower or full-tower (~$150) — Better thermals and cable management at this price range.</li>
+                                <li><strong>Expected performance:</strong> 60–120+ FPS at 4K Ultra, excellent rendering and productivity throughput.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <!-- OVERCLOCKING & TUNING -->
+                    <article class="guide-card" data-cat="tuning">
+                        <div class="guide-card-header">
+                            <span class="guide-badge tuning">Overclocking & Tuning</span>
+                            <h3>CPU Overclocking: Getting Started</h3>
+                            <p>How to safely push your CPU beyond stock speeds for extra performance.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Requirements</strong> — You need a K/X-series CPU (Intel K or AMD X/XT), a Z or X motherboard, and a capable cooler. Stock coolers are not sufficient for OC.</li>
+                                <li><strong>Enter BIOS</strong> — Press DEL or F2 on boot. Look for CPU multiplier or Precision Boost Overdrive (AMD) settings.</li>
+                                <li><strong>Start conservatively</strong> — Increase the CPU multiplier by 1 step (e.g., 50x → 51x) and run a stability test before increasing further.</li>
+                                <li><strong>Watch temperatures</strong> — Keep CPU temps under 85–90°C under full load. Use HWiNFO or Ryzen Master to monitor.</li>
+                                <li><strong>Stability testing</strong> — Run Prime95 or Cinebench for at least 30 minutes. Crashes or BSOD mean the overclock is unstable — reduce multiplier or increase voltage slightly.</li>
+                                <li><strong>AMD Expo / Intel XMP</strong> — Enable this in BIOS to run RAM at its rated speed. This is technically overclocking and is safe for any XMP/Expo certified kit.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="tuning">
+                        <div class="guide-card-header">
+                            <span class="guide-badge tuning">Overclocking & Tuning</span>
+                            <h3>GPU Overclocking with MSI Afterburner</h3>
+                            <p>Squeeze extra FPS out of your graphics card with a simple overclock.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Download MSI Afterburner</strong> — Free tool that works with any GPU brand (NVIDIA and AMD).</li>
+                                <li><strong>Start with power limit</strong> — Raise the Power Limit slider to 100% or its max. This alone can give a small free performance boost.</li>
+                                <li><strong>Core clock offset</strong> — Increase core clock by +50 MHz, run a benchmark (Unigine Heaven or 3DMark). If stable, increase by another +25 MHz and repeat.</li>
+                                <li><strong>Memory clock offset</strong> — Memory OC often gives more FPS than core OC in memory-bandwidth-limited scenarios. Start at +200 MHz and test.</li>
+                                <li><strong>Watch for artifacts</strong> — Black dots, flickering, or strange visual glitches mean the memory clock is too high. Reduce by 50 MHz.</li>
+                                <li><strong>Save your profile</strong> — Once stable, save the OC profile so it applies at startup.</li>
+                                <li><strong>Typical gains</strong> — A good GPU OC can yield 5–10% extra performance for free.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                    <article class="guide-card" data-cat="tuning">
+                        <div class="guide-card-header">
+                            <span class="guide-badge tuning">Overclocking & Tuning</span>
+                            <h3>Windows Performance Tweaks</h3>
+                            <p>Software-side optimizations to reduce latency and improve gaming performance.</p>
+                        </div>
+                        <div class="guide-card-body hidden">
+                            <ul class="guide-list">
+                                <li><strong>Set Power Plan to High Performance</strong> — Control Panel → Power Options → High Performance. Prevents CPU from downclocking at idle.</li>
+                                <li><strong>Enable XMP/Expo in BIOS</strong> — If your RAM is running at 2133 MHz instead of 3600/6000, it's not running at its rated speed. Enable XMP in BIOS.</li>
+                                <li><strong>Disable unnecessary startup apps</strong> — Task Manager → Startup. Disable anything you don't need running at boot.</li>
+                                <li><strong>Enable Game Mode</strong> — Windows Settings → Gaming → Game Mode. Prioritizes game processes.</li>
+                                <li><strong>Keep GPU drivers updated</strong> — New drivers often include game-specific optimizations. Use GeForce Experience or AMD Software Adrenalin.</li>
+                                <li><strong>Enable Hardware-Accelerated GPU Scheduling (HAGS)</strong> — Windows Settings → Display → Graphics → Default graphics settings. Reduces CPU overhead for GPU commands.</li>
+                                <li><strong>Use NVIDIA DLSS or AMD FSR</strong> — If supported by your game, these upscaling technologies can nearly double FPS with minimal visual quality loss.</li>
+                            </ul>
+                        </div>
+                        <button class="guide-expand-btn">Read Guide <i class="fas fa-chevron-down"></i></button>
+                    </article>
+
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Budget Questionnaire Modal -->
@@ -1851,6 +2853,32 @@
             if (e.target === modal) {
                 closeBudgetModal();
             }
+        });
+
+        // Guides: expand/collapse
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.guide-expand-btn');
+            if (!btn) return;
+            const card = btn.closest('.guide-card');
+            const body = card.querySelector('.guide-card-body');
+            const isOpen = !body.classList.contains('hidden');
+            body.classList.toggle('hidden', isOpen);
+            btn.classList.toggle('open', !isOpen);
+            btn.innerHTML = isOpen
+                ? 'Read Guide <i class="fas fa-chevron-down"></i>'
+                : 'Close <i class="fas fa-chevron-down"></i>';
+        });
+
+        // Guides: category filter
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.guides-cat-btn');
+            if (!btn) return;
+            document.querySelectorAll('.guides-cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const cat = btn.dataset.cat;
+            document.querySelectorAll('.guide-card').forEach(card => {
+                card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+            });
         });
     </script>
 
