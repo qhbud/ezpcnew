@@ -1448,7 +1448,6 @@
         <div id="noResults" class="no-results hidden">
             <p>No parts found matching your criteria.</p>
         </div>
-    </div>
 
     <!-- Component Selector Popup Modal -->
     <div id="componentSelectorModal" class="modal-overlay">
@@ -1589,23 +1588,295 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Guides Tab Content -->
         <div class="tab-content" id="guides-tab">
-            <div class="guides-container">
+            <div class="guides-hub">
 
-                <!-- Category filter -->
-                <nav class="guides-category-nav">
-                    <button class="guides-cat-btn active" data-cat="all">All Guides</button>
-                    <button class="guides-cat-btn" data-cat="howto">How to Build</button>
-                    <button class="guides-cat-btn" data-cat="picking">Picking Parts</button>
-                    <button class="guides-cat-btn" data-cat="budgets">Budget Builds</button>
-                    <button class="guides-cat-btn" data-cat="tuning">Overclocking & Tuning</button>
-                </nav>
+                <!-- Hero -->
+                <div class="guides-hub-hero">
+                    <div class="guides-hub-hero-icon"><i class="fas fa-book-open"></i></div>
+                    <div class="guides-hub-hero-text">
+                        <h1>PC Building Guides</h1>
+                        <p>Everything you need to research, buy, and build your perfect PC — from first-timer to enthusiast.</p>
+                    </div>
+                </div>
 
-                <div class="guides-grid" id="guidesGrid">
+                <!-- Featured start-here guides -->
+                <h3 class="guides-hub-section-title">Start Here</h3>
+                <div class="guides-hub-featured">
+                    <div class="ghub-featured-card" data-goto-guide="howto-build">
+                        <div class="ghub-featured-icon"><i class="fas fa-tools"></i></div>
+                        <div class="ghub-featured-body">
+                            <span class="ghub-badge">Beginner</span>
+                            <h2>How to Build a PC</h2>
+                            <p>A step-by-step walkthrough from unboxing parts to first boot. Start here if you've never built before.</p>
+                        </div>
+                        <div class="ghub-featured-cta">Read Guide <i class="fas fa-arrow-right"></i></div>
+                    </div>
+                    <div class="ghub-featured-card ghub-quiz-card" id="guidesQuizCard">
+                        <div class="ghub-featured-icon"><i class="fas fa-magic"></i></div>
+                        <div class="ghub-featured-body">
+                            <span class="ghub-badge">Interactive</span>
+                            <h2>What's My Budget?</h2>
+                            <p>Answer a few quick questions and get a recommended PC build tailored to your needs and price range.</p>
+                        </div>
+                        <div class="ghub-featured-cta">Start Quiz <i class="fas fa-arrow-right"></i></div>
+                    </div>
+                    <div class="ghub-featured-card ghub-oc-card" data-goto-guide="overclocking">
+                        <div class="ghub-featured-icon"><i class="fas fa-tachometer-alt"></i></div>
+                        <div class="ghub-featured-body">
+                            <span class="ghub-badge ghub-badge-green">Intermediate</span>
+                            <h2>Overclocking Basics</h2>
+                            <p>Learn how to safely push your CPU and GPU beyond stock speeds for more performance without spending a cent.</p>
+                        </div>
+                        <div class="ghub-featured-cta">Read Guide <i class="fas fa-arrow-right"></i></div>
+                    </div>
+                    <div class="ghub-featured-card ghub-compat-card" data-goto-guide="compatibility">
+                        <div class="ghub-featured-icon"><i class="fas fa-puzzle-piece"></i></div>
+                        <div class="ghub-featured-body">
+                            <span class="ghub-badge ghub-badge-orange">Essential</span>
+                            <h2>Compatibility 101</h2>
+                            <p>Understand sockets, chipsets, form factors, and power requirements — so nothing you buy is incompatible.</p>
+                        </div>
+                        <div class="ghub-featured-cta">Read Guide <i class="fas fa-arrow-right"></i></div>
+                    </div>
+                </div>
 
-                    <!-- HOW TO BUILD -->
+                <!-- Component guides grid -->
+                <h3 class="guides-hub-section-title">Component Deep Dives</h3>
+                <div class="guides-hub-grid">
+                    <div class="ghub-card" data-goto-tab="gpu">
+                        <div class="ghub-card-icon"><i class="fas fa-desktop"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>GPU Guide</h4>
+                            <p>Learn what to look for when choosing a graphics card.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="ghub-card" data-goto-tab="cpu">
+                        <div class="ghub-card-icon"><i class="fas fa-microchip"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>CPU Guide</h4>
+                            <p>Understand core counts, clock speeds, and which processor fits your build.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="ghub-card" data-goto-tab="motherboard">
+                        <div class="ghub-card-icon"><i class="fas fa-memory"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>Motherboard Guide</h4>
+                            <p>Learn about sockets, chipsets, form factors, and platform compatibility.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="ghub-card" data-goto-tab="ram">
+                        <div class="ghub-card-icon"><i class="fas fa-memory"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>RAM Guide</h4>
+                            <p>Understand capacity, speed, DDR generations, and why dual channel matters.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="ghub-card" data-goto-tab="psu">
+                        <div class="ghub-card-icon"><i class="fas fa-plug"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>PSU Guide</h4>
+                            <p>Find the right wattage, efficiency rating, and why a quality PSU matters.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                    <div class="ghub-card" data-goto-tab="cooler">
+                        <div class="ghub-card-icon"><i class="fas fa-snowflake"></i></div>
+                        <div class="ghub-card-body">
+                            <h4>CPU Cooler Guide</h4>
+                            <p>Compare air coolers vs AIOs and find the right TDP rating for your CPU.</p>
+                        </div>
+                        <span class="ghub-card-link">Read Guide <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                </div>
+
+                <!-- Builder Tips section -->
+                <h3 class="guides-hub-section-title">Builder Tips</h3>
+                <div class="guides-hub-tips">
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-plug"></i></div>
+                        <div><strong>Always use XMP/Expo</strong><p>RAM runs at low default speeds unless you enable XMP (Intel) or Expo (AMD) in BIOS.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-thermometer-half"></i></div>
+                        <div><strong>Don't skip thermal paste</strong><p>A pea-sized dot on the CPU center is all you need. Too much is worse than too little.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-tv"></i></div>
+                        <div><strong>Monitor goes in the GPU</strong><p>First-time builders often plug into the motherboard port — always plug into the GPU's output.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-bolt"></i></div>
+                        <div><strong>Overspec your PSU by 20%</strong><p>If your build needs 400W, get a 550W unit. Headroom = efficiency and longevity.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-sitemap"></i></div>
+                        <div><strong>Install M.2 before the motherboard</strong><p>It's nearly impossible to reach M.2 slots after the board is mounted in the case.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-memory"></i></div>
+                        <div><strong>Dual channel matters</strong><p>Two 8GB sticks outperform one 16GB stick. Always buy RAM in matched pairs.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-hdd"></i></div>
+                        <div><strong>NVMe &gt; SATA SSD &gt; HDD</strong><p>For your OS drive, get at least a SATA SSD. NVMe is only meaningfully faster for large file transfers.</p></div>
+                    </div>
+                    <div class="ghub-tip-card">
+                        <div class="ghub-tip-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div><strong>Don't build on carpet</strong><p>Static discharge can kill components. Build on a hard flat surface and ground yourself regularly.</p></div>
+                    </div>
+                </div>
+
+                <!-- Inline How to Build content (shown when featured card is clicked) -->
+                <div class="guides-hub-howto hidden" id="guidesHowTo">
+                    <button class="ghub-back-btn" id="guidesHowToBack"><i class="fas fa-arrow-left"></i> Back to Guides</button>
+                    <div class="component-guide">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-tools"></i> How to Build a PC</h2>
+                            <p>A step-by-step guide for first-time builders.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>Before You Start</h3>
+                            <p>Gather your parts and prepare your workspace. You'll need a Phillips-head screwdriver, a flat non-carpeted surface (to avoid static), and about 2–3 hours. Anti-static precautions are good practice — touch a grounded metal surface periodically or use an anti-static wrist strap.</p>
+                        </section>
+                        <section class="cg-section">
+                            <h3>Step-by-Step Assembly</h3>
+                            <ol class="guide-steps">
+                                <li><strong>Install the CPU</strong> — Open the motherboard socket lever, align the CPU's triangle marker with the socket corner, lower it gently, and lock the lever. Never force it — CPUs drop in with zero insertion force.</li>
+                                <li><strong>Install RAM</strong> — Match the notch on the stick to the slot. Press firmly until both side clips snap in. If using 2 sticks, use the A2/B2 slots (usually slots 2 and 4) for dual-channel mode.</li>
+                                <li><strong>Install the M.2 SSD</strong> — Slide it into the M.2 slot at a shallow angle, push flat, and secure with the small screw. Do this before mounting the motherboard — it's much easier.</li>
+                                <li><strong>Mount the CPU cooler</strong> — Apply a pea-sized amount of thermal paste to the center of the CPU if none is pre-applied. Secure the cooler using its mounting bracket. Don't overtighten.</li>
+                                <li><strong>Install the I/O shield</strong> — Snap the motherboard's metal I/O shield into the back of the case before mounting the board. It only fits one way.</li>
+                                <li><strong>Mount the motherboard</strong> — Install brass standoffs in the case first. Align the motherboard's I/O ports with the shield, then screw it down. Don't cross-thread the screws.</li>
+                                <li><strong>Install the PSU</strong> — Slide it into the PSU bay (fan facing down if there's a bottom vent). Secure with 4 screws, then route cables through the case before connecting them.</li>
+                                <li><strong>Install the GPU</strong> — Remove the PCIe slot covers from the case. Snap the GPU into the top PCIe x16 slot until it clicks, then secure the bracket screw.</li>
+                                <li><strong>Connect all cables</strong> — 24-pin ATX motherboard power, 8-pin CPU power (top of board), PCIe power to the GPU, SATA power for any drives, and front panel connectors (power button, USB, audio headers).</li>
+                                <li><strong>First boot</strong> — Connect monitor, keyboard, and power cable. Press the power button. If it posts and reaches BIOS, you're in great shape. Set the boot device to your SSD and install your OS.</li>
+                            </ol>
+                        </section>
+                        <section class="cg-section">
+                            <h3>Common First-Boot Issues</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>No display</strong> — Check that the monitor is plugged into the GPU, not the motherboard. Re-seat the GPU and RAM if no image appears.</li>
+                                <li><strong>Won't power on</strong> — Verify the front panel power button header is correctly connected. Check the PSU switch is set to ON.</li>
+                                <li><strong>Boots but RAM speed is wrong</strong> — Enter BIOS and enable XMP (Intel) or Expo (AMD) to run RAM at its rated speed.</li>
+                                <li><strong>CPU temps high at idle</strong> — The cooler may not be seated properly. Re-apply thermal paste and remount.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- Inline Overclocking guide -->
+                <div class="guides-hub-howto hidden" id="guidesOverclocking">
+                    <button class="ghub-back-btn" data-guides-back><i class="fas fa-arrow-left"></i> Back to Guides</button>
+                    <div class="component-guide">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-tachometer-alt"></i> Overclocking Basics</h2>
+                            <p>How to safely squeeze more performance from your CPU and GPU without spending anything extra.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>What is Overclocking?</h3>
+                            <p>Overclocking means running a component faster than its factory-rated speed by increasing the clock multiplier or frequency. Modern CPUs and GPUs are usually manufactured with more headroom than advertised — overclocking lets you use it. The trade-off is higher heat and power draw, and in extreme cases, reduced component lifespan if done carelessly.</p>
+                        </section>
+                        <section class="cg-section">
+                            <h3>CPU Overclocking</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>Unlocked CPUs only</strong> — AMD Ryzen CPUs and Intel K/KF/KS series are overclockable. A locked Intel Core i5 (no "K") is not. Check your model.</li>
+                                <li><strong>Do it in BIOS</strong> — Enter BIOS on boot (usually Del or F2). Find "CPU Ratio" or "Core Multiplier." Raise in small steps (e.g., 4.5 GHz → 4.7 GHz), then stress test.</li>
+                                <li><strong>Stress test before trusting it</strong> — Run Prime95 or Cinebench R23 for 15–30 min. Watch temps with HWiNFO. Keep under 90°C for most CPUs.</li>
+                                <li><strong>Voltage (Vcore)</strong> — More clock often requires more voltage. Be conservative — going above 1.35V on most CPUs risks long-term degradation. Raise in 0.025V steps only.</li>
+                                <li><strong>Don't forget RAM (XMP/Expo)</strong> — Enabling XMP (Intel) or Expo (AMD) is technically an overclock and gives free performance. Always enable this first.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>GPU Overclocking</h3>
+                            <p>GPU overclocking is more approachable than CPU overclocking — the GPU will downclock itself if it gets too hot, so it's harder to brick. Use MSI Afterburner:</p>
+                            <ul class="cg-mistakes">
+                                <li><strong>Raise Power Limit first</strong> — Drag the Power Limit slider to +15–20%. This alone can boost boost clocks.</li>
+                                <li><strong>Core Clock offset</strong> — Add +50–100 MHz to start. Run a benchmark (e.g., Unigine Heaven) and check for artifacts.</li>
+                                <li><strong>Memory Clock</strong> — VRAM can often take +200–500 MHz. Watch for visual glitches — that's the sign you've gone too far.</li>
+                                <li><strong>Fan curve</strong> — Edit the fan curve to be more aggressive if temps exceed 85°C under load.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>Safety Rules</h3>
+                            <ul class="cg-mistakes">
+                                <li>Always stress test after every change — don't assume stable because it booted.</li>
+                                <li>Keep a BIOS reset available — know how to clear CMOS (pull battery or short the jumper) in case of a failed overclock.</li>
+                                <li>Better cooling = more overclocking headroom. Invest in a better cooler before pushing voltage.</li>
+                                <li>Stability at stock is step zero — if your PC crashes at stock speeds, overclocking is not the fix.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- Inline Compatibility guide -->
+                <div class="guides-hub-howto hidden" id="guidesCompatibility">
+                    <button class="ghub-back-btn" data-guides-back><i class="fas fa-arrow-left"></i> Back to Guides</button>
+                    <div class="component-guide">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-puzzle-piece"></i> Compatibility 101</h2>
+                            <p>The essential checklist to make sure every part you buy works with every other part.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>CPU ↔ Motherboard</h3>
+                            <p>This is the most critical compatibility check. The CPU socket on the motherboard must match the CPU exactly.</p>
+                            <ul class="cg-mistakes">
+                                <li><strong>AMD AM5</strong> — Ryzen 7000/8000/9000 series. Works with B650, X670, X870 chipsets.</li>
+                                <li><strong>AMD AM4</strong> — Ryzen 1000–5000 series. Works with B450, X470, B550, X570 chipsets.</li>
+                                <li><strong>Intel LGA1700</strong> — 12th, 13th, 14th Gen Core. Works with B660, Z690, Z790 chipsets.</li>
+                                <li><strong>Intel LGA1851</strong> — Core Ultra 200 (Arrow Lake). Works with Z890 chipset.</li>
+                                <li>Even if the socket matches, check if your board supports that specific CPU generation — a BIOS update may be required for newer CPUs on older boards.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>RAM ↔ Motherboard</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>DDR4 vs DDR5</strong> — Motherboards support one or the other, never both. Check your board's spec sheet.</li>
+                                <li><strong>Max speed</strong> — Your motherboard lists a max supported RAM speed. RAM faster than that will still work but will downclock to the max supported speed.</li>
+                                <li><strong>Slots</strong> — Most consumer boards have 2 or 4 slots. Check the manual for which slots to use with 2 sticks (usually A2/B2).</li>
+                                <li><strong>Capacity</strong> — Boards have a max supported RAM amount (e.g., 64GB or 128GB). Check before buying 64GB sticks.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>GPU ↔ Case &amp; PSU</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>GPU length</strong> — High-end cards can be 340mm+. Check your case's max GPU clearance spec.</li>
+                                <li><strong>PSU connectors</strong> — Most modern GPUs need 1–3 PCIe power connectors (8-pin or 16-pin 12VHPWR). Verify your PSU has them.</li>
+                                <li><strong>Wattage</strong> — Check the GPU's TDP plus your CPU's TDP and add 100W of headroom. A 400W total system needs at least a 550W PSU.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>Motherboard ↔ Case</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>ATX</strong> — Full-size boards (305×244mm). Require a mid-tower or full-tower case.</li>
+                                <li><strong>Micro-ATX</strong> — Smaller (244×244mm). Fit in most cases, including many compact ones.</li>
+                                <li><strong>Mini-ITX</strong> — Smallest (170×170mm). Require a specific ITX case and sacrifice expansion slots.</li>
+                                <li>Always check the case's supported form factor list — a case built for mATX will not fit a full ATX board.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>Storage</h3>
+                            <ul class="cg-mistakes">
+                                <li><strong>M.2 NVMe vs SATA</strong> — Both use M.2 slots but are not interchangeable on all boards. Check if your M.2 slot supports NVMe, SATA, or both.</li>
+                                <li><strong>PCIe generation</strong> — PCIe 5.0 drives are backward compatible in PCIe 4.0 slots — they'll just run at PCIe 4.0 speeds. No compatibility issue, just reduced peak speed.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+
+            </div>
+
+                <!-- hidden stubs kept for JS compatibility -->
+                <div style="display:none" id="guidesGrid">
                     <article class="guide-card" data-cat="howto">
                         <div class="guide-card-header">
                             <span class="guide-badge howto">How to Build</span>
@@ -1848,7 +2119,6 @@
 
                 </div>
             </div>
-        </div>
 
     </div>
 
@@ -2855,30 +3125,56 @@
             }
         });
 
-        // Guides: expand/collapse
+        // Guides hub: component card navigation
         document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.guide-expand-btn');
-            if (!btn) return;
-            const card = btn.closest('.guide-card');
-            const body = card.querySelector('.guide-card-body');
-            const isOpen = !body.classList.contains('hidden');
-            body.classList.toggle('hidden', isOpen);
-            btn.classList.toggle('open', !isOpen);
-            btn.innerHTML = isOpen
-                ? 'Read Guide <i class="fas fa-chevron-down"></i>'
-                : 'Close <i class="fas fa-chevron-down"></i>';
+            const card = e.target.closest('.ghub-card[data-goto-tab]');
+            if (!card) return;
+            const tab = card.dataset.gotoTab;
+            if (pcBuilder) pcBuilder.switchTab(tab);
         });
 
-        // Guides: category filter
+        // Guides hub: show inline guide, hide hub content
+        const guideHubSections = () => [
+            document.querySelector('.guides-hub-hero'),
+            document.querySelector('.guides-hub-featured'),
+            document.querySelector('.guides-hub-grid'),
+            document.querySelector('.guides-hub-tips'),
+            document.querySelector('.guides-hub-intro'),
+            ...document.querySelectorAll('.guides-hub-section-title')
+        ];
+        const allInlineGuides = () => document.querySelectorAll('.guides-hub-howto');
+
+        function showInlineGuide(id) {
+            guideHubSections().forEach(el => { if (el) el.style.display = 'none'; });
+            allInlineGuides().forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(id);
+            if (target) target.classList.remove('hidden');
+        }
+
+        function showGuidesHub() {
+            guideHubSections().forEach(el => { if (el) el.style.display = ''; });
+            allInlineGuides().forEach(el => el.classList.add('hidden'));
+        }
+
         document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.guides-cat-btn');
-            if (!btn) return;
-            document.querySelectorAll('.guides-cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const cat = btn.dataset.cat;
-            document.querySelectorAll('.guide-card').forEach(card => {
-                card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
-            });
+            const card = e.target.closest('[data-goto-guide]');
+            if (!card) return;
+            const guide = card.dataset.gotoGuide;
+            if (guide === 'howto-build') showInlineGuide('guidesHowTo');
+            else if (guide === 'overclocking') showInlineGuide('guidesOverclocking');
+            else if (guide === 'compatibility') showInlineGuide('guidesCompatibility');
+        });
+
+        // Guides hub: back button (shared by all inline guides)
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('[data-guides-back], #guidesHowToBack')) {
+                showGuidesHub();
+            }
+        });
+
+        // Guides hub: quiz card
+        document.getElementById('guidesQuizCard').addEventListener('click', function() {
+            document.getElementById('newActionBtn').click();
         });
     </script>
 
