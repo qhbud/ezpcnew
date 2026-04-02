@@ -115,6 +115,38 @@
 
         <!-- GPU Tab Content -->
         <div class="tab-content" id="gpu-tab">
+
+            <!-- GPU Listings Section -->
+            <div class="gpu-listings-section" id="gpuListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="gpuListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="gpuProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value GPU…</div>
+                        </div>
+                        <div class="gpu-reviews" id="gpuReviews"></div>
+                    </div>
+
+                    <!-- Right: Price vs Performance chart + Benchmarks -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Price vs Performance</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="gpuTabScatterPlot"></canvas>
+                        </div>
+                        <div id="gpuBenchmarkSection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">

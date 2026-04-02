@@ -4807,6 +4807,475 @@ tr.incompatible td {
     .guides-hub-tips { grid-template-columns: 1fr; }
 }
 
+/* ─── GPU Listings Section ──────────────────────────────────── */
+.gpu-listings-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+}
+
+.gpu-listings-two-col {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: var(--space-6);
+    align-items: start;
+}
+
+/* Header row: stars + badge */
+.gpu-listing-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.gpu-listing-stars {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: #f59e0b;
+    font-size: 1rem;
+}
+
+.gpu-listing-rating-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-left: var(--space-1);
+    font-weight: 500;
+}
+
+.gpu-best-value-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--radius-full, 9999px);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Product card */
+.gpu-product-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.gpu-card-loading {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    padding: var(--space-6) 0;
+    text-align: center;
+}
+
+.gpu-card-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.gpu-card-image-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    height: 160px;
+    overflow: hidden;
+}
+
+.gpu-card-img {
+    max-height: 150px;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.gpu-card-img-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    font-size: 3rem;
+}
+
+.gpu-card-specs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.gpu-card-spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8375rem;
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.gpu-card-spec-row:last-child { border-bottom: none; }
+
+.gpu-spec-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.gpu-spec-val {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.gpu-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.gpu-card-price {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.gpu-card-buy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--brand);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.gpu-card-buy-btn:hover {
+    background: var(--brand-hover);
+}
+
+/* Reviews */
+.gpu-reviews {
+    margin-top: var(--space-5);
+}
+
+.gpu-reviews-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+}
+
+.gpu-review-stars {
+    color: #f59e0b;
+    font-size: 0.875rem;
+    letter-spacing: 1px;
+}
+
+.gpu-reviews-source {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: var(--space-2);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.gpu-no-reviews {
+    font-size: 0.8375rem;
+    color: var(--text-muted);
+    margin-top: var(--space-2);
+}
+
+.gpu-review-aggregate-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    margin-top: var(--space-3);
+}
+
+.gpu-agg-score {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.gpu-agg-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.gpu-agg-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.gpu-review-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: var(--space-3);
+}
+
+.gpu-review-bar-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.gpu-bar-label {
+    width: 28px;
+    flex-shrink: 0;
+    text-align: right;
+    color: var(--text-muted);
+}
+
+.gpu-bar-track {
+    flex: 1;
+    height: 7px;
+    background: var(--bg-tertiary);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.gpu-bar-fill {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 99px;
+}
+
+.gpu-bar-pct {
+    width: 28px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+.gpu-review-aggregate-line {
+    font-size: 0.8375rem;
+    color: var(--text-secondary);
+    margin: var(--space-1) 0 var(--space-3);
+}
+
+.gpu-review-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.gpu-review-bar-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.gpu-bar-label {
+    width: 28px;
+    flex-shrink: 0;
+    text-align: right;
+    color: var(--text-muted);
+}
+
+.gpu-bar-track {
+    flex: 1;
+    height: 7px;
+    background: var(--bg-tertiary);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.gpu-bar-fill {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 99px;
+}
+
+.gpu-bar-pct {
+    width: 28px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+/* Right column: chart */
+.gpu-listing-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.gpu-chart-header {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.gpu-chart-wrap {
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+
+.gpu-chart-wrap canvas {
+    display: block;
+    width: 100%;
+}
+
+/* Benchmark chart */
+.gpu-benchmark-section {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+}
+
+.gpu-bench-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.gpu-bench-disclaimer-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: #f5a62322;
+    color: #d4860a;
+    border: 1px solid #f5a62355;
+    border-radius: var(--radius-full);
+    padding: 2px 7px;
+    margin-left: 4px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gpu-bench-note {
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    margin: 0 0 var(--space-3) 0;
+}
+
+.gpu-bench-note i {
+    color: #f5a623;
+    margin-right: 3px;
+}
+
+.gpu-bench-game {
+    margin-bottom: var(--space-3);
+}
+
+.gpu-bench-game:last-child {
+    margin-bottom: 0;
+}
+
+.gpu-bench-game-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.gpu-bench-game-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.gpu-bench-game-tag {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+}
+
+.gpu-bench-game-header i {
+    color: var(--primary-color, #4f8ef7);
+    font-size: 0.8rem;
+}
+
+.gpu-bench-row {
+    display: grid;
+    grid-template-columns: 38px 1fr 54px;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: 4px;
+}
+
+.gpu-bench-res {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.gpu-bench-bar-track {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    height: 7px;
+    overflow: hidden;
+}
+
+.gpu-bench-bar-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.4s ease;
+}
+
+.gpu-bench-fps {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .gpu-listings-two-col {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ─── Old Guides Tab (legacy CSS kept) ─────────────────────── */
 .guides-container {
     max-width: 1100px;
