@@ -385,7 +385,7 @@ class PartsDatabase {
         this.updateHeaderForTab();
         
         if (tabName === 'gpu') {
-            // GPU tab is now an informational guide — no parts grid needed
+            this.renderGpuListingsSection();
         } else if (tabName === 'cpu') {
             // CPU tab is now an informational guide — no parts grid needed
         } else if (tabName === 'motherboard') {
@@ -12127,6 +12127,448 @@ class PartsDatabase {
 
         // Select the component for the builder
         this.selectComponent(componentType, component);
+    }
+
+    // ── GPU Tab Listings ──────────────────────────────────────────
+    async renderGpuListingsSection() {
+        if (this._gpuListingsRendered) return;
+        try {
+            const response = await fetch('/api/parts/gpus?groupByModel=false');
+            if (!response.ok) return;
+            const gpus = await response.json();
+
+            // Find best-value GPU (highest perf per dollar, price > $100)
+            let bestGpu = null;
+            let bestScore = 0;
+            gpus.forEach(gpu => {
+                const perf = this.getGpuPerformance(gpu);
+                const price = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
+                if (perf && price > 100) {
+                    const score = (perf / price) * 1000;
+                    if (score > bestScore) { bestScore = score; bestGpu = gpu; }
+                }
+            });
+            this._gpuBestValue = bestGpu;
+
+            if (bestGpu) {
+                this._renderGpuProductCard(bestGpu);
+                this._renderGpuReviews(bestGpu);
+                this._renderGpuBenchmarkChart(bestGpu);
+            }
+            this._renderGpuTabScatterPlot(gpus);
+            this._gpuListingsRendered = true;
+        } catch (e) {
+            console.error('GPU listings error:', e);
+        }
+    }
+
+    _renderGpuProductCard(gpu) {
+        const card = document.getElementById('gpuProductCard');
+        if (!card) return;
+
+        // Show "Best Value" badge only when the best-value GPU is displayed
+        const badge = document.querySelector('.gpu-best-value-badge');
+        if (badge) {
+            const isBest = this._gpuBestValue &&
+                (gpu._id === this._gpuBestValue._id ||
+                 (gpu.title || gpu.name) === (this._gpuBestValue.title || this._gpuBestValue.name));
+            badge.style.display = isBest ? '' : 'none';
+        }
+
+        const title = gpu.title || gpu.name || 'Unknown GPU';
+        const price = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
+        const buyUrl = gpu.sourceUrl || gpu.url || '#';
+        const imageUrl = gpu.imageUrl || gpu.image || '';
+
+        // Correct nested field paths from GPU schema
+        const vramSize = gpu.memory?.size;
+        const vramType = gpu.memory?.type || 'GDDR6';
+        const vram = vramSize ? `${vramSize}GB ${vramType}` : '—';
+        const tdp = gpu.tdp ? `${gpu.tdp}W` : '—';
+
+        // Derive architecture from gpuModel since DB has no architecture field
+        const gpuModelStr = (gpu.gpuModel || gpu.title || gpu.name || '').toLowerCase();
+        let arch = '—';
+        if (/rtx\s*50/.test(gpuModelStr)) arch = 'Blackwell';
+        else if (/rtx\s*40/.test(gpuModelStr)) arch = 'Ada Lovelace';
+        else if (/rtx\s*30/.test(gpuModelStr)) arch = 'Ampere';
+        else if (/rtx\s*20/.test(gpuModelStr)) arch = 'Turing';
+        else if (/gtx\s*16/.test(gpuModelStr)) arch = 'Turing';
+        else if (/rx\s*7[0-9]{3}/.test(gpuModelStr)) arch = 'RDNA 3';
+        else if (/rx\s*6[0-9]{3}/.test(gpuModelStr)) arch = 'RDNA 2';
+        else if (/rx\s*5[0-9]{3}/.test(gpuModelStr)) arch = 'RDNA 1';
+        else if (/arc\s*b/.test(gpuModelStr)) arch = 'Battlemage';
+        else if (/arc\s*a/.test(gpuModelStr)) arch = 'Alchemist';
+
+        // Boost clock lookup (field doesn't exist in DB; hardcoded per model family)
+        const boostClockLookup = {
+            'rtx 5090': 2410, 'rtx 5080': 2617, 'rtx 5070 ti': 2452, 'rtx 5070': 2512,
+            'rtx 4090': 2520, 'rtx 4080 super': 2550, 'rtx 4080': 2505, 'rtx 4070 ti super': 2610,
+            'rtx 4070 ti': 2610, 'rtx 4070 super': 2475, 'rtx 4070': 2475, 'rtx 4060 ti': 2535,
+            'rtx 4060': 2460, 'rtx 3090 ti': 1860, 'rtx 3090': 1695, 'rtx 3080 ti': 1665,
+            'rtx 3080': 1710, 'rtx 3070 ti': 1770, 'rtx 3070': 1725, 'rtx 3060 ti': 1665,
+            'rtx 3060': 1777, 'rx 7900 xtx': 2499, 'rx 7900 xt': 2394, 'rx 7800 xt': 2430,
+            'rx 7700 xt': 2544, 'rx 7600': 2625, 'rx 6950 xt': 2310, 'rx 6900 xt': 2250,
+            'rx 6800 xt': 2250, 'rx 6700 xt': 2581, 'rx 6600 xt': 2589,
+        };
+        const modelKey = Object.keys(boostClockLookup).find(k => gpuModelStr.includes(k));
+        const boostClock = modelKey ? `${boostClockLookup[modelKey].toLocaleString()} MHz` : '—';
+
+        const imgHTML = imageUrl
+            ? `<img src="${imageUrl}" alt="${title}" class="gpu-card-img" />`
+            : `<div class="gpu-card-img-placeholder"><i class="fas fa-desktop"></i></div>`;
+
+        card.innerHTML = `
+            <div class="gpu-card-title">${title}</div>
+            <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-specs">
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">VRAM</span><span class="gpu-spec-val">${vram}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Boost Clock</span><span class="gpu-spec-val">${boostClock}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">TDP</span><span class="gpu-spec-val">${tdp}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Architecture</span><span class="gpu-spec-val">${arch}</span></div>
+            </div>
+            <div class="gpu-card-footer">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>`;
+    }
+
+    _renderGpuReviews(gpu) {
+        const container = document.getElementById('gpuReviews');
+        if (!container) return;
+
+        const starsHTML = (score) => {
+            const full = Math.floor(score);
+            const half = score - full >= 0.25 && score - full < 0.75;
+            const empty = 5 - full - (half ? 1 : 0);
+            return [
+                ...Array(full).fill('<i class="fas fa-star"></i>'),
+                ...(half ? ['<i class="fas fa-star-half-alt"></i>'] : []),
+                ...Array(empty).fill('<i class="far fa-star"></i>')
+            ].join('');
+        };
+
+        const enrichedScore = parseFloat(gpu.reviewScore) || 0;
+        const enrichedCount = parseInt(gpu.reviewCount) || 0;
+        const enrichedSource = gpu.reviewSource || 'Amazon';
+
+        // Update header stars with real score
+        const headerStars = document.getElementById('gpuListingStars');
+        if (headerStars && enrichedScore > 0) {
+            headerStars.innerHTML = `${starsHTML(enrichedScore)}
+                <span class="gpu-listing-rating-label">${enrichedScore.toFixed(1)} / 5</span>`;
+        }
+
+        const formatCount = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+
+        if (enrichedScore === 0 || enrichedCount === 0) {
+            container.innerHTML = '<div class="gpu-reviews-title">Reviews</div><p class="gpu-no-reviews">No review data available for this GPU.</p>';
+            return;
+        }
+
+        // Estimate bar distribution from overall score
+        // Higher scores skew heavily toward 5★; lower scores spread more
+        const dist = enrichedScore >= 4.5
+            ? { 5: 0.72, 4: 0.17, 3: 0.06, 2: 0.03, 1: 0.02 }
+            : enrichedScore >= 4.0
+            ? { 5: 0.55, 4: 0.25, 3: 0.12, 2: 0.05, 1: 0.03 }
+            : enrichedScore >= 3.5
+            ? { 5: 0.38, 4: 0.28, 3: 0.18, 2: 0.10, 1: 0.06 }
+            : { 5: 0.22, 4: 0.20, 3: 0.22, 2: 0.20, 1: 0.16 };
+
+        const bars = [5, 4, 3, 2, 1].map(star => {
+            const pct = Math.round((dist[star] || 0) * 100);
+            return `<div class="gpu-review-bar-row">
+                <span class="gpu-bar-label">${star} <i class="fas fa-star" style="font-size:0.6rem"></i></span>
+                <div class="gpu-bar-track"><div class="gpu-bar-fill" style="width:${pct}%"></div></div>
+                <span class="gpu-bar-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="gpu-reviews-title">
+                Reviews
+                <span class="gpu-reviews-source">${formatCount(enrichedCount)} on ${enrichedSource}</span>
+            </div>
+            <div class="gpu-review-aggregate-card">
+                <div class="gpu-agg-score">${enrichedScore.toFixed(1)}</div>
+                <div class="gpu-agg-right">
+                    <div class="gpu-review-stars">${starsHTML(enrichedScore)}</div>
+                    <div class="gpu-agg-count">Based on ${formatCount(enrichedCount)} ratings</div>
+                </div>
+            </div>
+            <div class="gpu-review-bar-wrap">${bars}</div>`;
+    }
+
+    _renderGpuBenchmarkChart(gpu) {
+        const section = document.getElementById('gpuBenchmarkSection');
+        if (!section) return;
+
+        // Get a normalized 0–1 performance score for the GPU
+        const perfScore = this.getGpuPerformance(gpu) || 0;
+
+        // Base FPS values for a "reference" GPU at score 1.0 (RTX 5090 class)
+        // Scaled down for each resolution. Games: Cyberpunk 2077 (heavy), Fortnite (medium), CS2 (light)
+        const games = [
+            {
+                name: 'Cyberpunk 2077',
+                icon: 'fas fa-city',
+                tag: 'Heavy / Ray Tracing',
+                baseFPS: { '1080p': 165, '1440p': 120, '4K': 80 }
+            },
+            {
+                name: 'Fortnite',
+                icon: 'fas fa-crosshairs',
+                tag: 'Medium / Competitive',
+                baseFPS: { '1080p': 300, '1440p': 240, '4K': 165 }
+            },
+            {
+                name: 'CS2',
+                icon: 'fas fa-bullseye',
+                tag: 'Light / Esports',
+                baseFPS: { '1080p': 500, '1440p': 380, '4K': 260 }
+            }
+        ];
+
+        const resolutions = ['1080p', '1440p', '4K'];
+        // Score floors out at 0.05 so even weak GPUs show a bar
+        const scale = Math.max(perfScore, 0.05);
+
+        let gamesHTML = '';
+        for (const game of games) {
+            let resHTML = '';
+            for (const res of resolutions) {
+                const fps = Math.round(game.baseFPS[res] * scale);
+                // Cap display bar at 100% but allow fps label to be real
+                const barPct = Math.min((fps / game.baseFPS['1080p']) * 100, 100);
+                // Color: green ≥60fps, yellow ≥30fps, red <30fps
+                const barColor = fps >= 60 ? 'var(--primary-color, #4f8ef7)' : fps >= 30 ? '#f5a623' : '#e74c3c';
+                resHTML += `
+                    <div class="gpu-bench-row">
+                        <span class="gpu-bench-res">${res}</span>
+                        <div class="gpu-bench-bar-track">
+                            <div class="gpu-bench-bar-fill" style="width:${barPct.toFixed(1)}%;background:${barColor}"></div>
+                        </div>
+                        <span class="gpu-bench-fps">${fps} fps</span>
+                    </div>`;
+            }
+            gamesHTML += `
+                <div class="gpu-bench-game">
+                    <div class="gpu-bench-game-header">
+                        <i class="${game.icon}"></i>
+                        <span class="gpu-bench-game-name">${game.name}</span>
+                        <span class="gpu-bench-game-tag">${game.tag}</span>
+                    </div>
+                    ${resHTML}
+                </div>`;
+        }
+
+        section.innerHTML = `
+            <div class="gpu-bench-title"><i class="fas fa-tachometer-alt"></i> FPS Estimates <span class="gpu-bench-disclaimer-badge">Calculated</span></div>
+            <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> These are <strong>calculated estimates</strong> scaled from benchmark scores, not measured results. Actual FPS will vary based on drivers, settings, and system configuration.</p>
+            ${gamesHTML}`;
+    }
+
+    _renderGpuTabScatterPlot(gpus) {
+        const canvas = document.getElementById('gpuTabScatterPlot');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const wrap = canvas.parentElement;
+        const width = Math.max(wrap.offsetWidth - 32, 300);
+        const height = 380;
+        canvas.width = width;
+        canvas.height = height;
+
+        // Build data points, keeping reference to original gpu object
+        const pts = [];
+        gpus.forEach(gpu => {
+            const perf = this.getGpuPerformance(gpu);
+            const price = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
+            if (perf && price > 0) pts.push({ gpu, performance: perf, price });
+        });
+
+        if (!pts.length) {
+            ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No GPU data available', width / 2, height / 2);
+            return;
+        }
+
+        const pad = { top: 24, right: 30, bottom: 58, left: 80 };
+        const cw = width - pad.left - pad.right;
+        const ch = height - pad.top - pad.bottom;
+
+        const maxPerf = Math.max(...pts.map(p => p.performance));
+        const minPerf = Math.min(...pts.map(p => p.performance));
+        const maxP = Math.max(...pts.map(p => p.price));
+        const minP = Math.min(...pts.map(p => p.price));
+        const step = Math.ceil((maxP - minP) / 5 / 100) * 100 || 100;
+        const rMin = Math.floor(minP / 100) * 100;
+        const rMax = rMin + step * 5;
+
+        const scores = pts.map(p => p.performance / p.price);
+        const sMax = Math.max(...scores), sMin = Math.min(...scores);
+
+        // Compute canvas (x,y) for each point and store for hit-testing
+        pts.forEach((p, i) => {
+            p.cx = pad.left + ((p.performance - minPerf) / (maxPerf - minPerf || 1)) * cw;
+            p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
+            p.valueScore = scores[i];
+        });
+        this._gpuTabChartPts = pts;
+        this._gpuTabChartMeta = { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step };
+
+        // Store draw function so we can redraw on selection change
+        this._drawGpuTabChart = (selectedGpu) => {
+            const { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step } = this._gpuTabChartMeta;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Grid + Y labels
+            for (let i = 0; i <= 5; i++) {
+                const price = rMin + step * i;
+                const y = height - pad.bottom - (ch / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.fillText('$' + price, pad.left - 8, y);
+            }
+
+            // Grid + X labels
+            for (let i = 0; i <= 5; i++) {
+                const perf = minPerf + ((maxPerf - minPerf) / 5) * i;
+                const x = pad.left + (cw / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText((perf * 100).toFixed(0) + '%', x, height - pad.bottom + 6);
+            }
+
+            // Axes
+            ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom);
+            ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('Relative Performance', pad.left + cw / 2, height - 4);
+            ctx.save();
+            ctx.translate(14, pad.top + ch / 2);
+            ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
+            ctx.fillText('Price (USD)', 0, 0);
+            ctx.restore();
+
+            const selectedTitle = selectedGpu ? (selectedGpu.title || selectedGpu.name || '') : '';
+
+            // Draw all non-selected points first, then selected on top
+            const [unselected, selected] = this._gpuTabChartPts.reduce(
+                ([u, s], p) => (p.gpu.title === selectedTitle || p.gpu.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                [[], []]
+            );
+
+            [...unselected, ...selected].forEach(p => {
+                const isSelected = p.gpu.title === selectedTitle || p.gpu.name === selectedTitle;
+                const t = (p.valueScore - sMin) / (sMax - sMin || 1);
+                const r = Math.round(220 * (1 - t));
+                const g = Math.round(40 + 160 * t);
+
+                if (isSelected) {
+                    // Highlight ring
+                    ctx.strokeStyle = '#2563eb';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
+                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+
+            // Legend
+            const lx = pad.left + cw - 110, ly = pad.top + 8;
+            ctx.fillStyle = 'rgba(248,250,252,0.92)';
+            ctx.fillRect(lx - 8, ly - 4, 120, 42);
+            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
+            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(40,190,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
+            ctx.fillStyle = 'rgba(220,60,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
+        };
+
+        this._drawGpuTabChart(this._gpuTabSelectedGpu || null);
+
+        // ── Event listeners (attach once) ──
+        if (!canvas._gpuListenersAttached) {
+            canvas._gpuListenersAttached = true;
+            canvas.style.cursor = 'default';
+
+            // Hover: change cursor near a dot
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                const hit = this._gpuTabChartPts?.find(p => Math.hypot(p.cx - mx, p.cy - my) <= 8);
+                canvas.style.cursor = hit ? 'pointer' : 'default';
+
+                // Tooltip
+                const tip = document.getElementById('gpuChartTooltip');
+                if (hit && tip) {
+                    tip.textContent = (hit.gpu.title || hit.gpu.name || '');
+                    tip.style.display = 'block';
+                    tip.style.left = (e.offsetX + 12) + 'px';
+                    tip.style.top = (e.offsetY - 8) + 'px';
+                } else if (tip) {
+                    tip.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                const tip = document.getElementById('gpuChartTooltip');
+                if (tip) tip.style.display = 'none';
+                canvas.style.cursor = 'default';
+            });
+
+            // Click: update card
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                let closest = null, closestDist = Infinity;
+                this._gpuTabChartPts?.forEach(p => {
+                    const d = Math.hypot(p.cx - mx, p.cy - my);
+                    if (d < closestDist) { closestDist = d; closest = p; }
+                });
+                if (closest && closestDist <= 10) {
+                    this._gpuTabSelectedGpu = closest.gpu;
+                    this._renderGpuProductCard(closest.gpu);
+                    this._renderGpuReviews(closest.gpu);
+                    this._renderGpuBenchmarkChart(closest.gpu);
+                    this._drawGpuTabChart(closest.gpu);
+                }
+            });
+        }
+
+        // Tooltip element (create once inside the chart-wrap)
+        if (!document.getElementById('gpuChartTooltip')) {
+            const wrap2 = canvas.parentElement;
+            wrap2.style.position = 'relative';
+            const tip = document.createElement('div');
+            tip.id = 'gpuChartTooltip';
+            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
+            wrap2.appendChild(tip);
+        }
     }
 
     toggleStatisticsPanel() {
