@@ -316,6 +316,38 @@
 
         <!-- CPU Tab Content -->
         <div class="tab-content" id="cpu-tab">
+
+            <!-- CPU Listings Section -->
+            <div class="gpu-listings-section" id="cpuListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="cpuListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="cpuBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="cpuProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value CPU…</div>
+                        </div>
+                        <div class="gpu-reviews" id="cpuReviews"></div>
+                    </div>
+
+                    <!-- Right: Price vs Performance chart + Benchmarks -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Price vs Performance</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="cpuTabScatterPlot"></canvas>
+                        </div>
+                        <div id="cpuBenchmarkSection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">
@@ -476,6 +508,38 @@
 
         <!-- Motherboard Tab Content -->
         <div class="tab-content" id="motherboard-tab">
+
+            <!-- Motherboard Listings Section -->
+            <div class="gpu-listings-section" id="moboListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="moboListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="moboBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="moboProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value motherboard…</div>
+                        </div>
+                        <div class="gpu-reviews" id="moboReviews"></div>
+                    </div>
+
+                    <!-- Right: Value vs Price scatter plot + Compatibility highlights -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Value Score vs Price</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="moboTabScatterPlot"></canvas>
+                        </div>
+                        <div id="moboCompatSection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">
@@ -642,6 +706,38 @@
 
         <!-- RAM Tab Content -->
         <div class="tab-content" id="ram-tab">
+
+            <!-- RAM Listings Section -->
+            <div class="gpu-listings-section" id="ramListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="ramListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="ramBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="ramProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value RAM…</div>
+                        </div>
+                        <div class="gpu-reviews" id="ramReviews"></div>
+                    </div>
+
+                    <!-- Right: GB/$ vs Price scatter plot + Performance impact -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> GB per Dollar vs Price</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="ramTabScatterPlot"></canvas>
+                        </div>
+                        <div id="ramPerfSection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">

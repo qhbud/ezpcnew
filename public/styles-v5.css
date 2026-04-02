@@ -5269,6 +5269,60 @@ tr.incompatible td {
     text-align: right;
 }
 
+/* Motherboard compatibility highlights */
+.mobo-compat-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 130px;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: 8px;
+}
+
+.mobo-compat-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobo-compat-icon {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    width: 14px;
+    text-align: center;
+}
+
+.mobo-compat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.mobo-compat-track {
+    height: 8px;
+}
+
+.mobo-compat-value {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+/* RAM performance impact rows — wider game label, wider value label */
+.ram-perf-row {
+    grid-template-columns: 110px 1fr 160px;
+}
+
+.ram-perf-game {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     .gpu-listings-two-col {
