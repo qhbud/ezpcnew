@@ -393,7 +393,7 @@ class PartsDatabase {
         } else if (tabName === 'ram') {
             this.renderRamListingsSection();
         } else if (tabName === 'psu') {
-            // PSU tab is now an informational guide — no parts grid needed
+            this.renderPsuListingsSection();
         } else if (tabName === 'cooler') {
             // Cooler tab is now an informational guide — no parts grid needed
         } else if (tabName === 'builder') {
@@ -13837,6 +13837,433 @@ class PartsDatabase {
             wrap2.style.position = 'relative';
             const tip = document.createElement('div');
             tip.id = 'ramChartTooltip';
+            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
+            wrap2.appendChild(tip);
+        }
+    }
+
+    // ── PSU Tab Listings ───────────────────────────────────────────
+    // Efficiency score: titanium=4, platinum=3, gold=2, bronze=1, null=0.5
+    _getPsuEfficiencyScore(psu) {
+        const c = (psu.certification || '').toLowerCase();
+        if (c === 'titanium') return 4;
+        if (c === 'platinum') return 3;
+        if (c === 'gold') return 2;
+        if (c === 'bronze') return 1;
+        return 0.5;
+    }
+
+    // 80 Plus efficiency % at 20/50/100% load per certification tier
+    _getPsuEfficiencyTable(psu) {
+        const c = (psu.certification || '').toLowerCase();
+        const tables = {
+            titanium: { 20: 0.92, 50: 0.94, 100: 0.91 },
+            platinum: { 20: 0.90, 50: 0.92, 100: 0.89 },
+            gold:     { 20: 0.87, 50: 0.90, 100: 0.87 },
+            bronze:   { 20: 0.82, 50: 0.85, 100: 0.82 },
+        };
+        return tables[c] || { 20: 0.77, 50: 0.80, 100: 0.77 };
+    }
+
+    async renderPsuListingsSection() {
+        if (this._psuListingsRendered) return;
+        try {
+            const response = await fetch('/api/parts/psus');
+            if (!response.ok) return;
+            const psus = await response.json();
+
+            // Best value: highest (wattage * efficiencyScore) per dollar
+            let bestPsu = null, bestScore = 0;
+            psus.forEach(p => {
+                const watts = p.wattage || 0;
+                const eff = this._getPsuEfficiencyScore(p);
+                const price = parseFloat(p.salePrice || p.currentPrice || p.basePrice || p.price) || 0;
+                if (watts && price > 20) {
+                    const s = (watts * eff) / price;
+                    if (s > bestScore) { bestScore = s; bestPsu = p; }
+                }
+            });
+            this._psuBestValue = bestPsu;
+
+            if (bestPsu) {
+                this._renderPsuProductCard(bestPsu);
+                this._renderPsuReviews(bestPsu);
+                this._renderPsuEfficiencySection(bestPsu);
+            }
+            this._renderPsuTabScatterPlot(psus);
+            this._psuListingsRendered = true;
+        } catch (e) {
+            console.error('PSU listings error:', e);
+        }
+    }
+
+    _renderPsuProductCard(psu) {
+        const card = document.getElementById('psuProductCard');
+        if (!card) return;
+
+        const badge = document.getElementById('psuBestValueBadge');
+        if (badge) {
+            const isBest = this._psuBestValue &&
+                (psu._id === this._psuBestValue._id || psu.name === this._psuBestValue.name);
+            badge.style.display = isBest ? '' : 'none';
+        }
+
+        const title = psu.name || 'Unknown PSU';
+        const price = parseFloat(psu.salePrice || psu.currentPrice || psu.basePrice || psu.price) || 0;
+        const buyUrl = psu.url || psu.sourceUrl || '#';
+        const imageUrl = psu.image || psu.imageUrl || '';
+
+        // Wattage
+        const wattage = psu.wattage ? `${psu.wattage}W` : '—';
+
+        // Efficiency — capitalise and prefix with "80+"
+        const certMap = { titanium: '80+ Titanium', platinum: '80+ Platinum', gold: '80+ Gold', bronze: '80+ Bronze' };
+        const cert = psu.certification ? (certMap[psu.certification.toLowerCase()] || psu.certification) : '—';
+
+        // Modular type — DB field often null, parse from name as fallback
+        let modular = '—';
+        if (psu.modularity) {
+            const mMap = { fully_modular: 'Fully Modular', semi_modular: 'Semi-Modular', non_modular: 'Non-Modular' };
+            modular = mMap[psu.modularity] || psu.modularity;
+        } else {
+            const n = title.toLowerCase();
+            if (n.includes('full modular') || n.includes('fully modular')) modular = 'Fully Modular';
+            else if (n.includes('semi modular') || n.includes('semi-modular')) modular = 'Semi-Modular';
+            else if (n.includes('non modular') || n.includes('non-modular')) modular = 'Non-Modular';
+        }
+
+        // Fan size — parse from name, otherwise estimate by form factor
+        let fanSize = '—';
+        const fanMatch = title.match(/(\d{3})mm\s*fan/i) || title.match(/fan[\s\-]*(\d{3})mm/i);
+        if (fanMatch) {
+            fanSize = `${fanMatch[1]}mm`;
+        } else if (psu.features && psu.features.includes('fanless')) {
+            fanSize = 'Fanless';
+        } else {
+            const ff = (psu.formFactor || '').toLowerCase();
+            fanSize = (ff === 'sfx' || ff === 'sfx-l') ? '92mm' : '120mm';
+        }
+
+        // Form factor — normalise casing
+        const ffMap = { atx: 'ATX', sfx: 'SFX', 'sfx-l': 'SFX-L', itx: 'ITX' };
+        const formFactor = psu.formFactor ? (ffMap[psu.formFactor.toLowerCase()] || psu.formFactor.toUpperCase()) : '—';
+
+        // Warranty — parse from name
+        let warranty = '—';
+        const wMatch = title.match(/(\d+)\s*[Yy]ear\s*[Ww]arranty/);
+        if (wMatch) warranty = `${wMatch[1]} Years`;
+
+        const imgHTML = imageUrl
+            ? `<img src="${imageUrl}" alt="${title}" class="gpu-card-img" />`
+            : `<div class="gpu-card-img-placeholder"><i class="fas fa-plug"></i></div>`;
+
+        card.innerHTML = `
+            <div class="gpu-card-title">${title}</div>
+            <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-specs">
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Wattage</span><span class="gpu-spec-val">${wattage}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Efficiency</span><span class="gpu-spec-val">${cert}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Modular</span><span class="gpu-spec-val">${modular}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Fan Size</span><span class="gpu-spec-val">${fanSize}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Form Factor</span><span class="gpu-spec-val">${formFactor}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Warranty</span><span class="gpu-spec-val">${warranty}</span></div>
+            </div>
+            <div class="gpu-card-footer">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>`;
+    }
+
+    _renderPsuReviews(psu) {
+        const container = document.getElementById('psuReviews');
+        if (!container) return;
+
+        const starsHTML = (score) => {
+            const full = Math.floor(score);
+            const half = score - full >= 0.25 && score - full < 0.75;
+            const empty = 5 - full - (half ? 1 : 0);
+            return [
+                ...Array(full).fill('<i class="fas fa-star"></i>'),
+                ...(half ? ['<i class="fas fa-star-half-alt"></i>'] : []),
+                ...Array(empty).fill('<i class="far fa-star"></i>')
+            ].join('');
+        };
+
+        const enrichedScore = parseFloat(psu.reviewScore) || 0;
+        const enrichedCount = parseInt(psu.reviewCount) || 0;
+        const enrichedSource = psu.reviewSource || 'Amazon';
+
+        const headerStars = document.getElementById('psuListingStars');
+        if (headerStars && enrichedScore > 0) {
+            headerStars.innerHTML = `${starsHTML(enrichedScore)}
+                <span class="gpu-listing-rating-label">${enrichedScore.toFixed(1)} / 5</span>`;
+        }
+
+        const formatCount = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+
+        if (enrichedScore === 0 || enrichedCount === 0) {
+            container.innerHTML = '<div class="gpu-reviews-title">Reviews</div><p class="gpu-no-reviews">No review data available for this PSU.</p>';
+            return;
+        }
+
+        const dist = enrichedScore >= 4.5
+            ? { 5: 0.72, 4: 0.17, 3: 0.06, 2: 0.03, 1: 0.02 }
+            : enrichedScore >= 4.0
+            ? { 5: 0.55, 4: 0.25, 3: 0.12, 2: 0.05, 1: 0.03 }
+            : enrichedScore >= 3.5
+            ? { 5: 0.38, 4: 0.28, 3: 0.18, 2: 0.10, 1: 0.06 }
+            : { 5: 0.22, 4: 0.20, 3: 0.22, 2: 0.20, 1: 0.16 };
+
+        const bars = [5, 4, 3, 2, 1].map(star => {
+            const pct = Math.round((dist[star] || 0) * 100);
+            return `<div class="gpu-review-bar-row">
+                <span class="gpu-bar-label">${star} <i class="fas fa-star" style="font-size:0.6rem"></i></span>
+                <div class="gpu-bar-track"><div class="gpu-bar-fill" style="width:${pct}%"></div></div>
+                <span class="gpu-bar-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="gpu-reviews-title">
+                Reviews
+                <span class="gpu-reviews-source">${formatCount(enrichedCount)} on ${enrichedSource}</span>
+            </div>
+            <div class="gpu-review-aggregate-card">
+                <div class="gpu-agg-score">${enrichedScore.toFixed(1)}</div>
+                <div class="gpu-agg-right">
+                    <div class="gpu-review-stars">${starsHTML(enrichedScore)}</div>
+                    <div class="gpu-agg-count">Based on ${formatCount(enrichedCount)} ratings</div>
+                </div>
+            </div>
+            <div class="gpu-review-bar-wrap">${bars}</div>`;
+    }
+
+    _renderPsuEfficiencySection(psu) {
+        const section = document.getElementById('psuEfficiencySection');
+        if (!section) return;
+
+        const watts = psu.wattage || 0;
+        const effTable = this._getPsuEfficiencyTable(psu);
+        const certMap = { titanium: '80+ Titanium', platinum: '80+ Platinum', gold: '80+ Gold', bronze: '80+ Bronze' };
+        const certLabel = psu.certification ? (certMap[psu.certification.toLowerCase()] || psu.certification) : 'Uncertified';
+
+        // Efficiency scale: titanium ceiling 94%, bronze floor ~77%
+        const EFF_MIN = 0.75, EFF_MAX = 0.94;
+
+        const loads = [
+            { pct: 20, label: '20% Load', icon: 'fas fa-battery-quarter' },
+            { pct: 50, label: '50% Load', icon: 'fas fa-battery-half' },
+            { pct: 100, label: '100% Load', icon: 'fas fa-battery-full' },
+        ];
+
+        let rowsHTML = '';
+        for (const load of loads) {
+            const eff = effTable[load.pct];
+            const outputW = watts * (load.pct / 100);
+            const inputW = watts > 0 ? Math.round(outputW / eff) : 0;
+            const barPct = ((eff - EFF_MIN) / (EFF_MAX - EFF_MIN)) * 100;
+            const barColor = eff >= 0.92 ? 'var(--primary-color, #4f8ef7)' : eff >= 0.87 ? '#22c55e' : eff >= 0.82 ? '#f5a623' : '#9ca3af';
+            const valueLabel = watts > 0 ? `${(eff * 100).toFixed(0)}% · ${inputW}W from wall` : `${(eff * 100).toFixed(0)}%`;
+
+            rowsHTML += `
+                <div class="gpu-bench-row psu-eff-row">
+                    <span class="gpu-bench-res psu-eff-load">${load.label}</span>
+                    <div class="gpu-bench-bar-track">
+                        <div class="gpu-bench-bar-fill" style="width:${Math.max(barPct, 2).toFixed(1)}%;background:${barColor}"></div>
+                    </div>
+                    <span class="gpu-bench-fps psu-eff-val">${valueLabel}</span>
+                </div>`;
+        }
+
+        section.innerHTML = `
+            <div class="gpu-bench-title"><i class="fas fa-leaf"></i> Power Efficiency <span class="gpu-bench-disclaimer-badge">${certLabel}</span></div>
+            <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Estimated wall draw and efficiency at each load level per 80 Plus spec. Actual values vary by unit and conditions.</p>
+            ${rowsHTML}`;
+    }
+
+    _renderPsuTabScatterPlot(psus) {
+        const canvas = document.getElementById('psuTabScatterPlot');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const wrap = canvas.parentElement;
+        const width = Math.max(wrap.offsetWidth - 32, 300);
+        const height = 380;
+        canvas.width = width;
+        canvas.height = height;
+
+        // X: watts per dollar   Y: price   Color: efficiency tier
+        const pts = [];
+        psus.forEach(p => {
+            const watts = p.wattage || 0;
+            const price = parseFloat(p.salePrice || p.currentPrice || p.basePrice || p.price) || 0;
+            if (watts && price > 0) pts.push({ psu: p, wattsPerDollar: watts / price, price, effScore: this._getPsuEfficiencyScore(p) });
+        });
+
+        if (!pts.length) {
+            ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No PSU data available', width / 2, height / 2);
+            return;
+        }
+
+        const pad = { top: 24, right: 30, bottom: 58, left: 80 };
+        const cw = width - pad.left - pad.right;
+        const ch = height - pad.top - pad.bottom;
+
+        const maxX = Math.max(...pts.map(p => p.wattsPerDollar));
+        const minX = 0;
+        const maxP = Math.max(...pts.map(p => p.price));
+        const minP = Math.min(...pts.map(p => p.price));
+        const step = Math.ceil((maxP - minP) / 5 / 50) * 50 || 50;
+        const rMin = Math.floor(minP / 50) * 50;
+        const rMax = rMin + step * 5;
+
+        const effMin = Math.min(...pts.map(p => p.effScore));
+        const effMax = Math.max(...pts.map(p => p.effScore));
+
+        pts.forEach(p => {
+            p.cx = pad.left + ((p.wattsPerDollar - minX) / (maxX - minX || 1)) * cw;
+            p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
+            p.valueScore = p.wattsPerDollar;
+            p.effNorm = (p.effScore - effMin) / (effMax - effMin || 1);
+        });
+        this._psuTabChartPts = pts;
+        this._psuTabChartMeta = { pad, cw, ch, width, height, rMin, rMax, minX, maxX, step, effMin, effMax };
+
+        this._drawPsuTabChart = (selectedPsu) => {
+            const { pad, cw, ch, width, height, rMin, rMax, minX, maxX, step } = this._psuTabChartMeta;
+
+            ctx.clearRect(0, 0, width, height);
+
+            for (let i = 0; i <= 5; i++) {
+                const price = rMin + step * i;
+                const y = height - pad.bottom - (ch / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.fillText('$' + price, pad.left - 8, y);
+            }
+
+            for (let i = 0; i <= 5; i++) {
+                const val = minX + ((maxX - minX) / 5) * i;
+                const x = pad.left + (cw / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText(val.toFixed(1) + 'W/$', x, height - pad.bottom + 6);
+            }
+
+            ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom);
+            ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
+
+            ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('Watts per Dollar', pad.left + cw / 2, height - 4);
+            ctx.save();
+            ctx.translate(14, pad.top + ch / 2);
+            ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
+            ctx.fillText('Price (USD)', 0, 0);
+            ctx.restore();
+
+            const selectedName = selectedPsu ? (selectedPsu.name || '') : '';
+
+            const [unselected, selected] = this._psuTabChartPts.reduce(
+                ([u, s], p) => p.psu.name === selectedName ? [u, [...s, p]] : [[...u, p], s],
+                [[], []]
+            );
+
+            [...unselected, ...selected].forEach(p => {
+                const isSelected = p.psu.name === selectedName;
+                const t = p.effNorm;
+                const r = Math.round(220 * (1 - t));
+                const g = Math.round(40 + 160 * t);
+
+                if (isSelected) {
+                    ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
+                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+
+            const lx = pad.left + cw - 120, ly = pad.top + 8;
+            ctx.fillStyle = 'rgba(248,250,252,0.92)';
+            ctx.fillRect(lx - 8, ly - 4, 130, 42);
+            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+            ctx.strokeRect(lx - 8, ly - 4, 130, 42);
+            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(40,190,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Higher efficiency', lx + 9, ly + 6);
+            ctx.fillStyle = 'rgba(220,60,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Lower efficiency', lx + 9, ly + 22);
+        };
+
+        this._drawPsuTabChart(this._psuTabSelectedPsu || null);
+
+        if (!canvas._psuListenersAttached) {
+            canvas._psuListenersAttached = true;
+            canvas.style.cursor = 'default';
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                const hit = this._psuTabChartPts?.find(p => Math.hypot(p.cx - mx, p.cy - my) <= 8);
+                canvas.style.cursor = hit ? 'pointer' : 'default';
+
+                const tip = document.getElementById('psuChartTooltip');
+                if (hit && tip) {
+                    tip.textContent = hit.psu.name || '';
+                    tip.style.display = 'block';
+                    tip.style.left = (e.offsetX + 12) + 'px';
+                    tip.style.top = (e.offsetY - 8) + 'px';
+                } else if (tip) {
+                    tip.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                const tip = document.getElementById('psuChartTooltip');
+                if (tip) tip.style.display = 'none';
+                canvas.style.cursor = 'default';
+            });
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                let closest = null, closestDist = Infinity;
+                this._psuTabChartPts?.forEach(p => {
+                    const d = Math.hypot(p.cx - mx, p.cy - my);
+                    if (d < closestDist) { closestDist = d; closest = p; }
+                });
+                if (closest && closestDist <= 10) {
+                    this._psuTabSelectedPsu = closest.psu;
+                    this._renderPsuProductCard(closest.psu);
+                    this._renderPsuReviews(closest.psu);
+                    this._renderPsuEfficiencySection(closest.psu);
+                    this._drawPsuTabChart(closest.psu);
+                }
+            });
+        }
+
+        if (!document.getElementById('psuChartTooltip')) {
+            const wrap2 = canvas.parentElement;
+            wrap2.style.position = 'relative';
+            const tip = document.createElement('div');
+            tip.id = 'psuChartTooltip';
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
