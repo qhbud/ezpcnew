@@ -896,6 +896,38 @@
 
         <!-- PSU Tab Content -->
         <div class="tab-content" id="psu-tab">
+
+            <!-- PSU Listings Section -->
+            <div class="gpu-listings-section" id="psuListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="psuListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="psuBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="psuProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value PSU…</div>
+                        </div>
+                        <div class="gpu-reviews" id="psuReviews"></div>
+                    </div>
+
+                    <!-- Right: Wattage/$ vs Price scatter plot + Efficiency chart -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Watts per Dollar vs Price</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="psuTabScatterPlot"></canvas>
+                        </div>
+                        <div id="psuEfficiencySection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">
