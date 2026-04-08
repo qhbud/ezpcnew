@@ -1113,6 +1113,38 @@
 
         <!-- Cooler Tab Content -->
         <div class="tab-content" id="cooler-tab">
+
+            <!-- Cooler Listings Section -->
+            <div class="gpu-listings-section" id="coolerListingsSection">
+                <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card + reviews -->
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars" id="coolerListingStars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="coolerBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="coolerProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value Cooler…</div>
+                        </div>
+                        <div class="gpu-reviews" id="coolerReviews"></div>
+                    </div>
+
+                    <!-- Right: Price vs Performance chart + Thermal Chart -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Price vs Performance</div>
+                        <div class="gpu-chart-wrap">
+                            <canvas id="coolerTabScatterPlot"></canvas>
+                        </div>
+                        <div id="coolerThermalSection" class="gpu-benchmark-section"></div>
+                    </div>
+
+                </div>
+            </div>
+
             <div class="component-guide">
 
                 <div class="cg-intro">

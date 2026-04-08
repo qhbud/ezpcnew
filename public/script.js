@@ -395,7 +395,7 @@ class PartsDatabase {
         } else if (tabName === 'psu') {
             this.renderPsuListingsSection();
         } else if (tabName === 'cooler') {
-            // Cooler tab is now an informational guide — no parts grid needed
+            this.renderCoolerListingsSection();
         } else if (tabName === 'builder') {
             this.initializePCBuilder();
         } else if (tabName === 'guides') {
@@ -13007,6 +13007,459 @@ class PartsDatabase {
             wrap2.style.position = 'relative';
             const tip = document.createElement('div');
             tip.id = 'cpuChartTooltip';
+            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
+            wrap2.appendChild(tip);
+        }
+    }
+
+    // ── Cooler Tab Listings ───────────────────────────────────────
+    getCoolerPerformance(cooler) {
+        // Thermal performance score based on TDP rating (primary) and type
+        const tdp = cooler.performance?.tdp || cooler.tdp || 0;
+        if (!tdp) return null;
+        // Normalize against 360mm AIO class (≈350W TDP as ceiling)
+        const maxTdp = 350;
+        let score = tdp / maxTdp;
+        // AIO gets a small bonus for sustained thermal performance
+        const type = (cooler.type || cooler.coolingMethod || '').toLowerCase();
+        if (type.includes('liquid') || type.includes('aio')) score = Math.min(score * 1.08, 1);
+        return score;
+    }
+
+    async renderCoolerListingsSection() {
+        if (this._coolerListingsRendered) return;
+        try {
+            const response = await fetch('/api/parts/coolers');
+            if (!response.ok) return;
+            const coolers = await response.json();
+
+            // Find best-value cooler (highest thermal perf per dollar, price > $20)
+            let bestCooler = null;
+            let bestScore = 0;
+            coolers.forEach(cooler => {
+                const perf = this.getCoolerPerformance(cooler);
+                const price = parseFloat(cooler.salePrice || cooler.currentPrice || cooler.basePrice || cooler.price) || 0;
+                if (perf && price > 20) {
+                    const score = (perf / price) * 1000;
+                    if (score > bestScore) { bestScore = score; bestCooler = cooler; }
+                }
+            });
+            this._coolerBestValue = bestCooler;
+
+            if (bestCooler) {
+                this._renderCoolerProductCard(bestCooler);
+                this._renderCoolerReviews(bestCooler);
+                this._renderCoolerThermalChart(bestCooler);
+            }
+            this._renderCoolerTabScatterPlot(coolers);
+            this._coolerListingsRendered = true;
+        } catch (e) {
+            console.error('Cooler listings error:', e);
+        }
+    }
+
+    _renderCoolerProductCard(cooler) {
+        const card = document.getElementById('coolerProductCard');
+        if (!card) return;
+
+        // Show "Best Value" badge only for best-value cooler
+        const badge = document.getElementById('coolerBestValueBadge');
+        if (badge) {
+            const isBest = this._coolerBestValue &&
+                (cooler._id === this._coolerBestValue._id ||
+                 (cooler.title || cooler.name) === (this._coolerBestValue.title || this._coolerBestValue.name));
+            badge.style.display = isBest ? '' : 'none';
+        }
+
+        const title = cooler.title || cooler.name || 'Unknown Cooler';
+        const price = parseFloat(cooler.salePrice || cooler.currentPrice || cooler.basePrice || cooler.price) || 0;
+        const buyUrl = cooler.sourceUrl || cooler.url || '#';
+        const imageUrl = cooler.imageUrl || cooler.image || '';
+
+        // Type
+        const rawType = cooler.type || cooler.coolingMethod || '';
+        const typeLabel = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : '—';
+
+        // TDP rating
+        const tdp = (cooler.performance?.tdp || cooler.tdp) ? `${cooler.performance?.tdp || cooler.tdp}W` : '—';
+
+        // Fan RPM
+        const fanMax = cooler.fan?.speed?.max;
+        const fanMin = cooler.fan?.speed?.min;
+        const fanRpm = fanMax ? (fanMin ? `${fanMin}–${fanMax} RPM` : `${fanMax} RPM`) : '—';
+
+        // Noise level
+        const noise = (cooler.fan?.noise || cooler.performance?.noise) ? `${cooler.fan?.noise || cooler.performance?.noise} dBA` : '—';
+
+        // Socket compatibility
+        const sockets = Array.isArray(cooler.socket) ? cooler.socket.join(', ') : (cooler.socket || '—');
+
+        // Height or radiator size
+        let sizeLabel = '—';
+        const coolerType = (cooler.type || cooler.coolingMethod || '').toLowerCase();
+        if (coolerType.includes('liquid') || coolerType.includes('aio')) {
+            sizeLabel = cooler.radiator?.size ? `${cooler.radiator.size}mm Radiator` : '—';
+        } else {
+            sizeLabel = cooler.dimensions?.height ? `${cooler.dimensions.height}mm` : '—';
+        }
+
+        const imgHTML = imageUrl
+            ? `<img src="${imageUrl}" alt="${title}" class="gpu-card-img" />`
+            : `<div class="gpu-card-img-placeholder"><i class="fas fa-snowflake"></i></div>`;
+
+        card.innerHTML = `
+            <div class="gpu-card-title">${title}</div>
+            <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-specs">
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Type</span><span class="gpu-spec-val">${typeLabel}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">TDP Rating</span><span class="gpu-spec-val">${tdp}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Fan RPM</span><span class="gpu-spec-val">${fanRpm}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Noise Level</span><span class="gpu-spec-val">${noise}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Socket Compat.</span><span class="gpu-spec-val">${sockets}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">${(coolerType.includes('liquid') || coolerType.includes('aio')) ? 'Radiator Size' : 'Height'}</span><span class="gpu-spec-val">${sizeLabel}</span></div>
+            </div>
+            <div class="gpu-card-footer">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>`;
+    }
+
+    _renderCoolerReviews(cooler) {
+        const container = document.getElementById('coolerReviews');
+        if (!container) return;
+
+        const starsHTML = (score) => {
+            const full = Math.floor(score);
+            const half = score - full >= 0.25 && score - full < 0.75;
+            const empty = 5 - full - (half ? 1 : 0);
+            return [
+                ...Array(full).fill('<i class="fas fa-star"></i>'),
+                ...(half ? ['<i class="fas fa-star-half-alt"></i>'] : []),
+                ...Array(empty).fill('<i class="far fa-star"></i>')
+            ].join('');
+        };
+
+        const enrichedScore = parseFloat(cooler.reviewScore) || 0;
+        const enrichedCount = parseInt(cooler.reviewCount) || 0;
+        const enrichedSource = cooler.reviewSource || 'Amazon';
+
+        // Update header stars
+        const headerStars = document.getElementById('coolerListingStars');
+        if (headerStars && enrichedScore > 0) {
+            headerStars.innerHTML = `${starsHTML(enrichedScore)}
+                <span class="gpu-listing-rating-label">${enrichedScore.toFixed(1)} / 5</span>`;
+        }
+
+        const formatCount = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+
+        if (enrichedScore === 0 || enrichedCount === 0) {
+            container.innerHTML = '<div class="gpu-reviews-title">Reviews</div><p class="gpu-no-reviews">No review data available for this cooler.</p>';
+            return;
+        }
+
+        const dist = enrichedScore >= 4.5
+            ? { 5: 0.72, 4: 0.17, 3: 0.06, 2: 0.03, 1: 0.02 }
+            : enrichedScore >= 4.0
+            ? { 5: 0.55, 4: 0.25, 3: 0.12, 2: 0.05, 1: 0.03 }
+            : enrichedScore >= 3.5
+            ? { 5: 0.38, 4: 0.28, 3: 0.18, 2: 0.10, 1: 0.06 }
+            : { 5: 0.22, 4: 0.20, 3: 0.22, 2: 0.20, 1: 0.16 };
+
+        const bars = [5, 4, 3, 2, 1].map(star => {
+            const pct = Math.round((dist[star] || 0) * 100);
+            return `<div class="gpu-review-bar-row">
+                <span class="gpu-bar-label">${star} <i class="fas fa-star" style="font-size:0.6rem"></i></span>
+                <div class="gpu-bar-track"><div class="gpu-bar-fill" style="width:${pct}%"></div></div>
+                <span class="gpu-bar-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="gpu-reviews-title">
+                Reviews
+                <span class="gpu-reviews-source">${formatCount(enrichedCount)} on ${enrichedSource}</span>
+            </div>
+            <div class="gpu-review-aggregate-card">
+                <div class="gpu-agg-score">${enrichedScore.toFixed(1)}</div>
+                <div class="gpu-agg-right">
+                    <div class="gpu-review-stars">${starsHTML(enrichedScore)}</div>
+                    <div class="gpu-agg-count">Based on ${formatCount(enrichedCount)} ratings</div>
+                </div>
+            </div>
+            <div class="gpu-review-bar-wrap">${bars}</div>`;
+    }
+
+    _renderCoolerThermalChart(cooler) {
+        const section = document.getElementById('coolerThermalSection');
+        if (!section) return;
+
+        // Normalize 0–1 thermal performance score
+        const perfScore = this.getCoolerPerformance(cooler) || 0;
+
+        // Stock cooler baseline temperatures (°C)
+        // Stock: ~idle 45°C, medium 72°C, full 95°C
+        // Best cooler (score=1.0): idle 28°C, medium 48°C, full 65°C
+        // Scale: lower temp = better cooler
+        const scenarios = [
+            {
+                name: 'Idle',
+                icon: 'fas fa-pause-circle',
+                tag: 'System at rest',
+                stockTemp: 45,
+                bestTemp: 28
+            },
+            {
+                name: 'Medium Load',
+                icon: 'fas fa-tasks',
+                tag: 'Gaming / Productivity',
+                stockTemp: 78,
+                bestTemp: 52
+            },
+            {
+                name: 'Full Load',
+                icon: 'fas fa-fire',
+                tag: 'Cinebench / Stress Test',
+                stockTemp: 95,
+                bestTemp: 65
+            }
+        ];
+
+        // Score floors at 0.05 so even weak coolers show improvement over stock
+        const scale = Math.max(perfScore, 0.05);
+
+        let scenariosHTML = '';
+        for (const s of scenarios) {
+            // Interpolate: at scale=0.05 → near stock, at scale=1.0 → best temp
+            const coolerTemp = Math.round(s.stockTemp - (s.stockTemp - s.bestTemp) * scale);
+            const stockTemp = s.stockTemp;
+
+            // Bar width: proportion of temp reduction vs stock
+            const maxDelta = s.stockTemp - s.bestTemp;
+            const actualDelta = s.stockTemp - coolerTemp;
+            const coolerBarPct = Math.max(5, Math.min(100, (coolerTemp / s.stockTemp) * 100));
+            const stockBarPct = 100;
+
+            // Color: green < 65°C, yellow < 80°C, red >= 80°C
+            const tempColor = coolerTemp < 65 ? 'var(--primary-color, #4f8ef7)' : coolerTemp < 80 ? '#f5a623' : '#e74c3c';
+
+            scenariosHTML += `
+                <div class="gpu-bench-game">
+                    <div class="gpu-bench-game-header">
+                        <i class="${s.icon}"></i>
+                        <span class="gpu-bench-game-name">${s.name}</span>
+                        <span class="gpu-bench-game-tag">${s.tag}</span>
+                    </div>
+                    <div class="gpu-bench-row">
+                        <span class="gpu-bench-res" style="min-width:90px">Selected</span>
+                        <div class="gpu-bench-bar-track">
+                            <div class="gpu-bench-bar-fill" style="width:${coolerBarPct.toFixed(1)}%;background:${tempColor}"></div>
+                        </div>
+                        <span class="gpu-bench-fps">${coolerTemp}°C</span>
+                    </div>
+                    <div class="gpu-bench-row">
+                        <span class="gpu-bench-res" style="min-width:90px;color:#9ca3af">Stock</span>
+                        <div class="gpu-bench-bar-track">
+                            <div class="gpu-bench-bar-fill" style="width:${stockBarPct}%;background:#e74c3c;opacity:0.45"></div>
+                        </div>
+                        <span class="gpu-bench-fps" style="color:#9ca3af">${stockTemp}°C</span>
+                    </div>
+                </div>`;
+        }
+
+        section.innerHTML = `
+            <div class="gpu-bench-title"><i class="fas fa-thermometer-half"></i> Thermal Performance <span class="gpu-bench-disclaimer-badge">Calculated</span></div>
+            <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Estimated CPU temperatures scaled from TDP rating. <strong>Lower is better.</strong> Stock cooler shown as baseline. Actual temps vary by CPU, case airflow, and ambient temperature.</p>
+            ${scenariosHTML}`;
+    }
+
+    _renderCoolerTabScatterPlot(coolers) {
+        const canvas = document.getElementById('coolerTabScatterPlot');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const wrap = canvas.parentElement;
+        const width = Math.max(wrap.offsetWidth - 32, 300);
+        const height = 380;
+        canvas.width = width;
+        canvas.height = height;
+
+        // Build data points: x = TDP per dollar (value efficiency), y = price
+        const pts = [];
+        coolers.forEach(cooler => {
+            const perf = this.getCoolerPerformance(cooler);
+            const price = parseFloat(cooler.salePrice || cooler.currentPrice || cooler.basePrice || cooler.price) || 0;
+            if (perf && price > 0) pts.push({ cooler, performance: perf, price });
+        });
+
+        if (!pts.length) {
+            ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No cooler data available', width / 2, height / 2);
+            return;
+        }
+
+        const pad = { top: 24, right: 30, bottom: 58, left: 80 };
+        const cw = width - pad.left - pad.right;
+        const ch = height - pad.top - pad.bottom;
+
+        const maxPerf = Math.max(...pts.map(p => p.performance));
+        const minPerf = Math.min(...pts.map(p => p.performance));
+        const maxP = Math.max(...pts.map(p => p.price));
+        const minP = Math.min(...pts.map(p => p.price));
+        const step = Math.ceil((maxP - minP) / 5 / 10) * 10 || 10;
+        const rMin = Math.floor(minP / 10) * 10;
+        const rMax = rMin + step * 5;
+
+        const scores = pts.map(p => p.performance / p.price);
+        const sMax = Math.max(...scores), sMin = Math.min(...scores);
+
+        pts.forEach((p, i) => {
+            p.cx = pad.left + ((p.performance - minPerf) / (maxPerf - minPerf || 1)) * cw;
+            p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
+            p.valueScore = scores[i];
+        });
+        this._coolerTabChartPts = pts;
+        this._coolerTabChartMeta = { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step };
+
+        this._drawCoolerTabChart = (selectedCooler) => {
+            const { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step } = this._coolerTabChartMeta;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Grid + Y labels
+            for (let i = 0; i <= 5; i++) {
+                const price = rMin + step * i;
+                const y = height - pad.bottom - (ch / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.fillText('$' + price, pad.left - 8, y);
+            }
+
+            // Grid + X labels (TDP per dollar %)
+            for (let i = 0; i <= 5; i++) {
+                const perf = minPerf + ((maxPerf - minPerf) / 5) * i;
+                const x = pad.left + (cw / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText((perf * 100).toFixed(0) + '%', x, height - pad.bottom + 6);
+            }
+
+            // Axes
+            ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom);
+            ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('Thermal Performance', pad.left + cw / 2, height - 4);
+            ctx.save();
+            ctx.translate(14, pad.top + ch / 2);
+            ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
+            ctx.fillText('Price (USD)', 0, 0);
+            ctx.restore();
+
+            const selectedTitle = selectedCooler ? (selectedCooler.title || selectedCooler.name || '') : '';
+
+            const [unselected, selected] = this._coolerTabChartPts.reduce(
+                ([u, s], p) => (p.cooler.title === selectedTitle || p.cooler.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                [[], []]
+            );
+
+            [...unselected, ...selected].forEach(p => {
+                const isSelected = p.cooler.title === selectedTitle || p.cooler.name === selectedTitle;
+                const t = (p.valueScore - sMin) / (sMax - sMin || 1);
+                const r = Math.round(220 * (1 - t));
+                const g = Math.round(40 + 160 * t);
+
+                if (isSelected) {
+                    ctx.strokeStyle = '#2563eb';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
+                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+
+            // Legend
+            const lx = pad.left + cw - 110, ly = pad.top + 8;
+            ctx.fillStyle = 'rgba(248,250,252,0.92)';
+            ctx.fillRect(lx - 8, ly - 4, 120, 42);
+            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
+            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(40,190,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
+            ctx.fillStyle = 'rgba(220,60,60,0.85)';
+            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
+        };
+
+        this._drawCoolerTabChart(this._coolerTabSelectedCooler || null);
+
+        if (!canvas._coolerListenersAttached) {
+            canvas._coolerListenersAttached = true;
+            canvas.style.cursor = 'default';
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                const hit = this._coolerTabChartPts?.find(p => Math.hypot(p.cx - mx, p.cy - my) <= 8);
+                canvas.style.cursor = hit ? 'pointer' : 'default';
+
+                const tip = document.getElementById('coolerChartTooltip');
+                if (hit && tip) {
+                    tip.textContent = (hit.cooler.title || hit.cooler.name || '');
+                    tip.style.display = 'block';
+                    tip.style.left = (e.offsetX + 12) + 'px';
+                    tip.style.top = (e.offsetY - 8) + 'px';
+                } else if (tip) {
+                    tip.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                const tip = document.getElementById('coolerChartTooltip');
+                if (tip) tip.style.display = 'none';
+                canvas.style.cursor = 'default';
+            });
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                let closest = null, closestDist = Infinity;
+                this._coolerTabChartPts?.forEach(p => {
+                    const d = Math.hypot(p.cx - mx, p.cy - my);
+                    if (d < closestDist) { closestDist = d; closest = p; }
+                });
+                if (closest && closestDist <= 10) {
+                    this._coolerTabSelectedCooler = closest.cooler;
+                    this._renderCoolerProductCard(closest.cooler);
+                    this._renderCoolerReviews(closest.cooler);
+                    this._renderCoolerThermalChart(closest.cooler);
+                    this._drawCoolerTabChart(closest.cooler);
+                }
+            });
+        }
+
+        if (!document.getElementById('coolerChartTooltip')) {
+            const wrap2 = canvas.parentElement;
+            wrap2.style.position = 'relative';
+            const tip = document.createElement('div');
+            tip.id = 'coolerChartTooltip';
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
