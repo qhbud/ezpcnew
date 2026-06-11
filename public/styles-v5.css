@@ -5474,3 +5474,120 @@ tr.incompatible td {
         grid-template-columns: 1fr;
     }
 }
+
+/* ---- Saved builds ("My Builds") ---- */
+.saved-builds-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.saved-builds-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a8a;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.saved-builds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.saved-builds-empty {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.saved-build-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.saved-build-item:hover {
+    border-color: #c7d2fe;
+    box-shadow: 0 1px 4px rgba(30, 58, 138, 0.08);
+}
+
+.saved-build-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.saved-build-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.saved-build-meta {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.saved-build-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.saved-build-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: #eef2ff;
+    color: #4338ca;
+    cursor: pointer;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.saved-build-btn:hover { background: #4338ca; color: #fff; }
+.saved-build-btn.delete { background: #fef2f2; color: #dc2626; }
+.saved-build-btn.delete:hover { background: #dc2626; color: #fff; }
+
+/* ---- Toast ---- */
+.ezpc-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #111827;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 10000;
+}
+
+.ezpc-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
