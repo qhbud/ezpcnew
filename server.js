@@ -1,92 +1,17 @@
 const express = require('express');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { ObjectId } = require('mongodb');
 const { connectToDatabase, getDatabase } = require('./config/database');
+const { gpuBenchmarks, getGpuPerformance } = require('./lib/gpuBenchmarks');
+const { hasValidPrice, isDesktopOrLaptop } = require('./lib/helpers');
 
-// Function to detect and filter out desktop/laptop systems
-// DISABLED - This filter was causing too many false positives
-function isDesktopOrLaptop(title) {
-    // Always return false to disable filtering
-    return false;
-}
-
-// Function to check if a component has a valid price (not $0 or null)
-function hasValidPrice(item) {
-    const price = parseFloat(item.price || item.currentPrice || item.basePrice);
-    return !isNaN(price) && price > 0;
-}
-
-// GPU benchmark data for performance scoring
-const gpuBenchmarks = {
-    'RTX 5090': 197.5,
-    'RTX 5080': 178.5,
-    'RTX 5070 Ti': 169.3,
-    'RTX 5070': 149.1,
-    'RTX 5060 Ti': 120.3,
-    'RTX 5060': 102.7,
-    'RTX 4090': 195.6,
-    'RTX 4080 Super': 177.2,
-    'RTX 4080': 175,
-    'RTX 4070 Ti Super': 161.3,
-    'RTX 4070 Ti': 155.1,
-    'RTX 4070 Super': 147.6,
-    'RTX 4070': 130.7,
-    'RTX 4060 Ti': 103.2,
-    'RTX 4060': 83.9,
-    'RTX 3090 Ti': 131.6,
-    'RTX 3090': 128.1,
-    'RTX 3080 Ti': 126.2,
-    'RTX 3080': 125.8,
-    'RTX 3070 Ti': 98.59404601,
-    'RTX 3070': 99.8,
-    'RTX 3060 Ti': 91.5,
-    'RTX 3060': 70.2,
-    'RTX 3050': 51.4,
-    'RX 7900 XTX': 174.1,
-    'RX 7900 XT': 163.1,
-    'RX 7800 XT': 133.2,
-    'RX 7700 XT': 114.5,
-    'RX 7600 XT': 84.6,
-    'RX 7600': 79.3,
-    'RX 6950 XT': 153,
-    'RX 6900 XT': 145,
-    'RX 6800 XT': 132,
-    'RX 6800': 120,
-    'RX 6750 XT': 110,
-    'RX 6700 XT': 105,
-    'RX 6650 XT': 93,
-    'RX 6600 XT': 80,
-    'RX 6600': 64.1,
-    'RX 6500 XT': 40.76102842,
-    'RX 6400': 31.36481732,
-    'Arc A770': 63.4,
-    'Arc A750': 57.4,
-    'Arc A580': 80,
-    'Arc A380': 37.45250338,
-    'Arc B570': 72.4,
-    'Arc B580': 80.364
-};
-
-// Function to get GPU performance score from benchmark data
-function getGpuPerformance(gpu) {
-    const name = gpu.name || gpu.title || gpu.model || '';
-
-    // Sort benchmark keys by length (longest first) to match more specific models first
-    // This ensures "RX 7900 XTX" matches before "RX 7900"
-    const sortedModels = Object.entries(gpuBenchmarks)
-        .sort((a, b) => b[0].length - a[0].length);
-
-    // Try to match the GPU model name with our benchmark data
-    for (const [model, score] of sortedModels) {
-        if (name.includes(model)) {
-            // Normalize the score (divide by max value of 205.5 - RTX 5090)
-            const maxScore = 197.5;
-            return score / maxScore;
-        }
-    }
-
-    return null; // No benchmark found
-}
+// priceHistory arrays are 90-96% of a component document's size (70-115 daily
+// entries each). The listings/builder/scatter views never need full history —
+// only the detail-panel price chart does, and a recent window is enough for a
+// trend. Slice to the last 30 entries on list endpoints to cut payload ~65%.
+const LIST_PROJECTION = { projection: { priceHistory: { $slice: -30 } } };
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -157,21 +82,72 @@ function cacheMiddleware(duration) {
 }
 
 // Middleware
-app.use(express.json());
+// Security headers. CSP is disabled here to avoid breaking the existing site
+// (external Font Awesome CDN, inline scripts, external Amazon product images).
+// TODO (recommended follow-up): configure a proper Content-Security-Policy
+// that explicitly allows the required CDN/image origins instead of disabling it.
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
-// Add cache-control headers to force browsers to reload
+// Limit JSON body size to mitigate large-payload abuse
+app.use(express.json({ limit: '100kb' }));
+
+// Rate limiters
+// General limiter for all /api routes
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+// Stricter limiter for write/admin endpoints
+const strictLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+// Admin-token check middleware. Reads process.env.ADMIN_TOKEN and requires a
+// matching x-admin-token header. Fails closed: if ADMIN_TOKEN is not set, the
+// request is rejected rather than allowed through.
+function requireAdminToken(req, res, next) {
+    const expected = process.env.ADMIN_TOKEN;
+    if (!expected) {
+        return res.status(403).json({ error: 'Admin endpoint disabled: ADMIN_TOKEN not configured' });
+    }
+    const provided = req.get('x-admin-token');
+    if (!provided || provided !== expected) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+}
+
+// Apply general rate limiting to all API routes
+app.use('/api', apiLimiter);
+
+// Add cache-control headers to force browsers to reload (API responses only).
+// Static assets are intentionally excluded so they remain cacheable.
 app.use((req, res, next) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
+    if (req.path.startsWith('/api')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+    }
     next();
 });
 
 app.use(express.static(path.join(__dirname, 'public'), {
-    maxAge: 0, // Disable caching for development
-    etag: false,
-    lastModified: false
+    maxAge: '1d', // Cache static assets for 1 day
+    etag: true,
+    lastModified: true
 }));
 
 // Connect to MongoDB
@@ -196,6 +172,22 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
 
         const { category, manufacturer, priceRange, search } = req.query;
         let filter = {};
+
+        // Pagination params (cap how much a single request can return)
+        const DEFAULT_LIMIT = 500;
+        const MAX_LIMIT = 2000;
+        let limit = parseInt(req.query.limit, 10);
+        if (isNaN(limit) || limit <= 0) limit = DEFAULT_LIMIT;
+        if (limit > MAX_LIMIT) limit = MAX_LIMIT;
+
+        let offset;
+        if (req.query.offset !== undefined) {
+            offset = parseInt(req.query.offset, 10);
+        } else {
+            const page = parseInt(req.query.page, 10);
+            offset = (!isNaN(page) && page > 1) ? (page - 1) * limit : 0;
+        }
+        if (isNaN(offset) || offset < 0) offset = 0;
 
         // Category filter
         if (category && category !== 'all') {
@@ -226,7 +218,7 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
         const collections = ['cpus', 'motherboards', 'gpus', 'rams', 'storages', 'psus', 'cases', 'coolers'];
 
         const collectionPromises = collections.map(collectionName =>
-            db.collection(collectionName).find(filter).toArray()
+            db.collection(collectionName).find(filter, LIST_PROJECTION).toArray()
                 .then(parts => {
                     // Filter out parts with invalid prices
                     const validParts = parts.filter(part => hasValidPrice(part));
@@ -245,7 +237,10 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
         const results = await Promise.all(collectionPromises);
         const allParts = results.flat();
 
-        res.json(allParts);
+        // Apply pagination (limit/offset) to the assembled result set
+        const paginatedParts = allParts.slice(offset, offset + limit);
+
+        res.json(paginatedParts);
     } catch (error) {
         console.error('Error fetching parts:', error);
         res.status(500).json({ error: 'Failed to fetch parts' });
@@ -309,7 +304,7 @@ app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
         }
 
         const collection = db.collection(category);
-        const parts = await collection.find(filter).toArray();
+        const parts = await collection.find(filter, LIST_PROJECTION).toArray();
 
         // Filter out parts with invalid prices
         const validParts = parts.filter(part => hasValidPrice(part));
@@ -429,49 +424,17 @@ async function handleGPURequest(req, res) {
     try {
         const { manufacturer, priceRange, search, groupByModel } = req.query;
         
-        // Get all collections that start with "gpus_"
-        const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
-        const gpuCollectionNames = collections.map(col => col.name);
-        
-        // Also check for the main 'gpus' collection
-        const mainGpuCollection = await db.listCollections({ name: 'gpus' }).toArray();
-        if (mainGpuCollection.length > 0) {
-            gpuCollectionNames.push('gpus');
-        }
-
-        console.log(`Found GPU collections: ${gpuCollectionNames.join(', ')}`);
-
-        // Fetch from all GPU collections in PARALLEL
-        const gpuPromises = gpuCollectionNames.map(collectionName =>
-            db.collection(collectionName).find({}).toArray()
-                .then(gpus => {
-                    // Filter out desktops, laptops, pre-built systems, and items with invalid prices
-                    const filteredGpus = gpus.filter(gpu =>
-                        !isDesktopOrLaptop(gpu.title || gpu.name || '') && hasValidPrice(gpu)
-                    );
-
-                    // Add source collection info
-                    filteredGpus.forEach(gpu => {
-                        gpu.collection = collectionName;
-                        gpu.category = 'gpus';
-                    });
-
-                    if (gpus.length !== filteredGpus.length) {
-                        console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName} (filtered out ${gpus.length - filteredGpus.length} desktop/laptop systems)`);
-                    } else {
-                        console.log(`Loaded ${filteredGpus.length} GPUs from ${collectionName}`);
-                    }
-
-                    return filteredGpus;
-                })
-                .catch(error => {
-                    console.error(`Error fetching from ${collectionName}:`, error);
-                    return [];
-                })
+        // All GPUs now live in a single `gpus` collection. Each doc carries a
+        // `modelCollection` field (e.g. "gpus_rtx_5090") for per-model drill-down.
+        const rawGpus = await db.collection('gpus').find({}, LIST_PROJECTION).toArray();
+        const allGPUs = rawGpus.filter(gpu =>
+            !isDesktopOrLaptop(gpu.title || gpu.name || '') && hasValidPrice(gpu)
         );
-
-        const gpuResults = await Promise.all(gpuPromises);
-        const allGPUs = gpuResults.flat();
+        allGPUs.forEach(gpu => {
+            gpu.collection = gpu.modelCollection || 'gpus';
+            gpu.category = 'gpus';
+        });
+        console.log(`Loaded ${allGPUs.length} GPUs from gpus collection`);
 
         // Apply filters
         let filteredGPUs = allGPUs;
@@ -600,40 +563,14 @@ async function handleCPURequest(req, res) {
     try {
         const { manufacturer, priceRange, search, tier } = req.query;
         
-        // Get all collections that start with "cpus_"
-        const collections = await db.listCollections({ name: /^cpus_/ }).toArray();
-        const cpuCollectionNames = collections.map(col => col.name);
-        
-        // Also check for the main 'cpus' collection
-        const mainCpuCollection = await db.listCollections({ name: 'cpus' }).toArray();
-        if (mainCpuCollection.length > 0) {
-            cpuCollectionNames.push('cpus');
-        }
-
-        console.log(`Found CPU collections: ${cpuCollectionNames.join(', ')}`);
-
-        // Fetch from all CPU collections in PARALLEL
-        const cpuPromises = cpuCollectionNames.map(collectionName =>
-            db.collection(collectionName).find({}).toArray()
-                .then(cpus => {
-                    // For CPUs, we don't filter out desktop processors as they're what we want
-                    // Add source collection info
-                    cpus.forEach(cpu => {
-                        cpu.collection = collectionName;
-                        cpu.category = 'cpus';
-                    });
-
-                    console.log(`Loaded ${cpus.length} CPUs from ${collectionName}`);
-                    return cpus;
-                })
-                .catch(error => {
-                    console.error(`Error fetching from ${collectionName}:`, error);
-                    return [];
-                })
-        );
-
-        const cpuResults = await Promise.all(cpuPromises);
-        const allCPUs = cpuResults.flat();
+        // All CPUs now live in a single `cpus` collection. Each doc may carry a
+        // `modelCollection` field (e.g. "cpus_intel_core_i9") preserving its model group.
+        const allCPUs = await db.collection('cpus').find({}, LIST_PROJECTION).toArray();
+        allCPUs.forEach(cpu => {
+            cpu.collection = cpu.modelCollection || 'cpus';
+            cpu.category = 'cpus';
+        });
+        console.log(`Loaded ${allCPUs.length} CPUs from cpus collection`);
 
         // Apply filters
         let filteredCPUs = allCPUs;
@@ -719,7 +656,7 @@ async function handleMotherboardRequest(req, res) {
         
         // Check for the main 'motherboards' collection
         const collection = db.collection('motherboards');
-        const motherboards = await collection.find({}).toArray();
+        const motherboards = await collection.find({}, LIST_PROJECTION).toArray();
         
         // Add source collection info
         motherboards.forEach(motherboard => {
@@ -801,7 +738,7 @@ async function handleRAMRequest(req, res) {
         
         // Check for the main 'rams' collection
         const collection = db.collection('rams');
-        const ramModules = await collection.find({}).toArray();
+        const ramModules = await collection.find({}, LIST_PROJECTION).toArray();
         
         // Add source collection info
         ramModules.forEach(ram => {
@@ -917,7 +854,7 @@ async function handlePSURequest(req, res) {
         
         // Check for the main 'psus' collection
         const collection = db.collection('psus');
-        const psus = await collection.find({}).toArray();
+        const psus = await collection.find({}, LIST_PROJECTION).toArray();
         
         // Add source collection info
         psus.forEach(psu => {
@@ -1015,15 +952,11 @@ app.get('/api/parts/gpus/:collection', async (req, res) => {
             return res.status(400).json({ error: 'Invalid GPU collection name' });
         }
 
-        // Check if collection exists
-        const collections = await db.listCollections({ name: collectionName }).toArray();
-        if (collections.length === 0) {
+        // GPUs now live in a single `gpus` collection; filter by modelCollection.
+        const cards = await db.collection('gpus').find({ modelCollection: collectionName }, LIST_PROJECTION).toArray();
+        if (cards.length === 0) {
             return res.status(404).json({ error: `Collection ${collectionName} not found` });
         }
-
-        // Fetch all cards from this specific collection
-        const collection = db.collection(collectionName);
-        const cards = await collection.find({}).toArray();
 
         // Filter out desktop/laptop systems
         const filteredCards = cards.filter(card => !isDesktopOrLaptop(card.title || card.name || ''));
@@ -1092,22 +1025,12 @@ app.get('/api/stats', cacheMiddleware(600000), async (req, res) => {
             }
         }
 
-        // Count GPU collections specially
+        // Count GPUs from the single `gpus` collection
         let totalGPUs = 0;
         try {
-            const gpuCollections = await db.listCollections({ name: /^gpus/ }).toArray();
-            
-            for (const collection of gpuCollections) {
-                try {
-                    const count = await db.collection(collection.name).countDocuments();
-                    totalGPUs += count;
-                    console.log(`Found ${count} GPUs in ${collection.name}`);
-                } catch (error) {
-                    console.error(`Error counting ${collection.name}:`, error);
-                }
-            }
+            totalGPUs = await db.collection('gpus').countDocuments();
         } catch (error) {
-            console.error('Error listing GPU collections:', error);
+            console.error('Error counting gpus collection:', error);
         }
 
         stats.gpus = totalGPUs;
@@ -1132,37 +1055,23 @@ app.get('/api/cpu-stats', cacheMiddleware(600000), async (req, res) => {
             return res.status(500).json({ error: 'Database not connected' });
         }
 
-        // Get all collections that start with "cpus_"
-        const collections = await db.listCollections({ name: /^cpus_/ }).toArray();
-        const cpuCollectionNames = collections.map(col => col.name);
-        
-        // Also check for the main 'cpus' collection
-        const mainCpuCollection = await db.listCollections({ name: 'cpus' }).toArray();
-        if (mainCpuCollection.length > 0) {
-            cpuCollectionNames.push('cpus');
-        }
-
-        let totalCpus = 0;
-
-        // Count CPUs from all collections
-        for (const collectionName of cpuCollectionNames) {
-            try {
-                const count = await db.collection(collectionName).countDocuments();
-                totalCpus += count;
-            } catch (error) {
-                console.error(`Error counting CPUs from ${collectionName}:`, error);
-            }
-        }
+        // All CPUs now live in a single `cpus` collection
+        const totalCpus = await db.collection('cpus').countDocuments();
 
         res.json({
             cpus: totalCpus,
-            collections: cpuCollectionNames.length
+            collections: 1
         });
 
     } catch (error) {
         console.error('Error fetching CPU stats:', error);
         res.status(500).json({ error: 'Failed to fetch CPU statistics' });
     }
+});
+
+// Serve the SVG favicon for the browser's default /favicon.ico request (avoids a 404)
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'favicon.svg'));
 });
 
 // Serve the main page
@@ -1346,21 +1255,13 @@ app.post('/api/ai-build', async (req, res) => {
             topCandidates: []
         };
 
-        // Get all GPU collections
-        const gpuCollections = await db.listCollections({ name: /^gpus/ }).toArray();
-        let allGPUs = [];
-
-        for (const collection of gpuCollections) {
-            const gpus = await db.collection(collection.name).find({
-                currentPrice: { $gt: 0, $lte: gpuBudget * 1.3 },
-                isAvailable: { $ne: false }
-            }).toArray();
-            const filtered = gpus.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
-            allGPUs = allGPUs.concat(filtered);
-            if (filtered.length > 0) {
-                gpuDebug.candidatesFound += filtered.length;
-            }
-        }
+        // GPUs now live in a single `gpus` collection
+        const gpuCandidates = await db.collection('gpus').find({
+            currentPrice: { $gt: 0, $lte: gpuBudget * 1.3 },
+            isAvailable: { $ne: false }
+        }).toArray();
+        let allGPUs = gpuCandidates.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
+        gpuDebug.candidatesFound += allGPUs.length;
 
         // Calculate performance score for each GPU using benchmark data
         allGPUs.forEach(gpu => {
@@ -1445,23 +1346,13 @@ app.post('/api/ai-build', async (req, res) => {
             topCandidates: []
         };
 
-        // Get all CPU collections
-        const cpuCollections = await db.listCollections({ name: /^cpus/ }).toArray();
-        let allCPUs = [];
-
         // For unlimited budget, remove price limit to get all CPUs
         const cpuQuery = maxBudget === 999999 ?
             { currentPrice: { $gt: 0 }, isAvailable: { $ne: false } } :
             { currentPrice: { $gt: 0, $lte: cpuBudget * 1.3 }, isAvailable: { $ne: false } };
 
-        for (const collection of cpuCollections) {
-            const cpus = await db.collection(collection.name).find(cpuQuery).toArray();
-            allCPUs = allCPUs.concat(cpus);
-        }
-
-        // Also check main cpus collection
-        const mainCpus = await db.collection('cpus').find(cpuQuery).toArray();
-        allCPUs = allCPUs.concat(mainCpus);
+        // All CPUs now live in a single `cpus` collection
+        let allCPUs = await db.collection('cpus').find(cpuQuery).toArray();
 
         // For budget builds, EXCLUDE DDR5-only CPUs to ensure motherboard compatibility
         if (isBudgetBuild) {
@@ -1878,15 +1769,10 @@ app.post('/api/ai-build', async (req, res) => {
                             cpuFilter.$or = cpuMatchFilters;
                         }
 
-                        // Search all CPU collections
-                        for (const collection of cpuCollections) {
-                            const cpus = await db.collection(collection.name).find(cpuFilter).toArray();
-                            compatibleCPUs = compatibleCPUs.concat(cpus);
-                        }
-
-                        // Also check main cpus collection
-                        const mainCompatibleCpus = await db.collection('cpus').find(cpuFilter).toArray();
-                        compatibleCPUs = compatibleCPUs.concat(mainCompatibleCpus);
+                        // All CPUs now live in a single `cpus` collection
+                        compatibleCPUs = compatibleCPUs.concat(
+                            await db.collection('cpus').find(cpuFilter).toArray()
+                        );
 
                         if (compatibleCPUs.length > 0) {
                             // Found compatible CPU for this motherboard
@@ -2946,17 +2832,14 @@ app.post('/api/ai-build', async (req, res) => {
                 let cheaperComponent = null;
 
                 if (componentType === 'gpu') {
-                    // Find cheaper GPU
-                    for (const collection of gpuCollections) {
-                        const gpus = await db.collection(collection.name).find({
-                            currentPrice: { $gt: 0, $lt: maxPrice },
-                            isAvailable: { $ne: false }
-                        }).sort({ currentPrice: -1 }).limit(10).toArray();
-                        const filtered = gpus.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
-                        if (filtered.length > 0) {
-                            cheaperComponent = filtered[0];
-                            break;
-                        }
+                    // Find cheaper GPU from the single `gpus` collection
+                    const gpus = await db.collection('gpus').find({
+                        currentPrice: { $gt: 0, $lt: maxPrice },
+                        isAvailable: { $ne: false }
+                    }).sort({ currentPrice: -1 }).limit(10).toArray();
+                    const filtered = gpus.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
+                    if (filtered.length > 0) {
+                        cheaperComponent = filtered[0];
                     }
                 } else if (componentType === 'cpu') {
                     // Find cheaper CPU that's compatible with the motherboard
@@ -2980,22 +2863,11 @@ app.post('/api/ai-build', async (req, res) => {
                         }
                     }
 
-                    // Search all CPU collections for compatible, cheaper CPU
-                    for (const collection of cpuCollections) {
-                        const cpus = await db.collection(collection.name).find(cpuFilter)
-                            .sort({ [performanceMetric]: -1, currentPrice: -1 }).limit(10).toArray();
-                        if (cpus.length > 0) {
-                            cheaperComponent = cpus[0];
-                            break;
-                        }
-                    }
-                    // Also check main cpus collection
-                    if (!cheaperComponent) {
-                        const mainCpus = await db.collection('cpus').find(cpuFilter)
-                            .sort({ [performanceMetric]: -1, currentPrice: -1 }).limit(10).toArray();
-                        if (mainCpus.length > 0) {
-                            cheaperComponent = mainCpus[0];
-                        }
+                    // Search the single `cpus` collection for a compatible, cheaper CPU
+                    const cpus = await db.collection('cpus').find(cpuFilter)
+                        .sort({ [performanceMetric]: -1, currentPrice: -1 }).limit(10).toArray();
+                    if (cpus.length > 0) {
+                        cheaperComponent = cpus[0];
                     }
                 } else if (componentType === 'ram') {
                     const rams = await db.collection('rams').find({
@@ -3249,7 +3121,7 @@ app.post('/api/ai-build', async (req, res) => {
 });
 
 // Increment save count for components
-app.post('/api/components/increment-saves', async (req, res) => {
+app.post('/api/components/increment-saves', strictLimiter, async (req, res) => {
     try {
         const { components } = req.body;
         console.log(`📊 Increment saves request received for ${components?.length || 0} components`);
@@ -3306,37 +3178,26 @@ app.post('/api/components/increment-saves', async (req, res) => {
 
                 // Check if it's a GPU collection (multiple GPU collections)
                 if (type === 'gpu') {
-                    // Try to find in any GPU collection
-                    const allCollections = await db.listCollections().toArray();
-                    const gpuCollections = allCollections.filter(c => c.name.startsWith('gpus'));
+                    // GPUs now live in a single `gpus` collection
+                    const collection = db.collection('gpus');
+                    const beforeDoc = await collection.findOne({ _id: queryId });
                     let updated = false;
 
-                    for (const coll of gpuCollections) {
-                        const collection = db.collection(coll.name);
+                    if (beforeDoc) {
+                        const beforeCount = beforeDoc.saveCount || 0;
+                        const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown GPU';
 
-                        // Get the document before updating
-                        const beforeDoc = await collection.findOne({ _id: queryId });
+                        const result = await collection.updateOne(
+                            { _id: queryId },
+                            { $inc: { saveCount: 1 } }
+                        );
 
-                        if (beforeDoc) {
-                            const beforeCount = beforeDoc.saveCount || 0;
-                            const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown GPU';
-
-                            const result = await collection.updateOne(
-                                { _id: queryId },
-                                { $inc: { saveCount: 1 } }
-                            );
-
-                            if (result.matchedCount > 0) {
-                                // Get the document after updating
-                                const afterDoc = await collection.findOne({ _id: queryId });
-                                const afterCount = afterDoc.saveCount || 0;
-
-                                console.log(`  📈 GPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
-
-                                updated = true;
-                                results.push({ type, id, collection: coll.name, success: true, beforeCount, afterCount });
-                                break;
-                            }
+                        if (result.matchedCount > 0) {
+                            const afterDoc = await collection.findOne({ _id: queryId });
+                            const afterCount = afterDoc.saveCount || 0;
+                            console.log(`  📈 GPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
+                            updated = true;
+                            results.push({ type, id, collection: 'gpus', success: true, beforeCount, afterCount });
                         }
                     }
 
@@ -3344,37 +3205,26 @@ app.post('/api/components/increment-saves', async (req, res) => {
                         console.warn(`  ⚠️  GPU not found with ID: ${id}`);
                     }
                 } else if (type === 'cpu') {
-                    // Try to find in any CPU collection (cpus, cpus_intel_core_i9, cpus_amd_ryzen_7, etc.)
-                    const allCollections = await db.listCollections().toArray();
-                    const cpuCollections = allCollections.filter(c => c.name.startsWith('cpus'));
+                    // CPUs now live in a single `cpus` collection
+                    const collection = db.collection('cpus');
+                    const beforeDoc = await collection.findOne({ _id: queryId });
                     let updated = false;
 
-                    for (const coll of cpuCollections) {
-                        const collection = db.collection(coll.name);
+                    if (beforeDoc) {
+                        const beforeCount = beforeDoc.saveCount || 0;
+                        const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown CPU';
 
-                        // Get the document before updating
-                        const beforeDoc = await collection.findOne({ _id: queryId });
+                        const result = await collection.updateOne(
+                            { _id: queryId },
+                            { $inc: { saveCount: 1 } }
+                        );
 
-                        if (beforeDoc) {
-                            const beforeCount = beforeDoc.saveCount || 0;
-                            const itemName = beforeDoc.title || beforeDoc.name || beforeDoc.model || 'Unknown CPU';
-
-                            const result = await collection.updateOne(
-                                { _id: queryId },
-                                { $inc: { saveCount: 1 } }
-                            );
-
-                            if (result.matchedCount > 0) {
-                                // Get the document after updating
-                                const afterDoc = await collection.findOne({ _id: queryId });
-                                const afterCount = afterDoc.saveCount || 0;
-
-                                console.log(`  📈 CPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
-
-                                updated = true;
-                                results.push({ type, id, collection: coll.name, success: true, beforeCount, afterCount });
-                                break;
-                            }
+                        if (result.matchedCount > 0) {
+                            const afterDoc = await collection.findOne({ _id: queryId });
+                            const afterCount = afterDoc.saveCount || 0;
+                            console.log(`  📈 CPU: ${itemName.substring(0, 50)} | Before: ${beforeCount} → After: ${afterCount}`);
+                            updated = true;
+                            results.push({ type, id, collection: 'cpus', success: true, beforeCount, afterCount });
                         }
                     }
 
@@ -3431,7 +3281,7 @@ app.post('/api/components/increment-saves', async (req, res) => {
 });
 
 // Cache management endpoint
-app.post('/api/clear-cache', (req, res) => {
+app.post('/api/clear-cache', strictLimiter, requireAdminToken, (req, res) => {
     try {
         apiCache.clear();
         statsCache.clear();
