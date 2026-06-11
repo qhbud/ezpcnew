@@ -82,6 +82,18 @@ class PartsDatabase {
         this.allCases = [];
         this.allAddons = [];
         this.priceHistoryRequests = new Map();
+        this.dataReady = {
+            gpu: false,
+            cpu: false,
+            motherboard: false,
+            ram: false,
+            psu: false,
+            cooler: false,
+            storage: false,
+            case: false,
+            addon: false
+        };
+        this.dataPromises = {};
         this.manufacturers = new Set();
         this.stats = { total: 0, manufacturers: 0 };
         this.selectedGPU = null;
@@ -450,6 +462,56 @@ class PartsDatabase {
         return this.priceHistoryRequests.get(cacheKey);
     }
 
+    getTabLoadingSection(tabName) {
+        const sectionIds = {
+            gpu: 'gpuListingsSection',
+            cpu: 'cpuListingsSection',
+            motherboard: 'moboListingsSection',
+            ram: 'ramListingsSection',
+            psu: 'psuListingsSection',
+            cooler: 'coolerListingsSection'
+        };
+
+        const sectionId = sectionIds[tabName];
+        return sectionId ? document.getElementById(sectionId) : null;
+    }
+
+    showTabLoading(tabName) {
+        const section = this.getTabLoadingSection(tabName);
+        if (!section || section.querySelector('.tab-data-loading')) return;
+
+        section.insertAdjacentHTML('afterbegin', `
+            <div class="tab-data-loading" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:180px;color:#2563eb;font-weight:600;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading components...</span>
+            </div>
+        `);
+    }
+
+    hideTabLoading(tabName) {
+        const section = this.getTabLoadingSection(tabName);
+        const loading = section ? section.querySelector('.tab-data-loading') : null;
+        if (loading) loading.remove();
+    }
+
+    renderTabListings(tabName) {
+        this.hideTabLoading(tabName);
+
+        if (tabName === 'gpu') {
+            this.renderGpuListingsSection();
+        } else if (tabName === 'cpu') {
+            this.renderCpuListingsSection();
+        } else if (tabName === 'motherboard') {
+            this.renderMoboListingsSection();
+        } else if (tabName === 'ram') {
+            this.renderRamListingsSection();
+        } else if (tabName === 'psu') {
+            this.renderPsuListingsSection();
+        } else if (tabName === 'cooler') {
+            this.renderCoolerListingsSection();
+        }
+    }
+
     // Tab switching functionality
     switchTab(tabName) {
         // Update active tab
@@ -465,24 +527,34 @@ class PartsDatabase {
         // Update current tab and load appropriate data
         this.currentTab = tabName;
         this.updateHeaderForTab();
-        
-        if (tabName === 'gpu') {
-            this.renderGpuListingsSection();
-        } else if (tabName === 'cpu') {
-            this.renderCpuListingsSection();
-        } else if (tabName === 'motherboard') {
-            this.renderMoboListingsSection();
-        } else if (tabName === 'ram') {
-            this.renderRamListingsSection();
-        } else if (tabName === 'psu') {
-            this.renderPsuListingsSection();
-        } else if (tabName === 'cooler') {
-            this.renderCoolerListingsSection();
-        } else if (tabName === 'builder') {
+
+        if (tabName === 'builder') {
             this.initializePCBuilder();
-        } else if (tabName === 'guides') {
-            // Guides tab is static — nothing to load
+            return;
         }
+
+        if (tabName === 'guides') {
+            // Guides tab is static - nothing to load
+            return;
+        }
+
+        if (this.dataReady[tabName]) {
+            this.renderTabListings(tabName);
+            return;
+        }
+
+        this.showTabLoading(tabName);
+        const loadPromise = this.dataPromises[tabName];
+        if (loadPromise) {
+            loadPromise.finally(() => {
+                if (this.currentTab === tabName) {
+                    this.renderTabListings(tabName);
+                } else {
+                    this.hideTabLoading(tabName);
+                }
+            });
+        }
+        return;
     }
 
     updateHeaderForTab() {
@@ -500,17 +572,29 @@ class PartsDatabase {
         // Load overall stats for the header
         this.loadOverallStats();
 
+        const trackLoad = (category, promise) => {
+            this.dataPromises[category] = Promise.resolve(promise)
+                .catch(error => {
+                    console.error(`Error loading ${category} data:`, error);
+                })
+                .finally(() => {
+                    this.dataReady[category] = true;
+                });
+
+            return this.dataPromises[category];
+        };
+
         // Load all component data in parallel
         await Promise.all([
-            this.loadAllGPUs(),      // Load GPU data by default (initial tab)
-            this.loadAllCPUs(),
-            this.loadAllMotherboards(),
-            this.loadAllRAM(),
-            this.loadAllPSUs(),
-            this.loadAllCoolers(),
-            this.loadAllStorage(),
-            this.loadAllCases(),
-            this.loadAllAddons()
+            trackLoad('gpu', this.loadAllGPUs()),      // Load GPU data by default (initial tab)
+            trackLoad('cpu', this.loadAllCPUs()),
+            trackLoad('motherboard', this.loadAllMotherboards()),
+            trackLoad('ram', this.loadAllRAM()),
+            trackLoad('psu', this.loadAllPSUs()),
+            trackLoad('cooler', this.loadAllCoolers()),
+            trackLoad('storage', this.loadAllStorage()),
+            trackLoad('case', this.loadAllCases()),
+            trackLoad('addon', this.loadAllAddons())
         ]);
 
         // After all data is loaded, check if there's a build to restore from URL
@@ -13198,6 +13282,9 @@ class PartsDatabase {
                     if (score > bestScore) { bestScore = score; bestCooler = cooler; }
                 }
             });
+            if (!bestCooler && coolers.length > 0) {
+                bestCooler = coolers[0];
+            }
             this._coolerBestValue = bestCooler;
 
             if (bestCooler) {
