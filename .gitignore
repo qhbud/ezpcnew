@@ -30,3 +30,26 @@ build/
 *.tmp
 *.log
 nul
+temp_*.json
+
+# Debug images
+amazon-debug.png
+*_debug.png
+*-debug.png
+
+# Generated report artifacts
+*-report.json
+*-report.log
+*_report.txt
+gpu_price_report.txt
+gpu_price_chart.png
+gpu_price_trends_preview.png
+
+# Timestamped data dumps
+new-components-*.json
+
+# Accidental shell-redirection artifacts
+C:Users*
+
+.claude/
+scripts/.update_progress.json
