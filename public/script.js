@@ -137,17 +137,18 @@ class PartsDatabase {
     }
 
     initializeEventListeners() {
-        // Main tab navigation
+        // Main tab navigation. Use currentTarget (the button) not target, so clicks
+        // landing on the child <i> icon still resolve the button's data-tab.
         document.querySelectorAll('.main-tab').forEach(tab => {
             tab.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+                this.switchTab(e.currentTarget.dataset.tab);
             });
         });
 
         // Category navigation (manufacturer filter)
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.setActiveManufacturer(e.target.dataset.category);
+                this.setActiveManufacturer(e.currentTarget.dataset.category);
             });
         });
 
