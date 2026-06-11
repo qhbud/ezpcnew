@@ -1,0 +1,128 @@
+name: Daily Price Update
+
+# Runs the price scraper in GitHub's cloud instead of locally, so your PC no
+# longer needs to be on. Replaces the Windows Task Scheduler job
+# "PCBuilder-PriceUpdate".
+#
+# Each component collection runs as its OWN parallel job, so:
+#   * the whole catalog updates every night (the old single run was being cut
+#     short and left most collections days stale), and
+#   * each component type gets its own log, pass/fail signal, and downloadable
+#     artifact for debugging.
+on:
+  schedule:
+    # GitHub cron is ALWAYS UTC and does not adjust for daylight saving.
+    # 03:00 UTC ≈ 10 PM US Eastern (winter) / 11 PM (summer). Change the hour to retime.
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}   # manual trigger from the Actions tab (runs the full matrix)
+
+# Don't start a new daily run while a previous one is still going.
+concurrency:
+  group: price-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: update-${{ matrix.collection }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false      # one collection failing must NOT cancel the others
+      max-parallel: 5       # cap concurrent jobs (politeness + runner usage)
+      matrix:
+        collection: [cpus, gpus, motherboards, rams, storages, psus, cases, coolers, addons]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (includes Puppeteer's Chromium)
+        run: npm ci
+
+      - name: Install system libraries headless Chrome needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libatk-bridge2.0-0 libgbm1 libxkbcommon0 libgtk-3-0 libasound2
+
+      - name: Log environment
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          echo "Collection:   ${{ matrix.collection }}"
+          echo "Run started:  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Node:         $(node --version)"
+          echo "Chrome (sys): $(google-chrome --version 2>/dev/null || echo 'Puppeteer bundled Chromium')"
+          if [ -z "${MONGODB_URI}" ]; then
+            echo "::error::MONGODB_URI secret is empty. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "MONGODB_URI secret is set (length ${#MONGODB_URI})."
+
+      - name: Pre-flight — Atlas connectivity + baseline for ${{ matrix.collection }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+        run: node scripts/ciCheckFreshness.js --collection=${{ matrix.collection }} --window-hours=24
+
+      - name: Run price update for ${{ matrix.collection }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+          NODE_ENV: production
+        run: |
+          set -o pipefail
+          echo "::group::Scrape output for ${{ matrix.collection }}"
+          echo "Started: $(date -u '+%H:%M:%S UTC')"
+          node scripts/updateAllComponentPrices.js --collection=${{ matrix.collection }} 2>&1 \
+            | tee price-update-${{ matrix.collection }}.log
+          echo "Finished: $(date -u '+%H:%M:%S UTC')"
+          echo "::endgroup::"
+
+      - name: Verify ${{ matrix.collection }} actually updated
+        if: always()
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+        # Fails this job red if NOTHING in this collection was written in the last
+        # 6h, so a green job genuinely means the data changed. (The updater script
+        # always exits 0 even on internal failure, so this is the real signal.)
+        run: node scripts/ciCheckFreshness.js --collection=${{ matrix.collection }} --window-hours=6 --assert-min=1
+
+      - name: Upload ${{ matrix.collection }} log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ matrix.collection }}-${{ github.run_number }}
+          path: price-update-${{ matrix.collection }}.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Rollup after all collections finish — prints one freshness table across the
+  # whole catalog so you can see the full picture at a glance, even if some
+  # individual collections failed.
+  summary:
+    name: freshness-summary
+    needs: update
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install deps (no Chromium needed here)
+        run: npm ci --omit=optional
+      - name: Overall freshness across all collections
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+        run: node scripts/ciCheckFreshness.js --window-hours=12
