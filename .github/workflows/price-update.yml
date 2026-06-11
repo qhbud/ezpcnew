@@ -25,7 +25,9 @@ jobs:
   update:
     name: update-${{ matrix.collection }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    # Most collections finish in <50m, but rams (~965 items) needs ~5h at the
+    # observed scrape rate. 350m gives it room while staying under GitHub's 6h cap.
+    timeout-minutes: 350
     strategy:
       fail-fast: false      # one collection failing must NOT cancel the others
       max-parallel: 5       # cap concurrent jobs (politeness + runner usage)
@@ -42,7 +44,25 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies (includes Puppeteer's Chromium)
-        run: npm ci
+        # npm ci intermittently stalls forever on Puppeteer's Chromium postinstall
+        # download — observed burning the entire job timeout so the scraper never ran
+        # (addons/cases/coolers). Cap each attempt and retry on a fresh tree so a
+        # transient stall fails fast instead of eating the whole budget.
+        timeout-minutes: 25
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::npm ci (attempt $attempt, 8-min cap)"
+            if timeout 480 npm ci; then
+              echo "::endgroup::"
+              echo "npm ci succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "::warning::npm ci stalled/failed on attempt $attempt — cleaning node_modules and retrying"
+            rm -rf node_modules
+          done
+          echo "::error::npm ci failed after 3 attempts"
+          exit 1
 
       - name: Install system libraries headless Chrome needs
         run: |
