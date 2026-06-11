@@ -10,6 +10,12 @@ let COMPONENT_COLLECTIONS = [];
 
 const PROGRESS_FILE = path.join(__dirname, '.update_progress.json');
 
+// Optional CLI flag: restrict the run to a single collection, e.g.
+//   node scripts/updateAllComponentPrices.js --collection=gpus
+// Used by the GitHub Actions per-collection matrix so each component type gets
+// its own parallel job, log, and pass/fail signal (and finishes well within limits).
+const ONLY_COLLECTION = (process.argv.slice(2).find(a => a.startsWith('--collection=')) || '').split('=')[1] || null;
+
 class AllComponentPriceUpdater {
     constructor() {
         this.priceDetector = null;
@@ -175,14 +181,16 @@ class AllComponentPriceUpdater {
             !name.startsWith('system.')
         );
 
-        // Get all CPU collections (main + sub-collections)
+        // All CPUs now live in the single `cpus` collection (migrated from per-model
+        // cpus_* subcollections; original group preserved in the `modelCollection` field).
         const cpuCollections = componentCollectionNames.filter(name =>
-            name === 'cpus' || name.startsWith('cpus_')
+            name === 'cpus'
         );
 
-        // Get all GPU collections (all gpus_* collections)
+        // All GPUs now live in the single `gpus` collection (migrated from per-model
+        // gpus_* subcollections; original group preserved in the `modelCollection` field).
         const gpuCollections = componentCollectionNames.filter(name =>
-            name === 'gpus' || name.startsWith('gpus_')
+            name === 'gpus'
         );
 
         // Get other component collections, prioritizing addons and cases
@@ -197,7 +205,17 @@ class AllComponentPriceUpdater {
         // Combine all collections with priority order: addons/cases first, then CPUs, GPUs, then others
         COMPONENT_COLLECTIONS = [...priorityCollections, ...cpuCollections, ...gpuCollections, ...otherCollections];
 
-        console.log(`✅ Found ${COMPONENT_COLLECTIONS.length} collections to update (ALL collections)`.green);
+        // Restrict to a single collection if --collection=<name> was passed (CI per-collection jobs)
+        if (ONLY_COLLECTION) {
+            COMPONENT_COLLECTIONS = COMPONENT_COLLECTIONS.filter(name => name === ONLY_COLLECTION);
+            if (COMPONENT_COLLECTIONS.length === 0) {
+                console.error(`❌ Collection "${ONLY_COLLECTION}" not found in database`.red);
+                process.exit(1);
+            }
+            console.log(`🎯 Restricting this run to a single collection: ${ONLY_COLLECTION}`.cyan.bold);
+        }
+
+        console.log(`✅ Found ${COMPONENT_COLLECTIONS.length} collection(s) to update`.green);
         console.log(`   🔥 Priority collections: ${priorityCollections.length} (${priorityCollections.join(', ')})`.yellow.bold);
         console.log(`   CPU collections: ${cpuCollections.length}`.gray);
         console.log(`   GPU collections: ${gpuCollections.length}`.gray);
