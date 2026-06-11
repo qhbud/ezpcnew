@@ -41,8 +41,20 @@ const COMPONENT_COLLECTIONS = ['cpus', 'gpus', 'motherboards', 'rams', 'storages
 
   const since = new Date(Date.now() - windowHours * 3600 * 1000);
   const present = (await db.listCollections().toArray()).map(c => c.name);
-  const cols = COMPONENT_COLLECTIONS.filter(n => present.includes(n) && (!onlyCollection || n === onlyCollection));
-  if (onlyCollection && cols.length === 0) {
+
+  // GPUs are sharded across per-model `gpus_*` collections (they were never consolidated
+  // into a single `gpus` collection like CPUs were), so the logical "gpus" component maps
+  // to many physical collections. Group them under one label for counting + reporting.
+  const shardsFor = (name) =>
+    name === 'gpus'
+      ? present.filter(p => p === 'gpus' || p.startsWith('gpus_'))
+      : (present.includes(name) ? [name] : []);
+
+  const logical = onlyCollection ? [onlyCollection] : COMPONENT_COLLECTIONS;
+  const groups = logical
+    .map(name => ({ label: name, names: shardsFor(name) }))
+    .filter(g => g.names.length > 0);
+  if (onlyCollection && groups.length === 0) {
     console.error(`::error::Collection "${onlyCollection}" not found in database.`);
     process.exit(1);
   }
@@ -53,15 +65,18 @@ const COMPONENT_COLLECTIONS = ['cpus', 'gpus', 'motherboards', 'rams', 'storages
   console.log(`────────────────────────────────────────────────────────────`);
 
   let totalRecent = 0, totalDocs = 0;
-  for (const name of cols) {
-    const col = db.collection(name);
-    const docs = await col.countDocuments();
-    const recent = await col.countDocuments({
-      $or: [{ lastPriceCheck: { $gte: since } }, { updatedAt: { $gte: since } }],
-    });
+  for (const { label, names } of groups) {
+    let docs = 0, recent = 0;
+    for (const name of names) {
+      const col = db.collection(name);
+      docs += await col.countDocuments();
+      recent += await col.countDocuments({
+        $or: [{ lastPriceCheck: { $gte: since } }, { updatedAt: { $gte: since } }],
+      });
+    }
     totalRecent += recent;
     totalDocs += docs;
-    console.log(`  ${name.padEnd(13)} ${String(recent).padStart(5)} / ${String(docs).padStart(5)} updated`);
+    console.log(`  ${label.padEnd(13)} ${String(recent).padStart(5)} / ${String(docs).padStart(5)} updated`);
   }
   console.log(`────────────────────────────────────────────────────────────`);
   console.log(`  TOTAL         ${String(totalRecent).padStart(5)} / ${String(totalDocs).padStart(5)} updated in last ${windowHours}h`);
