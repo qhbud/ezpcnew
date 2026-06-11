@@ -11,43 +11,43 @@ async function purgeAndReorganizeGPUs() {
     const gpusCollection = db.collection('gpus');
     const existingGPUs = await gpusCollection.find({}).toArray();
     console.log(`Found ${existingGPUs.length} existing GPUs`);
-    
-    // Drop the existing GPUs collection
-    console.log('Purging existing GPU collection...');
-    await gpusCollection.drop().catch(() => {
-      console.log('GPU collection did not exist or was already empty');
-    });
-    
+
+    // Clear the existing GPUs collection (do NOT drop the collection itself)
+    console.log('Purging existing GPU documents...');
+    await gpusCollection.deleteMany({});
+
     // Group GPUs by chipset/model for reorganization
     const gpusByModel = {};
-    
+
     existingGPUs.forEach(gpu => {
       let model = extractGPUModel(gpu.chipset || gpu.name || 'unknown');
-      
+
       if (!gpusByModel[model]) {
         gpusByModel[model] = [];
       }
       gpusByModel[model].push(gpu);
     });
-    
+
     console.log('GPU models found:', Object.keys(gpusByModel));
-    
-    // Create separate collections for each GPU model
+
+    // Re-insert all GPUs back into the single `gpus` collection, stamping each doc
+    // with its `modelCollection` (e.g. 'gpus_rtx_4090') so the model grouping is preserved.
     for (const [model, gpus] of Object.entries(gpusByModel)) {
-      const collectionName = `gpus_${model.toLowerCase().replace(/\s+/g, '_')}`;
-      console.log(`Creating collection: ${collectionName} with ${gpus.length} GPUs`);
-      
+      const modelCollection = `gpus_${model.toLowerCase().replace(/\s+/g, '_')}`;
+      console.log(`Tagging ${gpus.length} GPUs with modelCollection: ${modelCollection}`);
+
       if (gpus.length > 0) {
-        const modelCollection = db.collection(collectionName);
-        await modelCollection.insertMany(gpus);
-        
-        // Create indexes for performance
-        await modelCollection.createIndex({ name: 1 });
-        await modelCollection.createIndex({ price: 1 });
-        await modelCollection.createIndex({ partner: 1 });
+        const stamped = gpus.map(gpu => ({ ...gpu, modelCollection }));
+        await gpusCollection.insertMany(stamped);
       }
     }
-    
+
+    // Ensure indexes on the single collection for performance
+    await gpusCollection.createIndex({ name: 1 });
+    await gpusCollection.createIndex({ price: 1 });
+    await gpusCollection.createIndex({ partner: 1 });
+    await gpusCollection.createIndex({ modelCollection: 1 });
+
     console.log('Database purge and reorganization completed successfully!');
     return Object.keys(gpusByModel);
     

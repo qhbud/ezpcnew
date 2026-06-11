@@ -9,35 +9,30 @@ async function updateAllGPUs() {
     await connectToDatabase();
     const db = getDatabase();
 
-    const collections = await db.listCollections().toArray();
-    const gpuCollections = collections
-      .filter(col => col.name.startsWith('gpus_'))
-      .map(col => col.name)
-      .sort();
+    // All GPUs now live in the single `gpus` collection. The original per-model
+    // grouping is preserved in each doc's `modelCollection` field.
+    const modelGroups = (await db.collection('gpus').distinct('modelCollection')).sort();
 
-    console.log(`📋 Found ${gpuCollections.length} GPU collections to update`);
+    const totalCount = await db.collection('gpus').countDocuments({ sourceUrl: { $exists: true, $ne: null } });
+    console.log(`📋 Found ${modelGroups.length} GPU model groups (${totalCount} GPUs with source URLs) to update`);
 
-    let totalUpdated = 0;
     let totalProcessed = 0;
 
-    for (const collectionName of gpuCollections) {
-      const count = await db.collection(collectionName).countDocuments({ sourceUrl: { $exists: true, $ne: null } });
-      if (count > 0) {
-        console.log(`\n🔄 Updating ${collectionName} (${count} GPUs)...`);
+    if (totalCount > 0) {
+      console.log(`\n🔄 Updating the 'gpus' collection (${totalCount} GPUs)...`);
 
-        try {
-          // Run the price updater for this collection
-          const result = await runPriceUpdater(collectionName);
-          totalProcessed += count;
-          console.log(`   ✅ Completed ${collectionName}`);
-        } catch (error) {
-          console.log(`   ❌ Error updating ${collectionName}: ${error.message}`);
-        }
+      try {
+        // Run the price updater once over the single `gpus` collection
+        const result = await runPriceUpdater('gpus');
+        totalProcessed += totalCount;
+        console.log(`   ✅ Completed 'gpus' collection`);
+      } catch (error) {
+        console.log(`   ❌ Error updating 'gpus' collection: ${error.message}`);
       }
     }
 
     console.log(`\n🎉 Bulk update completed!`);
-    console.log(`📊 Total collections processed: ${gpuCollections.length}`);
+    console.log(`📊 Total GPU model groups: ${modelGroups.length}`);
     console.log(`📊 Total GPUs processed: ${totalProcessed}`);
 
   } catch (error) {

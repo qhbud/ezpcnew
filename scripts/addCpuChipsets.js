@@ -137,63 +137,53 @@ async function addChipsetsToAllCPUs() {
     client = await connectToDatabase();
     const db = getDatabase();
 
-    // Get all collections that start with 'cpus_'
-    const collections = await db.listCollections().toArray();
-    const cpuCollections = collections
-      .map(col => col.name)
-      .filter(name => name.startsWith('cpus_'));
+    // All CPUs now live in the single `cpus` collection (migrated from per-model
+    // cpus_* subcollections; original group preserved in the `modelCollection` field).
+    const collection = db.collection('cpus');
+    const cpus = await collection.find({}).toArray();
 
-    console.log(`\n📊 Found ${cpuCollections.length} CPU collections`);
-    console.log('Collections:', cpuCollections.join(', '));
+    console.log(`\n📊 Found ${cpus.length} CPUs in the cpus collection`);
 
     let totalUpdated = 0;
     let totalChecked = 0;
     let missingChipsets = 0;
 
-    for (const collectionName of cpuCollections) {
-      console.log(`\n📁 Processing collection: ${collectionName}`);
-      const collection = db.collection(collectionName);
+    for (const cpu of cpus) {
+      totalChecked++;
 
-      const cpus = await collection.find({}).toArray();
-      console.log(`   Found ${cpus.length} CPUs`);
+      // Check if CPU already has both chipset fields
+      const hasCompatChipsets = cpu.compatibility?.motherboards && cpu.compatibility.motherboards.length > 0;
+      const hasSupportedChipsets = cpu.supportedChipsets && cpu.supportedChipsets.length > 0;
 
-      for (const cpu of cpus) {
-        totalChecked++;
-
-        // Check if CPU already has both chipset fields
-        const hasCompatChipsets = cpu.compatibility?.motherboards && cpu.compatibility.motherboards.length > 0;
-        const hasSupportedChipsets = cpu.supportedChipsets && cpu.supportedChipsets.length > 0;
-
-        // If both fields are populated, skip
-        if (hasCompatChipsets && hasSupportedChipsets) {
-          console.log(`   ✓ ${cpu.title || cpu.name} - Already has chipsets: ${cpu.supportedChipsets.join(', ')}`);
-          continue;
-        }
-
-        // Get chipsets for this CPU
-        const chipsets = getChipsetsForCPU(cpu);
-
-        if (chipsets.length === 0) {
-          missingChipsets++;
-          console.log(`   ⚠️  ${cpu.title || cpu.name} - No chipsets found`);
-          continue;
-        }
-
-        // Update CPU with chipsets (add to both fields for compatibility)
-        await collection.updateOne(
-          { _id: cpu._id },
-          {
-            $set: {
-              'compatibility.motherboards': chipsets,
-              'supportedChipsets': chipsets, // Frontend uses this field
-              updatedAt: new Date()
-            }
-          }
-        );
-
-        totalUpdated++;
-        console.log(`   ✅ ${cpu.title || cpu.name} - Added chipsets: ${chipsets.join(', ')}`);
+      // If both fields are populated, skip
+      if (hasCompatChipsets && hasSupportedChipsets) {
+        console.log(`   ✓ ${cpu.title || cpu.name} - Already has chipsets: ${cpu.supportedChipsets.join(', ')}`);
+        continue;
       }
+
+      // Get chipsets for this CPU
+      const chipsets = getChipsetsForCPU(cpu);
+
+      if (chipsets.length === 0) {
+        missingChipsets++;
+        console.log(`   ⚠️  ${cpu.title || cpu.name} - No chipsets found`);
+        continue;
+      }
+
+      // Update CPU with chipsets (add to both fields for compatibility)
+      await collection.updateOne(
+        { _id: cpu._id },
+        {
+          $set: {
+            'compatibility.motherboards': chipsets,
+            'supportedChipsets': chipsets, // Frontend uses this field
+            updatedAt: new Date()
+          }
+        }
+      );
+
+      totalUpdated++;
+      console.log(`   ✅ ${cpu.title || cpu.name} - Added chipsets: ${chipsets.join(', ')}`);
     }
 
     console.log('\n' + '='.repeat(80));

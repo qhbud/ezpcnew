@@ -12,9 +12,8 @@ async function removeGpusWithoutPrices() {
 
         const db = client.db('pcbuilder');
 
-        // Get all GPU collections
-        const gpuCollections = await db.listCollections({ name: /^gpus_/ }).toArray();
-        const collections = ['gpus', ...gpuCollections.map(c => c.name)];
+        // All GPUs now live in the single `gpus` collection.
+        const collections = ['gpus'];
 
         let totalRemoved = 0;
 

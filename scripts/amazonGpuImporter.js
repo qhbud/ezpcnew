@@ -496,21 +496,25 @@ class AmazonGpuImporter {
           gpusByModel[model].push(gpu);
         });
         
+        const gpusCollection = db.collection('gpus');
         let totalInserted = 0;
         for (const [model, gpus] of Object.entries(gpusByModel)) {
-          const collectionName = `gpus_${model}`;
-          console.log(`  Inserting ${gpus.length} GPUs into ${collectionName}...`);
-          
-          const result = await db.collection(collectionName).insertMany(gpus);
+          const modelCollection = `gpus_${model}`;
+          console.log(`  Inserting ${gpus.length} GPUs tagged as ${modelCollection}...`);
+
+          // All GPUs live in the single `gpus` collection; stamp each doc with its model group
+          const stamped = gpus.map(gpu => ({ ...gpu, modelCollection }));
+          const result = await gpusCollection.insertMany(stamped);
           totalInserted += result.insertedCount;
-          
-          // Create indexes for performance
-          await db.collection(collectionName).createIndex({ name: 1 });
-          await db.collection(collectionName).createIndex({ price: 1 });
-          await db.collection(collectionName).createIndex({ partner: 1 });
         }
-        
-        console.log(`✓ Successfully inserted ${totalInserted} GPUs across ${Object.keys(gpusByModel).length} model collections`);
+
+        // Create indexes on the single collection for performance
+        await gpusCollection.createIndex({ name: 1 });
+        await gpusCollection.createIndex({ price: 1 });
+        await gpusCollection.createIndex({ partner: 1 });
+        await gpusCollection.createIndex({ modelCollection: 1 });
+
+        console.log(`✓ Successfully inserted ${totalInserted} GPUs across ${Object.keys(gpusByModel).length} model groups`);
 
         // Display results by chipset
         console.log('\n📊 Import Summary by Chipset:');

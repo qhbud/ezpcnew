@@ -16,30 +16,22 @@ async function updateNewGpus() {
         db = getDatabase();
         console.log('Connected to MongoDB\n');
 
-        // Find all GPU products with null/missing prices
-        const allCollections = await db.listCollections().toArray();
-        const gpuCollections = allCollections
-            .filter(col => col.name.startsWith('gpus_'))
-            .map(col => col.name);
+        // Find all GPU products with null/missing prices.
+        // All GPUs now live in the single `gpus` collection (per-model group is in `modelCollection`).
+        const col = db.collection('gpus');
+        const itemsToUpdate = await col.find({
+            sourceUrl: { $exists: true, $ne: null, $ne: '' },
+            $or: [
+                { price: null },
+                { price: { $exists: false } },
+                { currentPrice: null },
+                { currentPrice: { $exists: false } }
+            ]
+        }).toArray();
 
-        let itemsToUpdate = [];
-        for (const colName of gpuCollections) {
-            const col = db.collection(colName);
-            const items = await col.find({
-                sourceUrl: { $exists: true, $ne: null, $ne: '' },
-                $or: [
-                    { price: null },
-                    { price: { $exists: false } },
-                    { currentPrice: null },
-                    { currentPrice: { $exists: false } }
-                ]
-            }).toArray();
-
-            items.forEach(item => {
-                item._collectionName = colName;
-            });
-            itemsToUpdate = itemsToUpdate.concat(items);
-        }
+        itemsToUpdate.forEach(item => {
+            item._collectionName = 'gpus';
+        });
 
         console.log(`Found ${itemsToUpdate.length} GPUs needing price/image updates\n`);
 

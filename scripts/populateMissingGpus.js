@@ -181,9 +181,11 @@ async function populate() {
     let inserted = 0;
     let skipped = 0;
 
-    for (const gpu of missingGpus) {
-        const col = db.collection(gpu.collection);
+    // All GPUs live in the single `gpus` collection; the per-doc `collection`
+    // field below is used as the `modelCollection` value (e.g. 'gpus_rtx_5090').
+    const col = db.collection('gpus');
 
+    for (const gpu of missingGpus) {
         // Check if a product with this sourceUrl already exists
         const existing = await col.findOne({ sourceUrl: gpu.sourceUrl });
         if (existing) {
@@ -193,6 +195,7 @@ async function populate() {
         }
 
         const doc = {
+            modelCollection: gpu.collection,
             name: gpu.name,
             basePrice: null,
             salePrice: null,
@@ -223,7 +226,7 @@ async function populate() {
         };
 
         await col.insertOne(doc);
-        console.log(`  ADD:  ${gpu.gpuModel} -> ${gpu.collection} (${gpu.name.substring(0, 60)}...)`);
+        console.log(`  ADD:  ${gpu.gpuModel} -> ${gpu.collection} [gpus.modelCollection] (${gpu.name.substring(0, 60)}...)`);
         inserted++;
     }
 
@@ -253,13 +256,8 @@ async function populate() {
         'Arc A580': 70, 'Arc A380': 50
     };
 
-    const collections = await db.listCollections().toArray();
-    const gpuCollections = collections.filter(c => c.name.startsWith('gpus_') || c.name === 'gpus');
-    const allGpus = [];
-    for (const col of gpuCollections) {
-        const docs = await db.collection(col.name).find({}).toArray();
-        allGpus.push(...docs);
-    }
+    // All GPUs now live in the single `gpus` collection.
+    const allGpus = await db.collection('gpus').find({}).toArray();
 
     const sortedModels = Object.entries(gpuBenchmarks)
         .sort((a, b) => b[0].length - a[0].length);

@@ -1,4 +1,5 @@
 const { AmazonGpuImporter } = require('./amazonGpuImporter');
+const { extractGPUModel } = require('./purgeAndReorganizeGPUs');
 const { connectToDatabase, getDatabase } = require('../config/database');
 
 /**
@@ -63,9 +64,14 @@ class ConservativeGpuImporter {
         console.log(`💰 Price: $${gpus[0].price}`);
         console.log(`🏭 Partner: ${gpus[0].partner}`);
         
-        // Insert into database
+        // Insert into the single `gpus` collection, stamping each doc with its
+        // model group (e.g. 'gpus_rtx_4090') in the `modelCollection` field.
         const db = getDatabase();
-        const result = await db.collection('gpus').insertMany(gpus);
+        const stamped = gpus.map(gpu => ({
+          ...gpu,
+          modelCollection: `gpus_${extractGPUModel(gpu.chipset || gpu.name || chipsetName)}`
+        }));
+        const result = await db.collection('gpus').insertMany(stamped);
         console.log(`💾 Inserted ${result.insertedCount} GPUs into database`);
         
         return {

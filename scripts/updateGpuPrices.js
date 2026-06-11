@@ -19,32 +19,24 @@ async function updateGpuPrices() {
     await updater.connect();
     await updater.initializeBrowser();
 
-    // Get all GPU collections (they're stored as gpus_rtx_4090, gpus_rx_7800_xt, etc.)
-    const allCollections = await updater.db.listCollections().toArray();
-    const gpuCollections = allCollections
-      .filter(col => col.name.startsWith('gpus_'))
-      .map(col => col.name);
+    // All GPUs now live in the single `gpus` collection; each doc carries a
+    // `modelCollection` field (e.g. 'gpus_rtx_4090') indicating its original model group.
+    const modelGroups = await updater.db.collection('gpus').distinct('modelCollection');
 
-    console.log(`\n📦 Found ${gpuCollections.length} GPU collections`);
+    console.log(`\n📦 Found ${modelGroups.length} GPU model groups`);
 
     console.log(`\n${'='.repeat(60)}`);
     console.log(`🔄 Updating GPUs`);
     console.log('='.repeat(60));
 
-    // Collect all items from all GPU collections
-    let allItems = [];
-    for (const collectionName of gpuCollections) {
-      const collection = updater.db.collection(collectionName);
-      const items = await collection.find({
-        sourceUrl: { $exists: true, $ne: null, $ne: '' }
-      }).toArray();
+    // Collect all GPU items in a single pass over the `gpus` collection
+    const collection = updater.db.collection('gpus');
+    const items = await collection.find({
+      sourceUrl: { $exists: true, $ne: null, $ne: '' }
+    }).toArray();
 
-      // Add collection name to each item for later reference
-      items.forEach(item => item._collectionName = collectionName);
-      allItems = allItems.concat(items);
-    }
-
-    const items = allItems;
+    // Operate on the single `gpus` collection for every item
+    items.forEach(item => item._collectionName = 'gpus');
 
     console.log(`📊 Found ${items.length} GPUs with source URLs\n`);
 

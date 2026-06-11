@@ -160,20 +160,22 @@ class AllGpuImporter {
           return enhanced;
         });
 
-        // Use model-specific collection (e.g., gpus_rtx_4070, gpus_rx_7900_xtx)
-        const collectionName = `gpus_${model.toLowerCase().replace(/\s+/g, '_')}`;
-        const collection = this.db.collection(collectionName);
+        // All GPUs live in the single `gpus` collection; tag each doc with its
+        // model group (e.g., gpus_rtx_4070, gpus_rx_7900_xtx) via `modelCollection`.
+        const modelCollection = `gpus_${model.toLowerCase().replace(/\s+/g, '_')}`;
+        const collection = this.db.collection('gpus');
 
-        // Clear existing data for this model and insert new data
-        await collection.deleteMany({});
-        const result = await collection.insertMany(enhancedProducts);
+        // Clear existing data for this model group and insert new data
+        await collection.deleteMany({ modelCollection });
+        const stamped = enhancedProducts.map(p => ({ ...p, modelCollection }));
+        const result = await collection.insertMany(stamped);
 
-        Logger.success(`   💾 Saved ${result.insertedCount} products to ${collectionName}`);
+        Logger.success(`   💾 Saved ${result.insertedCount} products tagged as ${modelCollection}`);
 
         this.results.models[model] = {
           products: result.insertedCount,
           status: 'success',
-          collection: collectionName
+          collection: modelCollection
         };
       } else {
         Logger.warn(`   ⚠️ No products found for ${model}`);

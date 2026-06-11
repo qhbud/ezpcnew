@@ -26,16 +26,14 @@ async function updateAllPrices() {
     await updater.connect();
     await updater.initializeBrowser();
 
-    // Get all GPU collections (they're stored as gpus_rtx_4090, gpus_rx_7800_xt, etc.)
-    const allCollections = await updater.db.listCollections().toArray();
-    const gpuCollections = allCollections
-      .filter(col => col.name.startsWith('gpus_'))
-      .map(col => col.name);
+    // All GPUs now live in the single `gpus` collection (migrated from per-model
+    // gpus_* subcollections; the original group is kept in the `modelCollection` field).
+    const gpuModelGroups = await updater.db.collection('gpus').distinct('modelCollection');
 
-    console.log(`\n📦 Found ${gpuCollections.length} GPU collections`);
+    console.log(`\n📦 Found ${gpuModelGroups.length} GPU model groups in the 'gpus' collection`);
 
     const componentTypes = [
-      { type: 'gpus', collections: gpuCollections },
+      { type: 'gpus', collections: ['gpus'] },
       { type: 'cpus', collections: ['cpus'] },
       { type: 'motherboards', collections: ['motherboards'] },
       { type: 'rams', collections: ['rams'] }

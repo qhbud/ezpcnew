@@ -28,11 +28,10 @@ class CPUImageAndChipsetUpdater {
     }
 
     // Get all CPU collections
+    // All CPUs now live in the single `cpus` collection (migrated from per-model
+    // cpus_* subcollections; original group preserved in the `modelCollection` field).
     async getCPUCollections() {
-        const collections = await this.db.listCollections().toArray();
-        return collections
-            .filter(col => col.name.startsWith('cpus'))
-            .map(col => col.name);
+        return ['cpus'];
     }
 
     // Extract chipset from CPU specifications on Amazon

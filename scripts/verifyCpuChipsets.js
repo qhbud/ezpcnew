@@ -6,51 +6,39 @@ async function verifyCpuChipsets() {
     await connectToDatabase();
     const db = getDatabase();
 
-    // Get all collections that start with 'cpus_'
-    const collections = await db.listCollections().toArray();
-    const cpuCollections = collections
-      .map(col => col.name)
-      .filter(name => name.startsWith('cpus_'));
+    // All CPUs now live in the single `cpus` collection (migrated from per-model
+    // cpus_* subcollections; original group preserved in the `modelCollection` field).
+    const collection = db.collection('cpus');
+    const cpus = await collection.find({}).toArray();
 
-    console.log(`\n📊 Found ${cpuCollections.length} CPU collections\n`);
+    console.log(`\n📊 Found ${cpus.length} CPUs in the cpus collection\n`);
 
     let totalCPUs = 0;
     let cpusWithChipsets = 0;
     let cpusWithoutChipsets = 0;
 
-    for (const collectionName of cpuCollections) {
-      const collection = db.collection(collectionName);
-      const cpus = await collection.find({}).toArray();
+    for (const cpu of cpus) {
+      totalCPUs++;
+      const name = cpu.title || cpu.name || 'Unknown';
+      const socket = cpu.socket || 'Unknown';
+      const chipsets = cpu.supportedChipsets || cpu.compatibility?.motherboards || [];
 
-      if (cpus.length === 0) continue;
+      if (chipsets.length > 0) {
+        cpusWithChipsets++;
+        console.log(`\n✅ ${name}`);
+        console.log(`   Socket: ${socket}`);
+        console.log(`   Compatible Chipsets (supportedChipsets): ${chipsets.join(', ')}`);
 
-      console.log(`\n${'='.repeat(80)}`);
-      console.log(`📁 Collection: ${collectionName} (${cpus.length} CPUs)`);
-      console.log('='.repeat(80));
-
-      for (const cpu of cpus) {
-        totalCPUs++;
-        const name = cpu.title || cpu.name || 'Unknown';
-        const socket = cpu.socket || 'Unknown';
-        const chipsets = cpu.supportedChipsets || cpu.compatibility?.motherboards || [];
-
-        if (chipsets.length > 0) {
-          cpusWithChipsets++;
-          console.log(`\n✅ ${name}`);
-          console.log(`   Socket: ${socket}`);
-          console.log(`   Compatible Chipsets (supportedChipsets): ${chipsets.join(', ')}`);
-
-          // Verify both fields match
-          const compatChipsets = cpu.compatibility?.motherboards || [];
-          if (compatChipsets.length > 0 && JSON.stringify(chipsets) !== JSON.stringify(compatChipsets)) {
-            console.log(`   ⚠️  Mismatch: compatibility.motherboards = ${compatChipsets.join(', ')}`);
-          }
-        } else {
-          cpusWithoutChipsets++;
-          console.log(`\n❌ ${name}`);
-          console.log(`   Socket: ${socket}`);
-          console.log(`   Compatible Chipsets: NONE`);
+        // Verify both fields match
+        const compatChipsets = cpu.compatibility?.motherboards || [];
+        if (compatChipsets.length > 0 && JSON.stringify(chipsets) !== JSON.stringify(compatChipsets)) {
+          console.log(`   ⚠️  Mismatch: compatibility.motherboards = ${compatChipsets.join(', ')}`);
         }
+      } else {
+        cpusWithoutChipsets++;
+        console.log(`\n❌ ${name}`);
+        console.log(`   Socket: ${socket}`);
+        console.log(`   Compatible Chipsets: NONE`);
       }
     }
 

@@ -6,40 +6,34 @@ async function purgeAllGPUCollections() {
     await connectToDatabase();
     const db = getDatabase();
     
-    // Get all collections that start with "gpus"
-    console.log('🔍 Finding all GPU collections...');
-    const collections = await db.listCollections({ name: /^gpus/ }).toArray();
-    const gpuCollectionNames = collections.map(col => col.name);
-    
-    console.log(`📋 Found ${gpuCollectionNames.length} GPU collections:`);
-    gpuCollectionNames.forEach(name => console.log(`   - ${name}`));
-    
-    if (gpuCollectionNames.length === 0) {
-      console.log('✅ No GPU collections found to purge');
+    // All GPUs now live in the single `gpus` collection (per-model group preserved
+    // in each doc's `modelCollection` field).
+    console.log('🔍 Inspecting the GPU collection...');
+    const gpusCollection = db.collection('gpus');
+
+    // Count total GPUs before purging, broken down by model group for visibility
+    const modelGroups = await gpusCollection.distinct('modelCollection');
+    let totalGPUs = 0;
+    for (const modelCollection of modelGroups) {
+      const count = await gpusCollection.countDocuments({ modelCollection });
+      totalGPUs += count;
+      console.log(`📊 ${modelCollection}: ${count} GPUs`);
+    }
+    // Include any docs without a modelCollection value
+    totalGPUs = await gpusCollection.countDocuments();
+
+    if (totalGPUs === 0) {
+      console.log('✅ No GPUs found to purge');
       return;
     }
-    
-    // Count total GPUs before purging
-    let totalGPUs = 0;
-    for (const collectionName of gpuCollectionNames) {
-      const count = await db.collection(collectionName).countDocuments();
-      totalGPUs += count;
-      console.log(`📊 ${collectionName}: ${count} GPUs`);
-    }
-    
-    console.log(`\n🗑️  About to purge ${totalGPUs} GPUs from ${gpuCollectionNames.length} collections`);
+
+    console.log(`\n🗑️  About to purge ${totalGPUs} GPUs from the 'gpus' collection (${modelGroups.length} model groups)`);
     console.log('⚠️  This action cannot be undone!');
-    
-    // Drop all GPU collections
-    for (const collectionName of gpuCollectionNames) {
-      try {
-        await db.collection(collectionName).drop();
-        console.log(`✅ Dropped collection: ${collectionName}`);
-      } catch (error) {
-        console.log(`⚠️  Could not drop ${collectionName}: ${error.message}`);
-      }
-    }
-    
+
+    // Clear all documents from the single `gpus` collection (do NOT drop the collection itself)
+    const result = await gpusCollection.deleteMany({});
+    console.log(`✅ Cleared ${result.deletedCount} GPUs from the 'gpus' collection`);
+
     console.log('\n🎉 GPU purge completed!');
     console.log('💡 You can now run the import script to recalculate fresh data');
     
