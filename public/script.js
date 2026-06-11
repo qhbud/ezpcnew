@@ -5112,9 +5112,8 @@ class PartsDatabase {
         // Use the copy function
         copyToClipboard(shareURL).then(success => {
             if (success) {
-                // Show success message with a styled alert
                 const componentCount = Object.keys(buildData).length;
-                alert(`✅ Share link copied to clipboard!\n\nTotal: $${this.totalPrice.toFixed(2)}\nComponents: ${componentCount}\n\nAnyone with this link can view and use your build!`);
+                this.showToast(`Share link copied to clipboard. Total: $${this.totalPrice.toFixed(2)} (${componentCount} components)`);
             } else {
                 alert('Failed to copy link. Please try again.');
             }
@@ -5387,7 +5386,7 @@ class PartsDatabase {
     saveCurrentBuild() {
         const buildData = this.serializeBuild();
         if (Object.keys(buildData).length === 0) {
-            alert('Your build is empty — add some components before saving.');
+            this.showToast('Your build is empty - add some components before saving.');
             return;
         }
         const defaultName = `My Build ${new Date().toLocaleDateString()}`;
@@ -5555,42 +5554,6 @@ class PartsDatabase {
                             } else {
                                 console.log('❌ GPU not found in grouped array either');
 
-                                // Try fuzzy ID matching - find GPUs with IDs that differ by only 1-2 characters
-                                const potentialMatches = allIndividualGPUs.filter(g => {
-                                    const gId = g._id || '';
-                                    // Check if IDs are same length and differ by only a few characters
-                                    if (gId.length === componentId.length) {
-                                        let differences = 0;
-                                        for (let i = 0; i < gId.length; i++) {
-                                            if (gId[i] !== componentId[i]) differences++;
-                                        }
-                                        return differences <= 2; // Allow up to 2 character differences
-                                    }
-                                    return false;
-                                });
-
-                                if (potentialMatches.length > 0) {
-                                    console.log(`🔍 Found ${potentialMatches.length} GPU(s) with similar IDs:`);
-                                    potentialMatches.forEach(match => {
-                                        console.log(`  - ${match.title || match.name} (ID: ${match._id})`);
-                                    });
-
-                                    // Use the first fuzzy match as fallback
-                                    component = potentialMatches[0];
-                                    console.log(`✅ Using fuzzy match: ${component.title || component.name}`);
-                                } else {
-                                    // Try finding by title/name as last resort
-                                    const searchTerms = ['RTX 4090', 'ASUS TUF'];
-                                    for (const term of searchTerms) {
-                                        const match = allIndividualGPUs.find(g =>
-                                            (g.title && g.title.includes(term)) ||
-                                            (g.name && g.name.includes(term))
-                                        );
-                                        if (match) {
-                                            console.log(`Found potential match by name: ${match.title || match.name} (ID: ${match._id})`);
-                                        }
-                                    }
-                                }
                             }
                         }
                     } else {
