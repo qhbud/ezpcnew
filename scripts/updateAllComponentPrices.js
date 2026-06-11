@@ -187,10 +187,11 @@ class AllComponentPriceUpdater {
             name === 'cpus'
         );
 
-        // All GPUs now live in the single `gpus` collection (migrated from per-model
-        // gpus_* subcollections; original group preserved in the `modelCollection` field).
+        // GPUs are sharded across per-model `gpus_*` collections (unlike CPUs, they were
+        // never consolidated into a single `gpus` collection). Match every shard, plus a
+        // bare `gpus` collection if one is ever introduced.
         const gpuCollections = componentCollectionNames.filter(name =>
-            name === 'gpus'
+            name === 'gpus' || name.startsWith('gpus_')
         );
 
         // Get other component collections, prioritizing addons and cases
@@ -205,9 +206,15 @@ class AllComponentPriceUpdater {
         // Combine all collections with priority order: addons/cases first, then CPUs, GPUs, then others
         COMPONENT_COLLECTIONS = [...priorityCollections, ...cpuCollections, ...gpuCollections, ...otherCollections];
 
-        // Restrict to a single collection if --collection=<name> was passed (CI per-collection jobs)
+        // Restrict to a single collection if --collection=<name> was passed (CI per-collection jobs).
+        // `--collection=gpus` is a GROUP selector: GPUs are sharded across many `gpus_*`
+        // collections, so expand it to every GPU shard rather than requiring a literal match.
         if (ONLY_COLLECTION) {
-            COMPONENT_COLLECTIONS = COMPONENT_COLLECTIONS.filter(name => name === ONLY_COLLECTION);
+            COMPONENT_COLLECTIONS = COMPONENT_COLLECTIONS.filter(name =>
+                ONLY_COLLECTION === 'gpus'
+                    ? (name === 'gpus' || name.startsWith('gpus_'))
+                    : name === ONLY_COLLECTION
+            );
             if (COMPONENT_COLLECTIONS.length === 0) {
                 console.error(`❌ Collection "${ONLY_COLLECTION}" not found in database`.red);
                 process.exit(1);
