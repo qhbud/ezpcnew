@@ -1,5 +1,13 @@
 const express = require('express');
-const compression = require('compression');
+// Optional gzip middleware — load defensively so a missing/broken dependency can
+// never crash the whole server on boot (it once did: compression wasn't in
+// package.json, so production npm install lacked it and require() threw -> 502).
+let compression = null;
+try {
+    compression = require('compression');
+} catch (err) {
+    console.warn('compression middleware unavailable, continuing without gzip:', err.message);
+}
 const path = require('path');
 const { ObjectId } = require('mongodb');
 const { connectToDatabase, getDatabase } = require('./config/database');
@@ -159,7 +167,9 @@ function cacheMiddleware(duration) {
 }
 
 // Middleware
-app.use(compression());
+if (compression) {
+    app.use(compression());
+}
 app.use(express.json());
 
 // Add cache-control headers to force browsers to reload
