@@ -619,10 +619,11 @@ class PartsDatabase {
             const response = await fetch('/api/parts/psus');
             if (response.ok) {
                 const allPSUs = await response.json();
-                // Filter out PSUs that don't have complete information
-                this.allPSUs = allPSUs.filter(psu =>
-                    psu.wattage && psu.certification && psu.modularity
-                );
+                // Only wattage is essential for build logic (power-adequacy check) and
+                // is the primary spec users pick by. Certification and modularity are
+                // display-only and render conditionally, so don't hide PSUs that lack
+                // them — requiring all three was hiding ~64% of the catalog.
+                this.allPSUs = allPSUs.filter(psu => psu.wattage);
                 console.log('Loaded PSUs:', this.allPSUs.length, `(filtered out ${allPSUs.length - this.allPSUs.length} incomplete)`);
                 this.refreshModalIfOpen('psu');
                 this.populatePsuSelector();
