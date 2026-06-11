@@ -81,6 +81,7 @@ class PartsDatabase {
         this.allStorage = [];
         this.allCases = [];
         this.allAddons = [];
+        this.priceHistoryRequests = new Map();
         this.manufacturers = new Set();
         this.stats = { total: 0, manufacturers: 0 };
         this.selectedGPU = null;
@@ -385,6 +386,68 @@ class PartsDatabase {
 
         // Set initial button state
         this.updateBuildActions();
+    }
+
+    getPriceHistoryCategory(componentType) {
+        if (!componentType) return 'parts';
+
+        if (componentType.startsWith('storage')) return 'storages';
+        if (componentType.startsWith('addon')) return 'addons';
+
+        const categories = {
+            gpu: 'gpus',
+            cpu: 'cpus',
+            motherboard: 'motherboards',
+            ram: 'rams',
+            psu: 'psus',
+            cooler: 'coolers',
+            case: 'cases'
+        };
+
+        return categories[componentType] || componentType;
+    }
+
+    async ensurePriceHistory(component, componentType) {
+        if (!component) return [];
+
+        if (Array.isArray(component.priceHistory) && component.priceHistory.length > 0) {
+            return component.priceHistory;
+        }
+
+        if (component._priceHistoryLoaded) {
+            return Array.isArray(component.priceHistory) ? component.priceHistory : [];
+        }
+
+        const componentId = component._id;
+        if (!componentId) {
+            component._priceHistoryLoaded = true;
+            component.priceHistory = [];
+            return [];
+        }
+
+        const category = this.getPriceHistoryCategory(componentType || component.category);
+        const collection = component.collection ? `?collection=${encodeURIComponent(component.collection)}` : '';
+        const cacheKey = `${category}:${componentId}:${component.collection || ''}`;
+
+        if (!this.priceHistoryRequests.has(cacheKey)) {
+            const request = fetch(`/api/parts/${encodeURIComponent(category)}/${encodeURIComponent(componentId)}/price-history${collection}`)
+                .then(response => response.ok ? response.json() : { priceHistory: [] })
+                .then(data => {
+                    component.priceHistory = Array.isArray(data.priceHistory) ? data.priceHistory : [];
+                    component._priceHistoryLoaded = true;
+                    return component.priceHistory;
+                })
+                .catch(error => {
+                    console.error('Error loading price history:', error);
+                    component.priceHistory = [];
+                    component._priceHistoryLoaded = true;
+                    return [];
+                });
+
+            this.priceHistoryRequests.set(cacheKey, request);
+        }
+
+        return this.priceHistoryRequests.get(cacheKey);
     }
 
     // Tab switching functionality
@@ -10897,26 +10960,31 @@ class PartsDatabase {
     createComparisonGraph() {
         const graphId = 'comparisonGraph_' + Date.now();
 
-        // Collect all components' price histories
-        const allHistories = this.comparisonComponents.map((item, index) => {
-            const component = item.component;
-            const basePrice = parseFloat(component.basePrice) || 0;
-            const salePrice = parseFloat(component.salePrice) || parseFloat(component.currentPrice) || 0;
-            const name = (component.title || component.name || 'Unknown').substring(0, 30);
+        const buildHistories = () => this.comparisonComponents.map((item, index) => {
+                const component = item.component;
+                const basePrice = parseFloat(component.basePrice) || 0;
+                const salePrice = parseFloat(component.salePrice) || parseFloat(component.currentPrice) || 0;
+                const name = (component.title || component.name || 'Unknown').substring(0, 30);
 
-            return {
-                name: name,
-                history: this.generatePriceHistory(basePrice, salePrice, component.priceHistory),
-                color: this.getComparisonColor(index)
-            };
-        });
+                return {
+                    name: name,
+                    history: this.generatePriceHistory(basePrice, salePrice, component.priceHistory),
+                    color: this.getComparisonColor(index)
+                };
+            });
 
-        // Store for later redrawing
+        const allHistories = buildHistories();
+
         this.currentGraphId = graphId;
         this.currentAllHistories = allHistories;
 
-        setTimeout(() => {
-            this.drawComparisonChart(graphId, allHistories);
+        setTimeout(async () => {
+            await Promise.all(this.comparisonComponents.map(item =>
+                this.ensurePriceHistory(item.component, item.componentType)
+            ));
+            const hydratedHistories = buildHistories();
+            this.currentAllHistories = hydratedHistories;
+            this.drawComparisonChart(graphId, hydratedHistories);
         }, 100);
 
         // Create legend with performance scores
@@ -11860,13 +11928,14 @@ class PartsDatabase {
         }
     }
 
-    createSavingsGraph(basePrice, salePrice, discount, savedPriceHistory) {
+    createSavingsGraph(basePrice, salePrice, discount, savedPriceHistory, component = null, componentType = null) {
         const graphId = 'priceGraph_' + Date.now();
 
-        // Use actual saved price history if available, otherwise simulate
-        const priceHistory = this.generatePriceHistory(basePrice, salePrice, savedPriceHistory);
-
-        setTimeout(() => {
+        setTimeout(async () => {
+            if (component && (!savedPriceHistory || savedPriceHistory.length === 0)) {
+                savedPriceHistory = await this.ensurePriceHistory(component, componentType);
+            }
+            const priceHistory = this.generatePriceHistory(basePrice, salePrice, savedPriceHistory);
             this.drawPriceChart(graphId, priceHistory, basePrice, salePrice);
         }, 100);
 

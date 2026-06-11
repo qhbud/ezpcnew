@@ -91,6 +91,7 @@ function getGpuPerformance(gpu) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const LIST_PARTS_PROJECTION = { priceHistory: 0 };
 
 // Simple in-memory cache with TTL
 class SimpleCache {
@@ -228,7 +229,7 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
         const collections = ['cpus', 'motherboards', 'gpus', 'rams', 'storages', 'psus', 'cases', 'coolers'];
 
         const collectionPromises = collections.map(collectionName =>
-            db.collection(collectionName).find(filter).toArray()
+            db.collection(collectionName).find(filter, { projection: LIST_PARTS_PROJECTION }).toArray()
                 .then(parts => {
                     // Filter out parts with invalid prices
                     const validParts = parts.filter(part => hasValidPrice(part));
@@ -311,7 +312,7 @@ app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
         }
 
         const collection = db.collection(category);
-        const parts = await collection.find(filter).toArray();
+        const parts = await collection.find(filter, { projection: LIST_PARTS_PROJECTION }).toArray();
 
         // Filter out parts with invalid prices
         const validParts = parts.filter(part => hasValidPrice(part));
@@ -325,6 +326,84 @@ app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
     } catch (error) {
         console.error(`Error fetching ${req.params.category}:`, error);
         res.status(500).json({ error: `Failed to fetch ${req.params.category}` });
+    }
+});
+
+async function getPriceHistoryCollectionNames(category, preferredCollection) {
+    const normalizedCategory = category.toLowerCase();
+
+    if (preferredCollection) {
+        return [preferredCollection];
+    }
+
+    if (normalizedCategory === 'gpu' || normalizedCategory === 'gpus') {
+        const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
+        const names = collections.map(col => col.name);
+        const mainGpuCollection = await db.listCollections({ name: 'gpus' }).toArray();
+        if (mainGpuCollection.length > 0) {
+            names.push('gpus');
+        }
+        return names;
+    }
+
+    const categoryCollections = {
+        cpu: 'cpus',
+        cpus: 'cpus',
+        motherboard: 'motherboards',
+        motherboards: 'motherboards',
+        ram: 'rams',
+        rams: 'rams',
+        psu: 'psus',
+        psus: 'psus',
+        cooler: 'coolers',
+        coolers: 'coolers',
+        storage: 'storages',
+        storages: 'storages',
+        case: 'cases',
+        cases: 'cases',
+        addon: 'addons',
+        addons: 'addons'
+    };
+
+    return categoryCollections[normalizedCategory] ? [categoryCollections[normalizedCategory]] : [normalizedCategory];
+}
+
+app.get('/api/parts/:category/:id/price-history', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(500).json({ error: 'Database not connected' });
+        }
+
+        const { category, id } = req.params;
+        const { collection } = req.query;
+        const idQueries = [{ _id: id }];
+
+        if (ObjectId.isValid(id)) {
+            idQueries.unshift({ _id: new ObjectId(id) });
+        }
+
+        const collectionNames = await getPriceHistoryCollectionNames(category, collection);
+
+        for (const collectionName of collectionNames) {
+            const collections = await db.listCollections({ name: collectionName }).toArray();
+            if (collections.length === 0) {
+                continue;
+            }
+
+            const doc = await db.collection(collectionName).findOne(
+                { $or: idQueries },
+                { projection: { priceHistory: 1 } }
+            );
+
+            if (doc) {
+                return res.json({ priceHistory: Array.isArray(doc.priceHistory) ? doc.priceHistory : [] });
+            }
+        }
+
+        res.status(404).json({ error: 'Component not found', priceHistory: [] });
+    } catch (error) {
+        console.error('Error fetching component price history:', error);
+        res.status(500).json({ error: 'Failed to fetch price history', priceHistory: [] });
     }
 });
 
@@ -445,7 +524,7 @@ async function handleGPURequest(req, res) {
 
         // Fetch from all GPU collections in PARALLEL
         const gpuPromises = gpuCollectionNames.map(collectionName =>
-            db.collection(collectionName).find({}).toArray()
+            db.collection(collectionName).find({}, { projection: LIST_PARTS_PROJECTION }).toArray()
                 .then(gpus => {
                     // Filter out desktops, laptops, pre-built systems, and items with invalid prices
                     const filteredGpus = gpus.filter(gpu =>
@@ -630,7 +709,7 @@ async function handleCPURequest(req, res) {
 
         // Fetch from all CPU collections in PARALLEL
         const cpuPromises = cpuCollectionNames.map(collectionName =>
-            db.collection(collectionName).find({}).toArray()
+            db.collection(collectionName).find({}, { projection: LIST_PARTS_PROJECTION }).toArray()
                 .then(cpus => {
                     // For CPUs, we don't filter out desktop processors as they're what we want
                     // Add source collection info
@@ -735,7 +814,7 @@ async function handleMotherboardRequest(req, res) {
         
         // Check for the main 'motherboards' collection
         const collection = db.collection('motherboards');
-        const motherboards = await collection.find({}).toArray();
+        const motherboards = await collection.find({}, { projection: LIST_PARTS_PROJECTION }).toArray();
         
         // Add source collection info
         motherboards.forEach(motherboard => {
@@ -817,7 +896,7 @@ async function handleRAMRequest(req, res) {
         
         // Check for the main 'rams' collection
         const collection = db.collection('rams');
-        const ramModules = await collection.find({}).toArray();
+        const ramModules = await collection.find({}, { projection: LIST_PARTS_PROJECTION }).toArray();
         
         // Add source collection info
         ramModules.forEach(ram => {
@@ -1112,7 +1191,7 @@ async function handlePSURequest(req, res) {
         
         // Check for the main 'psus' collection
         const collection = db.collection('psus');
-        const psus = await collection.find({}).toArray();
+        const psus = await collection.find({}, { projection: LIST_PARTS_PROJECTION }).toArray();
         
         // Add source collection info
         psus.forEach(psu => {
@@ -1203,7 +1282,7 @@ app.get('/api/parts/rams/variants', async (req, res) => {
         if (!db) return res.status(500).json({ error: 'Database not connected' });
         const { model } = req.query;
         if (!model) return res.status(400).json({ error: 'model query param required' });
-        const allRAM = await db.collection('rams').find({}).toArray();
+        const allRAM = await db.collection('rams').find({}, { projection: LIST_PARTS_PROJECTION }).toArray();
 
         // Build the same grouped model keys to find which ones are "single-kit" (end up in Other)
         const groupCounts = {};
@@ -1277,7 +1356,7 @@ app.get('/api/parts/gpus/:collection', async (req, res) => {
 
         // Fetch all cards from this specific collection
         const collection = db.collection(collectionName);
-        const cards = await collection.find({}).toArray();
+        const cards = await collection.find({}, { projection: LIST_PARTS_PROJECTION }).toArray();
 
         // Filter out desktop/laptop systems
         const filteredCards = cards.filter(card => !isDesktopOrLaptop(card.title || card.name || ''));
