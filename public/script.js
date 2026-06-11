@@ -364,6 +364,25 @@ class PartsDatabase {
             this.addToAmazonCart();
         });
 
+        // Saved builds ("My Builds")
+        const saveBtn = document.getElementById('saveBuildBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => this.saveCurrentBuild());
+        }
+        const savedList = document.getElementById('savedBuildsList');
+        if (savedList) {
+            savedList.addEventListener('click', (e) => {
+                const btn = e.target.closest('.saved-build-btn');
+                if (!btn) return;
+                const id = btn.getAttribute('data-id');
+                const action = btn.getAttribute('data-action');
+                if (action === 'load') this.loadSavedBuild(id);
+                else if (action === 'rename') this.renameSavedBuild(id);
+                else if (action === 'delete') this.deleteSavedBuild(id);
+            });
+        }
+        this.renderSavedBuilds();
+
         // Set initial button state
         this.updateBuildActions();
     }
@@ -5028,37 +5047,25 @@ class PartsDatabase {
         this.updateBuildActions();
     }
 
-    async shareBuild() {
-        // Create a compact representation with IDs and quantities
+    // Compact representation of the current build: { type: id | {id, qty} }.
+    // Shared by the share-link and saved ("My Builds") features.
+    serializeBuild() {
         const buildData = {};
-
         Object.entries(this.currentBuild).forEach(([type, component]) => {
             if (component !== null) {
-                // Debug GPU being saved
-                if (type === 'gpu') {
-                    console.log('=== SAVING GPU TO SHARE LINK ===');
-                    console.log('GPU Component:', {
-                        _id: component._id,
-                        title: component.title,
-                        name: component.name,
-                        manufacturer: component.manufacturer
-                    });
-                    console.log('================================');
-                }
-
-                // For RAM and GPU, save ID and quantity
+                // For RAM and GPU, save ID and quantity; otherwise just the ID.
                 if ((type === 'ram' || type === 'gpu') && component.quantity) {
-                    buildData[type] = {
-                        id: component._id,
-                        qty: component.quantity
-                    };
+                    buildData[type] = { id: component._id, qty: component.quantity };
                 } else {
-                    // For other components, just save ID
                     buildData[type] = component._id;
                 }
             }
         });
+        return buildData;
+    }
 
+    async shareBuild() {
+        const buildData = this.serializeBuild();
         console.log('Build data being saved:', buildData);
 
         // Increment save counts for all components
@@ -5265,83 +5272,7 @@ class PartsDatabase {
 
             console.log('Loading build from URL:', buildData);
 
-            // Track failed components
-            const failedComponents = [];
-
-            // Load each component by its ID
-            for (const [type, componentId] of Object.entries(buildData)) {
-                if (componentId) {
-                    const success = await this.loadAndAddComponentById(type, componentId);
-                    if (!success) {
-                        failedComponents.push(type);
-                    }
-                }
-            }
-
-            // Enable additional storage/addon sections that have components
-            // Check which storage/addon slots have components and enable their sections
-            for (let i = 2; i <= 7; i++) {
-                const storageKey = i === 1 ? 'storage' : `storage${i}`;
-                if (this.currentBuild[storageKey]) {
-                    const section = document.querySelector(`#storageSection${i}`);
-                    if (section && section.classList.contains('disabled')) {
-                        section.classList.remove('disabled');
-                        section.style.display = '';
-                    }
-                }
-            }
-
-            for (let i = 2; i <= 6; i++) {
-                const addonKey = i === 1 ? 'addon' : `addon${i}`;
-                if (this.currentBuild[addonKey]) {
-                    const section = document.querySelector(`#addonSection${i}`);
-                    if (section && section.classList.contains('disabled')) {
-                        section.classList.remove('disabled');
-                        section.style.display = '';
-                    }
-                }
-            }
-
-            // Update plus button visibility to show additional storage/addon slots if needed
-            this.updateStoragePlusButtons();
-            this.updateAddonPlusButtons();
-            this.updateComponentPositions();
-
-            // Re-render GPU if it exists to show quantity badge (which requires motherboard to be loaded)
-            if (this.currentBuild.gpu && this.currentBuild.motherboard) {
-                console.log('Re-rendering GPU to display quantity badge');
-                this.updateBuilderComponentDisplay('gpu', this.currentBuild.gpu);
-            }
-
-            // Re-render RAM if it exists to ensure quantity badge displays correctly
-            if (this.currentBuild.ram) {
-                console.log('Re-rendering RAM to ensure quantity badge displays');
-                this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
-            }
-
-            // If CPU has stock cooler and no cooler is selected, show stock cooler
-            if (this.currentBuild.cpu && this.currentBuild.cpu.coolerIncluded === true && !this.currentBuild.cooler) {
-                console.log('CPU includes stock cooler and no cooler selected, showing stock cooler');
-                this.showStockCooler(this.currentBuild.cpu);
-            }
-
-            // Update build statistics if all required components are present
-            this.updateBuildStatistics();
-
-            // Log success message and show warning if components failed
-            const componentCount = Object.keys(buildData).length;
-            const successCount = componentCount - failedComponents.length;
-
-            if (failedComponents.length > 0) {
-                console.warn(`⚠️ ${failedComponents.length} component(s) could not be loaded: ${failedComponents.join(', ')}`);
-                console.log(`✅ ${successCount} of ${componentCount} components loaded from shared link.`);
-
-                // Show user-friendly message
-                const failedList = failedComponents.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
-                alert(`Build loaded with warnings:\n\n${successCount} of ${componentCount} components were restored.\n\nThe following components could not be found and were skipped:\n${failedList}\n\nThese components may have been removed from the database.`);
-            } else {
-                console.log(`✅ Build loaded successfully! ${componentCount} components restored from shared link.`);
-            }
+            await this.applyBuildData(buildData, { sourceLabel: 'shared link', notify: true });
 
         } catch (error) {
             console.error('Error loading build from URL:', error);
@@ -5353,6 +5284,196 @@ class PartsDatabase {
                 alert('Failed to load build from link. The link may be invalid or corrupted.\n\nError: ' + error.message);
             }
         }
+    }
+
+    // Shared restore routine used by both share-link loading and saved ("My Builds")
+    // loading. Takes a decoded build map ({ type: id | {id, qty} }), adds each
+    // component, re-enables extra storage/addon slots, and refreshes derived UI.
+    async applyBuildData(buildData, { sourceLabel = 'build', notify = false } = {}) {
+        const failedComponents = [];
+
+        // Load each component by its ID
+        for (const [type, componentId] of Object.entries(buildData)) {
+            if (componentId) {
+                const success = await this.loadAndAddComponentById(type, componentId);
+                if (!success) {
+                    failedComponents.push(type);
+                }
+            }
+        }
+
+        // Enable additional storage/addon sections that have components
+        for (let i = 2; i <= 7; i++) {
+            const storageKey = i === 1 ? 'storage' : `storage${i}`;
+            if (this.currentBuild[storageKey]) {
+                const section = document.querySelector(`#storageSection${i}`);
+                if (section && section.classList.contains('disabled')) {
+                    section.classList.remove('disabled');
+                    section.style.display = '';
+                }
+            }
+        }
+
+        for (let i = 2; i <= 6; i++) {
+            const addonKey = i === 1 ? 'addon' : `addon${i}`;
+            if (this.currentBuild[addonKey]) {
+                const section = document.querySelector(`#addonSection${i}`);
+                if (section && section.classList.contains('disabled')) {
+                    section.classList.remove('disabled');
+                    section.style.display = '';
+                }
+            }
+        }
+
+        // Update plus button visibility to show additional storage/addon slots if needed
+        this.updateStoragePlusButtons();
+        this.updateAddonPlusButtons();
+        this.updateComponentPositions();
+
+        // Re-render GPU if it exists to show quantity badge (which requires motherboard to be loaded)
+        if (this.currentBuild.gpu && this.currentBuild.motherboard) {
+            this.updateBuilderComponentDisplay('gpu', this.currentBuild.gpu);
+        }
+
+        // Re-render RAM if it exists to ensure quantity badge displays correctly
+        if (this.currentBuild.ram) {
+            this.updateBuilderComponentDisplay('ram', this.currentBuild.ram);
+        }
+
+        // If CPU has stock cooler and no cooler is selected, show stock cooler
+        if (this.currentBuild.cpu && this.currentBuild.cpu.coolerIncluded === true && !this.currentBuild.cooler) {
+            this.showStockCooler(this.currentBuild.cpu);
+        }
+
+        // Update build statistics if all required components are present
+        this.updateBuildStatistics();
+
+        const componentCount = Object.keys(buildData).length;
+        const successCount = componentCount - failedComponents.length;
+
+        if (failedComponents.length > 0) {
+            console.warn(`⚠️ ${failedComponents.length} component(s) could not be loaded: ${failedComponents.join(', ')}`);
+            if (notify) {
+                const failedList = failedComponents.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ');
+                alert(`Build loaded with warnings:\n\n${successCount} of ${componentCount} components were restored.\n\nThe following components could not be found and were skipped:\n${failedList}\n\nThese components may have been removed from the database.`);
+            }
+        } else {
+            console.log(`✅ Build loaded successfully! ${componentCount} components restored from ${sourceLabel}.`);
+        }
+
+        return { componentCount, successCount, failedComponents };
+    }
+
+    // ---- Saved builds ("My Builds"), persisted in browser localStorage ----
+    getSavedBuilds() {
+        try {
+            const arr = JSON.parse(localStorage.getItem('ezpc_saved_builds') || '[]');
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) {
+            console.warn('Could not read saved builds:', e);
+            return [];
+        }
+    }
+
+    setSavedBuilds(builds) {
+        try {
+            localStorage.setItem('ezpc_saved_builds', JSON.stringify(builds));
+        } catch (e) {
+            console.error('Could not persist saved builds:', e);
+            alert('Could not save your build — browser storage may be full or disabled.');
+        }
+    }
+
+    saveCurrentBuild() {
+        const buildData = this.serializeBuild();
+        if (Object.keys(buildData).length === 0) {
+            alert('Your build is empty — add some components before saving.');
+            return;
+        }
+        const defaultName = `My Build ${new Date().toLocaleDateString()}`;
+        const name = (prompt('Name this build:', defaultName) || '').trim();
+        if (!name) return; // cancelled
+        const builds = this.getSavedBuilds();
+        builds.unshift({
+            id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name,
+            createdAt: Date.now(),
+            total: this.totalPrice || 0,
+            count: Object.keys(buildData).length,
+            build: buildData
+        });
+        this.setSavedBuilds(builds);
+        this.renderSavedBuilds();
+        this.showToast(`Saved "${name}"`);
+    }
+
+    async loadSavedBuild(id) {
+        const entry = this.getSavedBuilds().find(b => b.id === id);
+        if (!entry) return;
+        this.clearBuild();
+        await this.applyBuildData(entry.build, { sourceLabel: `saved build "${entry.name}"`, notify: true });
+        this.showToast(`Loaded "${entry.name}"`);
+    }
+
+    deleteSavedBuild(id) {
+        const builds = this.getSavedBuilds();
+        const entry = builds.find(b => b.id === id);
+        if (!entry) return;
+        if (!confirm(`Delete saved build "${entry.name}"?`)) return;
+        this.setSavedBuilds(builds.filter(b => b.id !== id));
+        this.renderSavedBuilds();
+    }
+
+    renameSavedBuild(id) {
+        const builds = this.getSavedBuilds();
+        const entry = builds.find(b => b.id === id);
+        if (!entry) return;
+        const name = (prompt('Rename build:', entry.name) || '').trim();
+        if (!name) return;
+        entry.name = name;
+        this.setSavedBuilds(builds);
+        this.renderSavedBuilds();
+    }
+
+    renderSavedBuilds() {
+        const container = document.getElementById('savedBuildsList');
+        if (!container) return;
+        const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const builds = this.getSavedBuilds();
+        if (builds.length === 0) {
+            container.innerHTML = '<p class="saved-builds-empty">No saved builds yet. Build something and hit Save.</p>';
+            return;
+        }
+        container.innerHTML = builds.map(b => {
+            const date = new Date(b.createdAt).toLocaleDateString();
+            const total = (typeof b.total === 'number') ? `$${b.total.toFixed(2)}` : '';
+            return `
+            <div class="saved-build-item" data-id="${b.id}">
+                <div class="saved-build-info">
+                    <span class="saved-build-name">${esc(b.name)}</span>
+                    <span class="saved-build-meta">${b.count || 0} parts${total ? ' · ' + total : ''} · ${date}</span>
+                </div>
+                <div class="saved-build-actions">
+                    <button class="saved-build-btn load" data-action="load" data-id="${b.id}" title="Load build"><i class="fas fa-folder-open"></i></button>
+                    <button class="saved-build-btn rename" data-action="rename" data-id="${b.id}" title="Rename"><i class="fas fa-pen"></i></button>
+                    <button class="saved-build-btn delete" data-action="delete" data-id="${b.id}" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    showToast(message) {
+        let toast = document.getElementById('ezpcToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'ezpcToast';
+            toast.className = 'ezpc-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
     }
 
     async loadAndAddComponentById(type, componentData) {
