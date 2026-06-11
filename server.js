@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 const { ObjectId } = require('mongodb');
 const { connectToDatabase, getDatabase } = require('./config/database');
@@ -157,6 +158,7 @@ function cacheMiddleware(duration) {
 }
 
 // Middleware
+app.use(compression());
 app.use(express.json());
 
 // Add cache-control headers to force browsers to reload
