@@ -49,26 +49,31 @@ class DatabaseService {
   }
 
   async saveToCollection(model, gpus) {
-    const collectionName = `gpus_${model}`;
-    Logger.debug(`Saving ${gpus.length} GPUs to ${collectionName}`);
-    
-    const collection = this.db.collection(collectionName);
-    const result = await collection.insertMany(gpus);
-    
-    // Create indexes for better performance
+    // All GPUs now live in a single `gpus` collection. The original per-model
+    // grouping is preserved on each doc via `modelCollection` (e.g. "gpus_rtx_5090")
+    // so the /api/parts/gpus/:collection drill-down route still works.
+    const modelCollection = `gpus_${model}`;
+    Logger.debug(`Saving ${gpus.length} GPUs to gpus (modelCollection=${modelCollection})`);
+
+    const collection = this.db.collection('gpus');
+    const stamped = gpus.map(g => ({ ...g, modelCollection }));
+    const result = await collection.insertMany(stamped);
+
+    // Create indexes for better performance (now includes modelCollection)
     await this.createIndexes(collection);
-    
-    Logger.info(`Saved ${result.insertedCount} GPUs to ${collectionName}`);
-    
+
+    Logger.info(`Saved ${result.insertedCount} GPUs to gpus (model ${model})`);
+
     // Log sample data for verification
-    this.logSampleData(collectionName, gpus[0]);
-    
+    this.logSampleData('gpus', gpus[0]);
+
     return result.insertedCount;
   }
 
   async createIndexes(collection) {
     const indexes = [
       { name: 1 },
+      { modelCollection: 1 },
       { basePrice: 1 },
       { salePrice: 1 },
       { currentPrice: 1 },
@@ -122,18 +127,22 @@ class DatabaseService {
   // Save CPUs to database
   async saveCPUs(cpuData, collectionName) {
     try {
-      Logger.debug(`Attempting to save ${cpuData.length} CPUs to ${collectionName}`);
-      
-      const collection = this.db.collection(collectionName);
-      const result = await collection.insertMany(cpuData);
-      
+      // All CPUs now live in a single `cpus` collection. If a per-model collection
+      // name was passed (e.g. "cpus_intel_core_i9"), preserve it as `modelCollection`.
+      const modelCollection = (collectionName && collectionName.startsWith('cpus_')) ? collectionName : null;
+      Logger.debug(`Attempting to save ${cpuData.length} CPUs to cpus${modelCollection ? ` (modelCollection=${modelCollection})` : ''}`);
+
+      const collection = this.db.collection('cpus');
+      const docs = modelCollection ? cpuData.map(c => ({ ...c, modelCollection })) : cpuData;
+      const result = await collection.insertMany(docs);
+
       // Create indexes for better performance
       await this.createComponentIndexes(collection);
-      
-      Logger.info(`Saved ${result.insertedCount} CPUs to ${collectionName}`);
-      
+
+      Logger.info(`Saved ${result.insertedCount} CPUs to cpus`);
+
       return result;
-      
+
     } catch (error) {
       Logger.error('Error saving CPU data:', error);
       throw error;
