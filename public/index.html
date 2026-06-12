@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=mobile-fix-15">
+    <link rel="stylesheet" href="styles-v5.css?v=graph-controls-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -111,6 +111,9 @@
             <button class="main-tab" data-tab="ram"><i class="fas fa-hdd"></i> RAM</button>
             <button class="main-tab" data-tab="psu"><i class="fas fa-plug"></i> PSUs</button>
             <button class="main-tab" data-tab="cooler"><i class="fas fa-snowflake"></i> Coolers</button>
+            <button class="main-tab" data-tab="case"><i class="fas fa-box"></i> Cases</button>
+            <button class="main-tab" data-tab="storage"><i class="fas fa-hdd"></i> Storage</button>
+            <button class="main-tab" data-tab="addon"><i class="fas fa-plus-circle"></i> Add-ons</button>
         </nav>
 
         <!-- GPU Tab Content -->
@@ -2323,6 +2326,121 @@
                 </div>
             </div>
 
+        <!-- Case Tab Content -->
+        <div class="tab-content" id="case-tab">
+            <div class="gpu-listings-section" id="caseListingsSection">
+                <div class="gpu-listings-two-col">
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="caseBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="caseProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value case…</div>
+                        </div>
+                    </div>
+                    <div class="gpu-listing-right">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-box"></i> Case Guide</h2>
+                            <p>Pick the right case and your whole build comes together — wrong case and you're fighting clearance, airflow, and cable routing all night.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>What to Look For</h3>
+                            <ul>
+                                <li><strong>Form factor</strong> — must match your motherboard (ATX, mATX, ITX). An ATX case fits smaller boards; an ITX case will not fit larger ones.</li>
+                                <li><strong>GPU clearance</strong> — modern flagship GPUs are 320–360mm long. Always check the case's max GPU length spec.</li>
+                                <li><strong>CPU cooler clearance</strong> — tower air coolers need 160mm+ vertical clearance; AIO radiators need front or top mounting points.</li>
+                                <li><strong>Airflow</strong> — mesh fronts beat tempered-glass fronts for cooling. Look for cases with at least 3 fan mounts.</li>
+                                <li><strong>Cable management</strong> — depth behind the motherboard tray (20mm+) makes tucking cables easy and keeps the build clean.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Tab Content -->
+        <div class="tab-content" id="storage-tab">
+            <div class="gpu-listings-section" id="storageListingsSection">
+                <div class="gpu-listings-two-col">
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="storageBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="storageProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value storage…</div>
+                        </div>
+                    </div>
+                    <div class="gpu-listing-right">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-hdd"></i> Storage Guide</h2>
+                            <p>Storage is the difference between Windows booting in 8 seconds and 80. Get an NVMe SSD for your OS and apps — no exceptions.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>Storage Types</h3>
+                            <ul>
+                                <li><strong>NVMe Gen4 SSD</strong> — the standard. Sequential reads up to 7,000 MB/s. Use for OS, games, and active projects.</li>
+                                <li><strong>NVMe Gen3 SSD</strong> — still fast (3,500 MB/s) and often cheaper. Fine if your motherboard doesn't have Gen4 slots.</li>
+                                <li><strong>SATA SSD</strong> — slower than NVMe (~550 MB/s) but cheap. Good for a secondary game library on a budget.</li>
+                                <li><strong>HDD</strong> — slow but cheap per terabyte. Use only for bulk media/archive storage you don't access often.</li>
+                            </ul>
+                        </section>
+                        <section class="cg-section">
+                            <h3>How Much Do You Need?</h3>
+                            <ul>
+                                <li><strong>500 GB</strong> — minimum; tight for modern games. OS + a few titles.</li>
+                                <li><strong>1 TB</strong> — sweet spot for most gaming builds.</li>
+                                <li><strong>2 TB+</strong> — if you keep many games installed, edit video, or work with large datasets.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add-on Tab Content -->
+        <div class="tab-content" id="addon-tab">
+            <div class="gpu-listings-section" id="addonListingsSection">
+                <div class="gpu-listings-two-col">
+                    <div class="gpu-listing-left">
+                        <div class="gpu-listing-header">
+                            <div class="gpu-listing-stars">
+                                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                <span class="gpu-listing-rating-label">4.5 / 5</span>
+                            </div>
+                            <span class="gpu-best-value-badge" id="addonBestValueBadge"><i class="fas fa-award"></i> Best Value</span>
+                        </div>
+                        <div class="gpu-product-card" id="addonProductCard">
+                            <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value add-on…</div>
+                        </div>
+                    </div>
+                    <div class="gpu-listing-right">
+                        <div class="cg-intro">
+                            <h2><i class="fas fa-plus-circle"></i> Add-on Guide</h2>
+                            <p>Add-ons are the optional extras that round out a build — fans, capture cards, Wi-Fi adapters, RGB controllers, sound cards.</p>
+                        </div>
+                        <section class="cg-section">
+                            <h3>Common Add-ons</h3>
+                            <ul>
+                                <li><strong>Extra case fans</strong> — most cases ship with 1–2 fans. Add intakes (front) and exhausts (rear/top) for better thermals.</li>
+                                <li><strong>Wi-Fi / Bluetooth card</strong> — many cheaper motherboards skip wireless. A PCIe Wi-Fi 6/6E card is a $25 fix.</li>
+                                <li><strong>Capture card</strong> — for streamers using a two-PC setup or recording from a console.</li>
+                                <li><strong>Sound card / DAC</strong> — only worth it if you have high-impedance headphones or notice onboard audio noise.</li>
+                                <li><strong>RGB controller / hub</strong> — useful when you have more fans than the motherboard has headers, or you want unified RGB sync.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Budget Questionnaire Modal -->
@@ -2513,7 +2631,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=22"></script>
+    <script src="script.js?v=25"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

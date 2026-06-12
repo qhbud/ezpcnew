@@ -289,37 +289,37 @@ class PartsDatabase {
             this.buildAroundCooler();
         });
 
-        // PC Builder event listeners - Updated for popup selectors
+        // PC Builder event listeners - "Choose X" buttons navigate to that component's tab
         document.getElementById('builderGpuSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('gpu');
+            this.switchTab('gpu');
         });
-        
+
         document.getElementById('builderCpuSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('cpu');
+            this.switchTab('cpu');
         });
-        
+
         document.getElementById('builderMotherboardSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('motherboard');
+            this.switchTab('motherboard');
         });
-        
+
         document.getElementById('builderRamSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('ram');
+            this.switchTab('ram');
         });
-        
+
         document.getElementById('builderCoolerSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('cooler');
+            this.switchTab('cooler');
         });
-        
+
         document.getElementById('builderPsuSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('psu');
+            this.switchTab('psu');
         });
 
         document.getElementById('builderCaseSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('case');
+            this.switchTab('case');
         });
 
         document.getElementById('builderStorageSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('storage');
+            this.switchTab('storage');
         });
 
         // Remove component buttons
@@ -357,7 +357,7 @@ class PartsDatabase {
 
         // Addon select buttons
         document.getElementById('builderAddonSelectBtn').addEventListener('click', () => {
-            this.openComponentModal('addon');
+            this.switchTab('addon');
         });
 
         // Remove addon buttons
@@ -510,6 +510,12 @@ class PartsDatabase {
             this.renderPsuListingsSection();
         } else if (tabName === 'cooler') {
             this.renderCoolerListingsSection();
+        } else if (tabName === 'case') {
+            this.renderCaseListingsSection();
+        } else if (tabName === 'storage') {
+            this.renderStorageListingsSection();
+        } else if (tabName === 'addon') {
+            this.renderAddonListingsSection();
         }
     }
 
@@ -8994,6 +9000,148 @@ class PartsDatabase {
         }
     }
 
+    // Select the component currently featured on a component tab's product card,
+    // then return to the builder. Called by the "Select" button in the card footer;
+    // the active tab name (this.currentTab) is the builder slot type.
+    selectComponentFromTab() {
+        const type = this.currentTab;
+        const current = this[`_${type}CardCurrent`];
+        if (!current) {
+            console.warn('selectComponentFromTab: no featured component for tab', type);
+            return;
+        }
+        this.selectComponent(type, current);
+        this.switchTab('builder');
+    }
+
+    // Returns true if `component` (of type componentType) is compatible with the
+    // parts already in this.currentBuild. Mirrors the rules used in
+    // updateBuilderComponentDisplay. Unknown/missing spec fields default to
+    // compatible so we never grey out a part just because data is incomplete.
+    isCompatibleWithBuild(componentType, component) {
+        const build = this.currentBuild;
+        if (!build || !component) return true;
+        const norm = s => (s == null ? '' : s.toString().trim().toUpperCase());
+        const memMatch = (typesArr, ramType) => {
+            const arr = (Array.isArray(typesArr) ? typesArr : [typesArr]).filter(Boolean);
+            const rt = norm(ramType);
+            if (!arr.length || !rt) return true;
+            return arr.some(t => { const n = norm(t); return n && (rt.includes(n) || n.includes(rt)); });
+        };
+
+        // CPU vs motherboard socket
+        if (componentType === 'cpu' && build.motherboard) {
+            const mbSock = norm(build.motherboard.socket || build.motherboard.socketType);
+            const cpuSock = norm(component.socket || component.socketType);
+            if (mbSock && cpuSock && mbSock !== cpuSock) return false;
+        }
+
+        // RAM vs motherboard memory type
+        if (componentType === 'ram' && build.motherboard) {
+            if (!memMatch(build.motherboard.memoryType || [], component.memoryType)) return false;
+        }
+
+        // Motherboard vs CPU / RAM / case
+        if (componentType === 'motherboard') {
+            if (build.cpu) {
+                const mbSock = norm(component.socket || component.socketType);
+                const cpuSock = norm(build.cpu.socket || build.cpu.socketType);
+                if (mbSock && cpuSock && mbSock !== cpuSock) return false;
+            }
+            if (build.ram && !memMatch(component.memoryType || [], build.ram.memoryType)) return false;
+            if (build.case && !this._moboFitsCase(component.formFactor, build.case.formFactor)) return false;
+        }
+
+        // Case vs motherboard
+        if (componentType === 'case' && build.motherboard) {
+            if (!this._moboFitsCase(build.motherboard.formFactor, component.formFactor)) return false;
+        }
+
+        // Cooler vs CPU socket
+        if (componentType === 'cooler' && build.cpu) {
+            const cpuSock = build.cpu.socket || build.cpu.socketType;
+            const coolerSockets = component.socketCompatibility || [];
+            if (cpuSock && coolerSockets.length) {
+                const normSock = s => s.toString().trim().toUpperCase().replace(/\s+/g, '').replace('STRX', 'TR');
+                const nc = normSock(cpuSock);
+                const ok = coolerSockets.some(cs => {
+                    const ncs = normSock(cs);
+                    if (nc === ncs) return true;
+                    if (ncs === 'LGA115X' && ['LGA1150', 'LGA1151', 'LGA1155', 'LGA1156'].includes(nc)) return true;
+                    return false;
+                });
+                if (!ok) return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Form-factor fit check shared by motherboard<->case compatibility.
+    _moboFitsCase(moboFormFactor, caseFormFactor) {
+        const caseArr = (Array.isArray(caseFormFactor) ? caseFormFactor : [caseFormFactor]).filter(Boolean);
+        const moboFF = (moboFormFactor || '').toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+        if (!moboFF || caseArr.length === 0) return true; // unknown -> don't flag
+        const isMoboITX = moboFF.includes('ITX') && !moboFF.includes('ATX');
+        const isMoboMicroATX = moboFF.includes('MATX') || moboFF.includes('MICROATX');
+        const isMoboEATX = moboFF.includes('EATX');
+        const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFF.includes('ATX');
+        for (const cf of caseArr) {
+            const cff = cf.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+            const isCaseITX = cff.includes('ITX') && !cff.includes('ATX');
+            const isCaseMicroATX = cff.includes('MATX') || cff.includes('MICROATX');
+            const isCaseEATX = cff.includes('EATX');
+            const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && cff.includes('ATX');
+            if (isCaseEATX) return true;
+            if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) return true;
+            if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) return true;
+            if (isCaseITX && isMoboITX) return true;
+        }
+        return false;
+    }
+
+    // After a product card's innerHTML is set, grey it out + add a notice when the
+    // featured part is incompatible with the current build.
+    _applyCardCompat(card, componentType, item) {
+        if (!card) return;
+        const compatible = this.isCompatibleWithBuild(componentType, item);
+        card.classList.toggle('incompatible', !compatible);
+        const existing = card.querySelector('.card-incompat-notice');
+        if (existing) existing.remove();
+        if (!compatible) {
+            const notice = document.createElement('div');
+            notice.className = 'card-incompat-notice';
+            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Incompatible with your current build';
+            card.insertBefore(notice, card.firstChild);
+        }
+    }
+
+    // Resolve a product card element to its component type + featured item, then
+    // apply compatibility styling. Called at the end of each _render*ProductCard.
+    _applyCardCompatById(card) {
+        if (!card) return;
+        const map = {
+            gpuProductCard: 'gpu', cpuProductCard: 'cpu', coolerProductCard: 'cooler',
+            moboProductCard: 'motherboard', ramProductCard: 'ram', psuProductCard: 'psu',
+            caseProductCard: 'case', storageProductCard: 'storage', addonProductCard: 'addon'
+        };
+        const type = map[card.id];
+        if (!type) return;
+        this._applyCardCompat(card, type, this[`_${type}CardCurrent`]);
+    }
+
+    // True if a scatter-plot point's component is incompatible with the current
+    // build. Resolves the component from the point's type-named key. GPU/PSU have
+    // no hard compatibility constraints, so they are never flagged.
+    _pointIncompatible(p) {
+        if (!p) return false;
+        if (p.cpu) return !this.isCompatibleWithBuild('cpu', p.cpu);
+        if (p.cooler) return !this.isCompatibleWithBuild('cooler', p.cooler);
+        if (p.mb) return !this.isCompatibleWithBuild('motherboard', p.mb);
+        if (p.ram) return !this.isCompatibleWithBuild('ram', p.ram);
+        return false;
+    }
+
     selectComponent(componentType, component) {
         // If selecting a new CPU, check if we need to handle stock cooler
         if (componentType === 'cpu') {
@@ -12401,9 +12549,30 @@ class PartsDatabase {
         }
     }
 
+    _renderStars(score) {
+        const full = Math.floor(score);
+        const half = score - full >= 0.25 && score - full < 0.75;
+        const empty = Math.max(0, 5 - full - (half ? 1 : 0));
+        return [
+            ...Array(full).fill('<i class="fas fa-star"></i>'),
+            ...(half ? ['<i class="fas fa-star-half-alt"></i>'] : []),
+            ...Array(empty).fill('<i class="far fa-star"></i>')
+        ].join('');
+    }
+
+    _escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     _renderGpuProductCard(gpu) {
         const card = document.getElementById('gpuProductCard');
         if (!card) return;
+        this._gpuCardCurrent = gpu;
 
         // Show "Best Value" badge only when the best-value GPU is displayed
         const badge = document.querySelector('.gpu-best-value-badge');
@@ -12418,6 +12587,16 @@ class PartsDatabase {
         const price = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
         const buyUrl = gpu.sourceUrl || gpu.url || '#';
         const imageUrl = gpu.imageUrl || gpu.image || '';
+        const reviewScore = parseFloat(gpu.reviewScore) || 0;
+        const reviewCount = parseInt(gpu.reviewCount, 10) || 0;
+        const reviewSource = gpu.reviewSource || 'Amazon';
+        const reviewHTML = reviewScore > 0 && reviewCount > 0
+            ? `<div class="gpu-card-review-pill">
+                    <span class="gpu-card-review-stars">${this._renderStars(reviewScore)}</span>
+                    <span>${reviewScore.toFixed(1)} / 5</span>
+                    <span class="gpu-card-review-count">${reviewCount >= 1000 ? (reviewCount / 1000).toFixed(1) + 'k' : reviewCount} on ${reviewSource}</span>
+               </div>`
+            : `<div class="gpu-card-review-pill muted"><i class="far fa-star"></i> No review data</div>`;
 
         // Correct nested field paths from GPU schema
         const vramSize = gpu.memory?.size;
@@ -12438,6 +12617,7 @@ class PartsDatabase {
         else if (/rx\s*5[0-9]{3}/.test(gpuModelStr)) arch = 'RDNA 1';
         else if (/arc\s*b/.test(gpuModelStr)) arch = 'Battlemage';
         else if (/arc\s*a/.test(gpuModelStr)) arch = 'Alchemist';
+        const gpuInfo = this._getGpuGenerationInfo(gpu);
 
         // Boost clock lookup (field doesn't exist in DB; sourced from manufacturer specs)
         // Longer/more specific keys must come before shorter ones to avoid substring false-matches
@@ -12478,19 +12658,28 @@ class PartsDatabase {
 
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
+            ${reviewHTML}
             <div class="gpu-card-image-area">${imgHTML}</div>
-            <div class="gpu-card-specs">
-                <div class="gpu-card-spec-row"><span class="gpu-spec-label">VRAM</span><span class="gpu-spec-val">${vram}</span></div>
-                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Boost Clock</span><span class="gpu-spec-val">${boostClock}</span></div>
-                <div class="gpu-card-spec-row"><span class="gpu-spec-label">TDP</span><span class="gpu-spec-val">${tdp}</span></div>
-                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Architecture</span><span class="gpu-spec-val">${arch}</span></div>
-            </div>
-            <div class="gpu-card-footer">
+            <div class="gpu-card-buyrow">
                 <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
+            </div>
+            <div class="gpu-card-specs">
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">VRAM</span><span class="gpu-spec-val">${vram}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Boost Clock</span><span class="gpu-spec-val">${boostClock}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">TDP</span><span class="gpu-spec-val">${tdp}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Generation</span><span class="gpu-spec-val">${gpuInfo.generation}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Architecture</span><span class="gpu-spec-val">${gpuInfo.architecture || arch}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Release</span><span class="gpu-spec-val">${gpuInfo.releaseLabel}</span></div>
+            </div>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderGpuReviews(gpu) {
@@ -12511,6 +12700,47 @@ class PartsDatabase {
         const enrichedScore = parseFloat(gpu.reviewScore) || 0;
         const enrichedCount = parseInt(gpu.reviewCount) || 0;
         const enrichedSource = gpu.reviewSource || 'Amazon';
+        const sourceLinks = [
+            ...(Array.isArray(gpu.reviewLinks) ? gpu.reviewLinks : []),
+            ...(Array.isArray(gpu.reviewSources)
+                ? gpu.reviewSources
+                    .filter(source => source.url)
+                    .map(source => ({
+                        source: source.source,
+                        title: `${source.source} reviews`,
+                        url: source.url
+                    }))
+                : [])
+        ].filter((link, index, all) => link.url && all.findIndex(other => other.url === link.url) === index).slice(0, 5);
+        const featuredReviews = (Array.isArray(gpu.reviewLinks) ? gpu.reviewLinks : [])
+            .filter(link => link.snippet || link.title)
+            .slice(0, 3);
+        const featuredReviewsHTML = featuredReviews.length ? `
+            <div class="gpu-featured-reviews">
+                <div class="gpu-review-links-title">Featured reviews</div>
+                ${featuredReviews.map(review => `
+                    <a href="${this._escapeHtml(review.url)}" target="_blank" rel="noopener noreferrer" class="gpu-featured-review-card">
+                        <div class="gpu-featured-review-meta">
+                            <span>${this._escapeHtml(review.source || 'Review')}</span>
+                            ${review.scoreText ? `<span>${this._escapeHtml(review.scoreText)}</span>` : ''}
+                            ${review.subreddit ? `<span>${this._escapeHtml(review.subreddit)}</span>` : ''}
+                        </div>
+                        <div class="gpu-featured-review-title">${this._escapeHtml(review.title || 'Review')}</div>
+                        ${review.snippet ? `<p>${this._escapeHtml(review.snippet)}</p>` : ''}
+                    </a>
+                `).join('')}
+            </div>` : '';
+        const sourceLinksHTML = sourceLinks.length ? `
+            <div class="gpu-review-source-links">
+                <div class="gpu-review-links-title">Original review sources</div>
+                ${sourceLinks.map(link => `
+                    <a href="${this._escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="gpu-review-link">
+                        <span class="gpu-review-link-source">${this._escapeHtml(link.source || 'Review')}</span>
+                        <span class="gpu-review-link-title">${this._escapeHtml(link.title || link.url)}</span>
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                `).join('')}
+            </div>` : '';
 
         // Update header stars with real score
         const headerStars = document.getElementById('gpuListingStars');
@@ -12522,7 +12752,11 @@ class PartsDatabase {
         const formatCount = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
         if (enrichedScore === 0 || enrichedCount === 0) {
-            container.innerHTML = '<div class="gpu-reviews-title">Reviews</div><p class="gpu-no-reviews">No review data available for this GPU.</p>';
+            container.innerHTML = `
+                <div class="gpu-reviews-title">Reviews</div>
+                <p class="gpu-no-reviews">No aggregate review score available for this GPU.</p>
+                ${featuredReviewsHTML}
+                ${sourceLinksHTML}`;
             return;
         }
 
@@ -12557,7 +12791,9 @@ class PartsDatabase {
                     <div class="gpu-agg-count">Based on ${formatCount(enrichedCount)} ratings</div>
                 </div>
             </div>
-            <div class="gpu-review-bar-wrap">${bars}</div>`;
+            <div class="gpu-review-bar-wrap">${bars}</div>
+            ${featuredReviewsHTML}
+            ${sourceLinksHTML}`;
     }
 
     _renderGpuBenchmarkChart(gpu) {
@@ -12629,6 +12865,268 @@ class PartsDatabase {
             ${gamesHTML}`;
     }
 
+    // ── Scatter-plot filters + manufacturer coloring ─────────────────
+    // Normalize a component to a brand bucket. GPU/CPU resolve to the chip
+    // maker (NVIDIA/AMD/Intel); everything else falls back to its maker name.
+    _detectBrand(item, type) {
+        if (!item) return 'Other';
+        const s = `${item.manufacturer || ''} ${item.brand || ''} ${item.title || ''} ${item.name || ''} ${item.chipset || ''}`.toLowerCase();
+        if (type === 'gpu') {
+            if (/nvidia|geforce|\brtx\b|\bgtx\b/.test(s)) return 'NVIDIA';
+            if (/radeon|\brx\s?\d|\bamd\b/.test(s)) return 'AMD';
+            if (/\bintel\b|\barc\b/.test(s)) return 'Intel';
+            return 'Other';
+        }
+        if (type === 'cpu') {
+            if (/\bintel\b|\bcore\s?i|\bi[3579]\b|xeon|pentium|celeron/.test(s)) return 'Intel';
+            if (/\bamd\b|ryzen|threadripper|athlon|epyc/.test(s)) return 'AMD';
+            return 'Other';
+        }
+        const mfr = (item.manufacturer || item.brand || '').trim();
+        if (mfr) return mfr.split(/\s+/)[0];
+        const first = (item.title || item.name || '').trim().split(/\s+/)[0];
+        return first || 'Other';
+    }
+
+    // Brand → {solid, faded} rgba pair. Used for manufacturer-colored graphs.
+    _brandColor(brand) {
+        const map = {
+            'NVIDIA': { solid: 'rgba(118,185,0,1)', faded: 'rgba(118,185,0,0.6)' },
+            'AMD':    { solid: 'rgba(237,28,36,1)', faded: 'rgba(237,28,36,0.6)' },
+            'Intel':  { solid: 'rgba(0,113,197,1)', faded: 'rgba(0,113,197,0.6)' },
+        };
+        return map[brand] || { solid: 'rgba(107,114,128,1)', faded: 'rgba(107,114,128,0.6)' };
+    }
+
+    _getGpuGenerationInfo(gpu) {
+        const rawRelease = gpu?.releaseDate || gpu?.release || gpu?.released || gpu?.releaseYear || '';
+        const releaseYear = parseInt(rawRelease, 10) || null;
+        const s = `${gpu?.gpuModel || ''} ${gpu?.title || ''} ${gpu?.name || ''}`.toLowerCase();
+        let generation = 'Unknown';
+        let architecture = 'Unknown';
+        let fallbackYear = null;
+
+        if (/rtx\s*50/.test(s)) {
+            generation = 'GeForce RTX 50 Series'; architecture = 'Blackwell'; fallbackYear = 2025;
+        } else if (/rtx\s*40/.test(s)) {
+            generation = 'GeForce RTX 40 Series'; architecture = 'Ada Lovelace'; fallbackYear = 2022;
+        } else if (/rtx\s*30/.test(s)) {
+            generation = 'GeForce RTX 30 Series'; architecture = 'Ampere'; fallbackYear = 2020;
+        } else if (/rtx\s*20/.test(s)) {
+            generation = 'GeForce RTX 20 Series'; architecture = 'Turing'; fallbackYear = 2018;
+        } else if (/gtx\s*16/.test(s)) {
+            generation = 'GeForce GTX 16 Series'; architecture = 'Turing'; fallbackYear = 2019;
+        } else if (/rx\s*7[0-9]{3}/.test(s)) {
+            generation = 'Radeon RX 7000 Series'; architecture = 'RDNA 3'; fallbackYear = 2022;
+        } else if (/rx\s*6[0-9]{3}/.test(s)) {
+            generation = 'Radeon RX 6000 Series'; architecture = 'RDNA 2'; fallbackYear = 2020;
+        } else if (/rx\s*5[0-9]{3}/.test(s)) {
+            generation = 'Radeon RX 5000 Series'; architecture = 'RDNA 1'; fallbackYear = 2019;
+        } else if (/arc\s*b/.test(s)) {
+            generation = 'Intel Arc B-Series'; architecture = 'Battlemage'; fallbackYear = 2024;
+        } else if (/arc\s*a/.test(s)) {
+            generation = 'Intel Arc A-Series'; architecture = 'Alchemist'; fallbackYear = 2022;
+        }
+
+        const year = releaseYear || fallbackYear;
+        return {
+            generation,
+            architecture,
+            releaseYear: year,
+            releaseLabel: rawRelease || (year ? String(year) : 'Unknown')
+        };
+    }
+
+    _gpuColorModeLabel(mode) {
+        const labels = {
+            manufacturer: 'Manufacturer',
+            value: 'Best value',
+            age: 'Release age'
+        };
+        return labels[mode] || labels.manufacturer;
+    }
+
+    _gpuColorModeLegend(mode) {
+        if (mode === 'value') {
+            return `
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(40,190,60,0.85)"></span>Best value</span>
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(220,60,60,0.85)"></span>Poor value</span>`;
+        }
+        if (mode === 'age') {
+            return `
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(37,99,235,0.9)"></span>Newer</span>
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(249,115,22,0.9)"></span>Older</span>`;
+        }
+        return '';
+    }
+
+    _gpuPointColor(point, visiblePts, mode, selected) {
+        if (mode === 'value') {
+            const scores = visiblePts.map(p => p.performance / p.price);
+            const min = Math.min(...scores);
+            const max = Math.max(...scores);
+            const t = ((point.performance / point.price) - min) / (max - min || 1);
+            const r = Math.round(220 * (1 - t) + 40 * t);
+            const g = Math.round(60 * (1 - t) + 190 * t);
+            return `rgba(${r},${g},70,${selected ? 1 : 0.68})`;
+        }
+        if (mode === 'age') {
+            const years = visiblePts.map(p => this._getGpuGenerationInfo(p.gpu).releaseYear).filter(Boolean);
+            const year = this._getGpuGenerationInfo(point.gpu).releaseYear;
+            if (!year || !years.length) return selected ? 'rgba(107,114,128,1)' : 'rgba(107,114,128,0.55)';
+            const min = Math.min(...years);
+            const max = Math.max(...years);
+            const t = (year - min) / (max - min || 1);
+            const r = Math.round(249 * (1 - t) + 37 * t);
+            const g = Math.round(115 * (1 - t) + 99 * t);
+            const b = Math.round(22 * (1 - t) + 235 * t);
+            return `rgba(${r},${g},${b},${selected ? 1 : 0.72})`;
+        }
+        const col = this._brandColor(this._detectBrand(point.gpu, 'gpu'));
+        return selected ? col.solid : col.faded;
+    }
+
+    // Build (or rebuild) the HTML filter bar below a graph and wire it up.
+    // Reads this._graphState[kind]; persists user choices in this._graphFilters.
+    _setupGraphControls(kind) {
+        const st = this._graphState && this._graphState[kind];
+        if (!st) return;
+        const canvas = document.getElementById(st.canvasId);
+        if (!canvas) return;
+        const wrap = canvas.parentElement;
+
+        const prices = st.allPts.map(p => p.price).filter(v => v > 0);
+        if (!prices.length) return;
+        const minPrice = Math.floor(Math.min(...prices));
+        const maxPrice = Math.ceil(Math.max(...prices));
+        const brands = [...new Set(st.allPts.map(p => st.getBrand(p)))].sort();
+
+        this._graphFilters = this._graphFilters || {};
+        const f = this._graphFilters[kind] || (this._graphFilters[kind] = {
+            brands: new Set(brands), minPrice, maxPrice, brandsTouched: false, priceTouched: false
+        });
+        if (!f.brandsTouched) f.brands = new Set(brands);
+        if (!f.priceTouched) {
+            f.minPrice = minPrice;
+            f.maxPrice = maxPrice;
+        }
+        f.minPrice = Math.min(Math.max(f.minPrice, minPrice), maxPrice);
+        f.maxPrice = Math.min(Math.max(f.maxPrice, minPrice), maxPrice);
+        if (f.minPrice > f.maxPrice) f.minPrice = f.maxPrice;
+
+        let bar = document.getElementById(`${kind}GraphControls`);
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = `${kind}GraphControls`;
+            bar.className = 'graph-controls';
+            wrap.insertAdjacentElement('afterend', bar);
+        }
+
+        const colored = st.brandColors;
+        if (kind === 'gpu' && !this._gpuColorMode) this._gpuColorMode = 'manufacturer';
+        const showBrandChips = kind !== 'gpu' || this._gpuColorMode === 'manufacturer';
+        const chipsHTML = brands.map(b => {
+            const active = f.brands.has(b);
+            const dot = colored ? `<span class="gc-dot" style="background:${this._brandColor(b).solid}"></span>` : '';
+            return `<button type="button" class="gc-chip${active ? ' active' : ''}" data-brand="${b.replace(/"/g, '&quot;')}">${dot}${b}</button>`;
+        }).join('');
+
+        const colorModeHTML = kind === 'gpu' ? `
+            <button type="button" class="gc-mode-btn" id="gpuColorModeBtn">
+                <i class="fas fa-palette"></i> Sort by: ${this._gpuColorModeLabel(this._gpuColorMode)}
+            </button>` : '';
+
+        const gpuInlineLegend = kind === 'gpu' && !showBrandChips ? this._gpuColorModeLegend(this._gpuColorMode) : '';
+        const tagHTML = showBrandChips ? chipsHTML : gpuInlineLegend;
+        const legendHTML = kind === 'gpu' ? '' : (colored ? '' : `
+            <div class="gc-legend">
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(40,190,60,0.85)"></span>${st.legendHigh}</span>
+                <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(220,60,60,0.85)"></span>${st.legendLow}</span>
+            </div>`);
+
+        bar.innerHTML = `
+            <div class="gc-row">
+                <span class="gc-label">${kind === 'gpu' && !showBrandChips ? 'Legend' : (colored ? 'Manufacturer' : 'Brand')}</span>
+                <div class="gc-chips${tagHTML ? '' : ' hidden'}${kind === 'gpu' && tagHTML ? ' gc-chip-legend' : ''}">${tagHTML}</div>
+                ${colorModeHTML}
+            </div>
+            <div class="gc-row gc-price-row">
+                <span class="gc-label">Price</span>
+                <div class="gc-range" id="${kind}PriceRange">
+                    <div class="gc-range-fill" id="${kind}PriceRangeFill"></div>
+                    <input type="range" class="gc-slider gc-slider-min" min="${minPrice}" max="${maxPrice}" value="${f.minPrice}" id="${kind}MinPriceSlider">
+                    <input type="range" class="gc-slider gc-slider-max" min="${minPrice}" max="${maxPrice}" value="${f.maxPrice}" id="${kind}MaxPriceSlider">
+                </div>
+                <span class="gc-price-val gc-price-range-val" id="${kind}PriceVal">$${f.minPrice} - $${f.maxPrice}</span>
+            </div>
+            ${legendHTML}`;
+
+        bar.querySelectorAll('.gc-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const b = chip.dataset.brand;
+                if (f.brands.has(b)) f.brands.delete(b); else f.brands.add(b);
+                f.brandsTouched = true;
+                chip.classList.toggle('active');
+                this._applyGraphFilters(kind);
+            });
+        });
+        const colorModeBtn = bar.querySelector('#gpuColorModeBtn');
+        if (colorModeBtn) {
+            colorModeBtn.addEventListener('click', () => {
+                const modes = ['manufacturer', 'value', 'age'];
+                const next = modes[(modes.indexOf(this._gpuColorMode || 'manufacturer') + 1) % modes.length];
+                this._gpuColorMode = next;
+                this._setupGraphControls(kind);
+            });
+        }
+        const minSlider = bar.querySelector(`#${kind}MinPriceSlider`);
+        const maxSlider = bar.querySelector(`#${kind}MaxPriceSlider`);
+        const priceVal = bar.querySelector(`#${kind}PriceVal`);
+        const rangeFill = bar.querySelector(`#${kind}PriceRangeFill`);
+        const updatePriceUi = () => {
+            priceVal.textContent = `$${f.minPrice} - $${f.maxPrice}`;
+            if (!rangeFill || maxPrice === minPrice) return;
+            const minPct = ((f.minPrice - minPrice) / (maxPrice - minPrice)) * 100;
+            const maxPct = ((f.maxPrice - minPrice) / (maxPrice - minPrice)) * 100;
+            rangeFill.style.left = `${minPct}%`;
+            rangeFill.style.right = `${100 - maxPct}%`;
+        };
+        const scheduleSliderFilter = () => {
+            clearTimeout(f.sliderApplyTimer);
+            f.sliderApplyTimer = setTimeout(() => this._applyGraphFilters(kind), 85);
+        };
+        minSlider.addEventListener('input', () => {
+            f.minPrice = Math.min(parseInt(minSlider.value, 10), f.maxPrice);
+            minSlider.value = f.minPrice;
+            f.priceTouched = true;
+            updatePriceUi();
+            scheduleSliderFilter();
+        });
+        maxSlider.addEventListener('input', () => {
+            f.maxPrice = Math.max(parseInt(maxSlider.value, 10), f.minPrice);
+            maxSlider.value = f.maxPrice;
+            f.priceTouched = true;
+            updatePriceUi();
+            scheduleSliderFilter();
+        });
+
+        updatePriceUi();
+        this._applyGraphFilters(kind);
+    }
+
+    // Filter a graph's master points by the current brand + price selection,
+    // then redraw. Works by swapping the live points array the draw fn reads.
+    _applyGraphFilters(kind) {
+        const st = this._graphState && this._graphState[kind];
+        if (!st) return;
+        const f = this._graphFilters[kind];
+        const visible = st.allPts.filter(p =>
+            (kind === 'gpu' && this._gpuColorMode !== 'manufacturer' ? true : f.brands.has(st.getBrand(p))) &&
+            p.price >= f.minPrice && p.price <= f.maxPrice);
+        this[st.ptsProp] = visible;
+        st.draw();
+    }
+
     _renderGpuTabScatterPlot(gpus) {
         const canvas = document.getElementById('gpuTabScatterPlot');
         if (!canvas) return;
@@ -12659,31 +13157,42 @@ class PartsDatabase {
         const cw = width - pad.left - pad.right;
         const ch = height - pad.top - pad.bottom;
 
-        const maxPerf = Math.max(...pts.map(p => p.performance));
-        const minPerf = Math.min(...pts.map(p => p.performance));
-        const maxP = Math.max(...pts.map(p => p.price));
-        const minP = Math.min(...pts.map(p => p.price));
-        const step = Math.ceil((maxP - minP) / 5 / 100) * 100 || 100;
-        const rMin = Math.floor(minP / 100) * 100;
-        const rMax = rMin + step * 5;
-
-        const scores = pts.map(p => p.performance / p.price);
-        const sMax = Math.max(...scores), sMin = Math.min(...scores);
-
-        // Compute canvas (x,y) for each point and store for hit-testing
-        pts.forEach((p, i) => {
-            p.cx = pad.left + ((p.performance - minPerf) / (maxPerf - minPerf || 1)) * cw;
-            p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
-            p.valueScore = scores[i];
-        });
         this._gpuTabChartPts = pts;
-        this._gpuTabChartMeta = { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step };
+        this._gpuTabChartMeta = { pad, cw, ch, width, height };
 
         // Store draw function so we can redraw on selection change
         this._drawGpuTabChart = (selectedGpu) => {
-            const { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step } = this._gpuTabChartMeta;
+            const { pad, cw, ch, width, height } = this._gpuTabChartMeta;
+            const visiblePts = this._gpuTabChartPts || [];
 
             ctx.clearRect(0, 0, width, height);
+
+            if (!visiblePts.length) {
+                ctx.fillStyle = '#888';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('No GPUs match these filters', width / 2, height / 2);
+                return;
+            }
+
+            const maxPerf = Math.max(...visiblePts.map(p => p.performance));
+            const minPerf = Math.min(...visiblePts.map(p => p.performance));
+            const maxP = Math.max(...visiblePts.map(p => p.price));
+            const minP = Math.min(...visiblePts.map(p => p.price));
+            const step = Math.ceil((maxP - minP) / 5 / 100) * 100 || 100;
+            const rMin = Math.floor(minP / 100) * 100;
+            const rMax = Math.max(rMin + step * 5, Math.ceil(maxP / 100) * 100 || step);
+
+            const scores = visiblePts.map(p => p.performance / p.price);
+            const sMax = Math.max(...scores);
+            const sMin = Math.min(...scores);
+
+            visiblePts.forEach((p, i) => {
+                p.cx = pad.left + ((p.performance - minPerf) / (maxPerf - minPerf || 1)) * cw;
+                p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
+                p.valueScore = scores[i];
+            });
 
             // Grid + Y labels
             for (let i = 0; i <= 5; i++) {
@@ -12726,43 +13235,29 @@ class PartsDatabase {
             const selectedTitle = selectedGpu ? (selectedGpu.title || selectedGpu.name || '') : '';
 
             // Draw all non-selected points first, then selected on top
-            const [unselected, selected] = this._gpuTabChartPts.reduce(
+            const [unselected, selected] = visiblePts.reduce(
                 ([u, s], p) => (p.gpu.title === selectedTitle || p.gpu.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
                 const isSelected = p.gpu.title === selectedTitle || p.gpu.name === selectedTitle;
-                const t = (p.valueScore - sMin) / (sMax - sMin || 1);
-                const r = Math.round(220 * (1 - t));
-                const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
+                const colorMode = this._gpuColorMode || 'manufacturer';
+                const pointColor = this._gpuPointColor(p, visiblePts, colorMode, isSelected);
 
                 if (isSelected) {
                     // Highlight ring
                     ctx.strokeStyle = '#2563eb';
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : pointColor;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : pointColor;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
-
-            // Legend
-            const lx = pad.left + cw - 110, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 120, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
         };
 
         this._drawGpuTabChart(this._gpuTabSelectedGpu || null);
@@ -12783,7 +13278,9 @@ class PartsDatabase {
                 // Tooltip
                 const tip = document.getElementById('gpuChartTooltip');
                 if (hit && tip) {
-                    tip.textContent = (hit.gpu.title || hit.gpu.name || '');
+                    const fullName = hit.gpu.title || hit.gpu.name || '';
+                    tip.textContent = fullName.length > 72 ? fullName.slice(0, 69).trimEnd() + '...' : fullName;
+                    tip.title = fullName;
                     tip.style.display = 'block';
                     tip.style.left = (e.offsetX + 12) + 'px';
                     tip.style.top = (e.offsetY - 8) + 'px';
@@ -12824,9 +13321,17 @@ class PartsDatabase {
             wrap2.style.position = 'relative';
             const tip = document.createElement('div');
             tip.id = 'gpuChartTooltip';
-            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
+            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;line-height:1.35;padding:6px 8px;border-radius:5px;pointer-events:none;white-space:normal;overflow-wrap:anywhere;z-index:10;max-width:260px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.gpu = {
+            canvasId: 'gpuTabScatterPlot', ptsProp: '_gpuTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.gpu, 'gpu'), brandColors: true,
+            draw: () => this._drawGpuTabChart(this._gpuTabSelectedGpu || null),
+        };
+        this._setupGraphControls('gpu');
     }
 
     // ── CPU Tab Listings ──────────────────────────────────────────
@@ -12865,6 +13370,7 @@ class PartsDatabase {
     _renderCpuProductCard(cpu) {
         const card = document.getElementById('cpuProductCard');
         if (!card) return;
+        this._cpuCardCurrent = cpu;
 
         // Show "Best Value" badge only for best-value CPU
         const badge = document.getElementById('cpuBestValueBadge');
@@ -12914,6 +13420,12 @@ class PartsDatabase {
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
             <div class="gpu-card-specs">
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Cores</span><span class="gpu-spec-val">${cores}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Threads</span><span class="gpu-spec-val">${threads}</span></div>
@@ -12922,12 +13434,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Socket</span><span class="gpu-spec-val">${socket}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Architecture</span><span class="gpu-spec-val">${arch}</span></div>
             </div>
-            <div class="gpu-card-footer">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
-                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
-                    Buy <i class="fas fa-external-link-alt"></i>
-                </a>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderCpuReviews(cpu) {
@@ -13164,32 +13676,20 @@ class PartsDatabase {
                 const t = (p.valueScore - sMin) / (sMax - sMin || 1);
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
 
                 if (isSelected) {
                     ctx.strokeStyle = '#2563eb';
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
 
-            // Legend
-            const lx = pad.left + cw - 110, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 120, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
         };
 
         this._drawCpuTabChart(this._cpuTabSelectedCpu || null);
@@ -13249,6 +13749,15 @@ class PartsDatabase {
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.cpu = {
+            canvasId: 'cpuTabScatterPlot', ptsProp: '_cpuTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.cpu, 'cpu'), brandColors: false,
+            legendHigh: 'Best value', legendLow: 'Poor value',
+            draw: () => this._drawCpuTabChart(this._cpuTabSelectedCpu || null),
+        };
+        this._setupGraphControls('cpu');
     }
 
     // ── Cooler Tab Listings ───────────────────────────────────────
@@ -13303,6 +13812,7 @@ class PartsDatabase {
     _renderCoolerProductCard(cooler) {
         const card = document.getElementById('coolerProductCard');
         if (!card) return;
+        this._coolerCardCurrent = cooler;
 
         // Show "Best Value" badge only for best-value cooler
         const badge = document.getElementById('coolerBestValueBadge');
@@ -13352,6 +13862,12 @@ class PartsDatabase {
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
             <div class="gpu-card-specs">
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Type</span><span class="gpu-spec-val">${typeLabel}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">TDP Rating</span><span class="gpu-spec-val">${tdp}</span></div>
@@ -13360,12 +13876,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Socket Compat.</span><span class="gpu-spec-val">${sockets}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">${(coolerType.includes('liquid') || coolerType.includes('aio')) ? 'Radiator Size' : 'Height'}</span><span class="gpu-spec-val">${sizeLabel}</span></div>
             </div>
-            <div class="gpu-card-footer">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
-                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
-                    Buy <i class="fas fa-external-link-alt"></i>
-                </a>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderCoolerReviews(cooler) {
@@ -13620,32 +14136,20 @@ class PartsDatabase {
                 const t = (p.valueScore - sMin) / (sMax - sMin || 1);
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
 
                 if (isSelected) {
                     ctx.strokeStyle = '#2563eb';
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
 
-            // Legend
-            const lx = pad.left + cw - 110, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 120, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
         };
 
         this._drawCoolerTabChart(this._coolerTabSelectedCooler || null);
@@ -13705,6 +14209,15 @@ class PartsDatabase {
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.cooler = {
+            canvasId: 'coolerTabScatterPlot', ptsProp: '_coolerTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.cooler, 'cooler'), brandColors: false,
+            legendHigh: 'Best value', legendLow: 'Poor value',
+            draw: () => this._drawCoolerTabChart(this._coolerTabSelectedCooler || null),
+        };
+        this._setupGraphControls('cooler');
     }
 
     // ── Motherboard Tab Listings ───────────────────────────────────
@@ -13782,6 +14295,7 @@ class PartsDatabase {
     _renderMoboProductCard(mb) {
         const card = document.getElementById('moboProductCard');
         if (!card) return;
+        this._motherboardCardCurrent = mb;
 
         const badge = document.getElementById('moboBestValueBadge');
         if (badge) {
@@ -13811,6 +14325,12 @@ class PartsDatabase {
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
             <div class="gpu-card-specs">
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Socket</span><span class="gpu-spec-val">${socket}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Form Factor</span><span class="gpu-spec-val">${formFactor}</span></div>
@@ -13819,12 +14339,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Max RAM</span><span class="gpu-spec-val">${maxRam}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">PCIe Slots</span><span class="gpu-spec-val">${pcieSlots}</span></div>
             </div>
-            <div class="gpu-card-footer">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
-                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
-                    Buy <i class="fas fa-external-link-alt"></i>
-                </a>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderMoboReviews(mb) {
@@ -14048,30 +14568,19 @@ class PartsDatabase {
                 const t = (p.valueScore - sMin) / (sMax - sMin || 1);
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
 
                 if (isSelected) {
                     ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
 
-            const lx = pad.left + cw - 110, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 120, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 120, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Best value', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Poor value', lx + 9, ly + 22);
         };
 
         this._drawMoboTabChart(this._moboTabSelectedMb || null);
@@ -14131,6 +14640,15 @@ class PartsDatabase {
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.mobo = {
+            canvasId: 'moboTabScatterPlot', ptsProp: '_moboTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.mb, 'mobo'), brandColors: false,
+            legendHigh: 'Best value', legendLow: 'Poor value',
+            draw: () => this._drawMoboTabChart(this._moboTabSelectedMb || null),
+        };
+        this._setupGraphControls('mobo');
     }
 
     // ── RAM Tab Listings ───────────────────────────────────────────
@@ -14182,6 +14700,7 @@ class PartsDatabase {
     _renderRamProductCard(ram) {
         const card = document.getElementById('ramProductCard');
         if (!card) return;
+        this._ramCardCurrent = ram;
 
         const badge = document.getElementById('ramBestValueBadge');
         if (badge) {
@@ -14213,6 +14732,12 @@ class PartsDatabase {
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
             <div class="gpu-card-specs">
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Capacity</span><span class="gpu-spec-val">${capacity}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Speed</span><span class="gpu-spec-val">${speed}</span></div>
@@ -14221,12 +14746,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Form Factor</span><span class="gpu-spec-val">${formFactor}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">RGB</span><span class="gpu-spec-val">${rgb}</span></div>
             </div>
-            <div class="gpu-card-footer">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
-                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
-                    Buy <i class="fas fa-external-link-alt"></i>
-                </a>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderRamReviews(ram) {
@@ -14451,31 +14976,19 @@ class PartsDatabase {
                 const t = p.perfNorm;
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
 
                 if (isSelected) {
                     ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
 
-            // Legend
-            const lx = pad.left + cw - 120, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 130, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 130, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Fast (speed/latency)', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Slow (speed/latency)', lx + 9, ly + 22);
         };
 
         this._drawRamTabChart(this._ramTabSelectedRam || null);
@@ -14535,6 +15048,15 @@ class PartsDatabase {
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.ram = {
+            canvasId: 'ramTabScatterPlot', ptsProp: '_ramTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.ram, 'ram'), brandColors: false,
+            legendHigh: 'Fast (speed/latency)', legendLow: 'Slow (speed/latency)',
+            draw: () => this._drawRamTabChart(this._ramTabSelectedRam || null),
+        };
+        this._setupGraphControls('ram');
     }
 
     // ── PSU Tab Listings ───────────────────────────────────────────
@@ -14595,6 +15117,7 @@ class PartsDatabase {
     _renderPsuProductCard(psu) {
         const card = document.getElementById('psuProductCard');
         if (!card) return;
+        this._psuCardCurrent = psu;
 
         const badge = document.getElementById('psuBestValueBadge');
         if (badge) {
@@ -14655,6 +15178,12 @@ class PartsDatabase {
         card.innerHTML = `
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
             <div class="gpu-card-specs">
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Wattage</span><span class="gpu-spec-val">${wattage}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Efficiency</span><span class="gpu-spec-val">${cert}</span></div>
@@ -14663,12 +15192,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Form Factor</span><span class="gpu-spec-val">${formFactor}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Warranty</span><span class="gpu-spec-val">${warranty}</span></div>
             </div>
-            <div class="gpu-card-footer">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
-                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
-                    Buy <i class="fas fa-external-link-alt"></i>
-                </a>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
             </div>`;
+        this._applyCardCompatById(card);
     }
 
     _renderPsuReviews(psu) {
@@ -14879,30 +15408,19 @@ class PartsDatabase {
                 const t = p.effNorm;
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
+                const incompatible = this._pointIncompatible(p);
 
                 if (isSelected) {
                     ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = `rgba(${r},${g},60,1)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
                 } else {
-                    ctx.fillStyle = `rgba(${r},${g},60,0.65)`;
+                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
                     ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
                 }
             });
 
-            const lx = pad.left + cw - 120, ly = pad.top + 8;
-            ctx.fillStyle = 'rgba(248,250,252,0.92)';
-            ctx.fillRect(lx - 8, ly - 4, 130, 42);
-            ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-            ctx.strokeRect(lx - 8, ly - 4, 130, 42);
-            ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(40,190,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 6, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Higher efficiency', lx + 9, ly + 6);
-            ctx.fillStyle = 'rgba(220,60,60,0.85)';
-            ctx.beginPath(); ctx.arc(lx, ly + 22, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#374151'; ctx.fillText('Lower efficiency', lx + 9, ly + 22);
         };
 
         this._drawPsuTabChart(this._psuTabSelectedPsu || null);
@@ -14962,6 +15480,138 @@ class PartsDatabase {
             tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
             wrap2.appendChild(tip);
         }
+
+        this._graphState = this._graphState || {};
+        this._graphState.psu = {
+            canvasId: 'psuTabScatterPlot', ptsProp: '_psuTabChartPts', allPts: pts,
+            getBrand: (p) => this._detectBrand(p.psu, 'psu'), brandColors: false,
+            legendHigh: 'Higher efficiency', legendLow: 'Lower efficiency',
+            draw: () => this._drawPsuTabChart(this._psuTabSelectedPsu || null),
+        };
+        this._setupGraphControls('psu');
+    }
+
+    async renderCaseListingsSection() {
+        if (this._caseListingsRendered) return;
+        try {
+            if (!this.allCases || this.allCases.length === 0) await this.loadAllCases();
+            const items = this.allCases || [];
+            const best = this._pickBestValueGeneric(items);
+            if (best) this._renderCaseProductCard(best);
+            this._caseListingsRendered = true;
+        } catch (e) {
+            console.error('Case listings error:', e);
+        }
+    }
+
+    async renderStorageListingsSection() {
+        if (this._storageListingsRendered) return;
+        try {
+            if (!this.allStorage || this.allStorage.length === 0) await this.loadAllStorage();
+            const items = this.allStorage || [];
+            const best = this._pickBestValueGeneric(items);
+            if (best) this._renderStorageProductCard(best);
+            this._storageListingsRendered = true;
+        } catch (e) {
+            console.error('Storage listings error:', e);
+        }
+    }
+
+    async renderAddonListingsSection() {
+        if (this._addonListingsRendered) return;
+        try {
+            if (!this.allAddons || this.allAddons.length === 0) await this.loadAllAddons();
+            const items = this.allAddons || [];
+            const best = this._pickBestValueGeneric(items);
+            if (best) this._renderAddonProductCard(best);
+            this._addonListingsRendered = true;
+        } catch (e) {
+            console.error('Add-on listings error:', e);
+        }
+    }
+
+    // Pick the lowest-priced item that has an image and a real price.
+    // Used by tabs (case/storage/addon) that don't have a perf-per-dollar score.
+    _pickBestValueGeneric(items) {
+        let best = null;
+        let bestPrice = Infinity;
+        for (const it of items) {
+            const price = parseFloat(it.salePrice || it.currentPrice || it.basePrice || it.price) || 0;
+            const hasImg = !!(it.imageUrl || it.image);
+            if (price > 0 && hasImg && price < bestPrice) {
+                best = it;
+                bestPrice = price;
+            }
+        }
+        return best;
+    }
+
+    _renderGenericProductCard(cardId, item, specRows, fallbackIcon) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        const title = item.title || item.name || 'Unknown';
+        const price = parseFloat(item.salePrice || item.currentPrice || item.basePrice || item.price) || 0;
+        const buyUrl = item.sourceUrl || item.url || '#';
+        const imageUrl = item.imageUrl || item.image || '';
+        const imgHTML = imageUrl
+            ? `<img src="${imageUrl}" alt="${title}" class="gpu-card-img" />`
+            : `<div class="gpu-card-img-placeholder"><i class="fas ${fallbackIcon}"></i></div>`;
+        card.innerHTML = `
+            <div class="gpu-card-title">${title}</div>
+            <div class="gpu-card-image-area">${imgHTML}</div>
+            <div class="gpu-card-buyrow">
+                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
+                    Buy <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+            <div class="gpu-card-specs">
+                ${specRows.map(r => `<div class="gpu-card-spec-row"><span class="gpu-spec-label">${r.label}</span><span class="gpu-spec-val">${r.value}</span></div>`).join('')}
+            </div>
+            <div class="gpu-card-select-wrap">
+                <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
+                    <i class="fas fa-check-circle"></i> Select This Part
+                </button>
+            </div>`;
+        this._applyCardCompatById(card);
+    }
+
+    _renderCaseProductCard(item) {
+        this._caseCardCurrent = item;
+        const formFactor = Array.isArray(item.formFactor) ? item.formFactor.join(', ') : (item.formFactor || '—');
+        const color = item.color || item.specifications?.color || '—';
+        const maxGpu = item.maxGpuLength || item.specifications?.maxGpuLength;
+        const maxCpu = item.maxCpuCoolerHeight || item.specifications?.maxCpuCoolerHeight;
+        this._renderGenericProductCard('caseProductCard', item, [
+            { label: 'Form Factor', value: formFactor },
+            { label: 'Color', value: color },
+            { label: 'Max GPU', value: maxGpu ? `${maxGpu} mm` : '—' },
+            { label: 'Max Cooler', value: maxCpu ? `${maxCpu} mm` : '—' },
+        ], 'fa-box');
+    }
+
+    _renderStorageProductCard(item) {
+        this._storageCardCurrent = item;
+        const type = item.type || item.storageType || '—';
+        const capacity = item.capacity ? `${item.capacity} GB` : (item.capacityRange || '—');
+        const interfaceVal = item.interface || item.formFactor || '—';
+        const readSpeed = item.readSpeed ? `${item.readSpeed} MB/s` : '—';
+        this._renderGenericProductCard('storageProductCard', item, [
+            { label: 'Type', value: type },
+            { label: 'Capacity', value: capacity },
+            { label: 'Interface', value: interfaceVal },
+            { label: 'Read Speed', value: readSpeed },
+        ], 'fa-hdd');
+    }
+
+    _renderAddonProductCard(item) {
+        this._addonCardCurrent = item;
+        const category = item.category || item.addonType || item.type || '—';
+        const manufacturer = item.manufacturer || item.brand || '—';
+        this._renderGenericProductCard('addonProductCard', item, [
+            { label: 'Category', value: category },
+            { label: 'Brand', value: manufacturer },
+        ], 'fa-plus-circle');
     }
 
     toggleStatisticsPanel() {
