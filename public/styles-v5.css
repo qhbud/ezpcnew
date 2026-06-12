@@ -4887,6 +4887,33 @@ tr.incompatible td {
     line-height: 1.4;
 }
 
+.gpu-card-review-pill {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.gpu-card-review-pill.muted {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.gpu-card-review-stars {
+    display: inline-flex;
+    gap: 2px;
+    color: #f59e0b;
+}
+
+.gpu-card-review-count {
+    color: #64748b;
+    font-weight: 600;
+}
+
 .gpu-card-image-area {
     display: flex;
     justify-content: center;
@@ -4944,31 +4971,320 @@ tr.incompatible td {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--space-2);
     margin-top: auto;
+    flex-wrap: wrap;
+}
+
+/* Price + Buy row sits directly under the product image */
+.gpu-card-buyrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-2) 0 var(--space-3);
+}
+
+/* Big, prominent Select button — the primary call to action */
+.gpu-card-select-wrap {
+    margin-top: auto;
+    padding-top: var(--space-3);
+}
+
+.gpu-card-select-btn {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    background: #10b981;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    padding: var(--space-4) var(--space-5);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.gpu-card-select-btn i {
+    font-size: 1.15rem;
+}
+
+.gpu-card-select-btn:hover {
+    background: #059669;
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+}
+
+.gpu-card-select-btn:active {
+    transform: translateY(1px);
 }
 
 .gpu-card-price {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-primary);
 }
 
+/* Buy is now a secondary action — smaller and quieter than Select */
 .gpu-card-buy-btn {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    background: var(--brand);
-    color: #fff;
-    font-size: 0.875rem;
+    background: transparent;
+    color: var(--brand);
+    font-size: 0.8rem;
     font-weight: 600;
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--brand);
     border-radius: var(--radius-lg);
     text-decoration: none;
-    transition: background 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .gpu-card-buy-btn:hover {
-    background: var(--brand-hover);
+    background: var(--brand);
+    color: #fff;
+}
+
+.gpu-card-buy-btn.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Incompatible featured part — grey the card and warn */
+.card-incompat-notice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-3);
+    border: 1px solid #fecaca;
+}
+
+.gpu-product-card.incompatible .gpu-card-image-area,
+.gpu-product-card.incompatible .gpu-card-specs,
+.gpu-product-card.incompatible .gpu-card-buyrow,
+.gpu-product-card.incompatible .gpu-card-title {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.gpu-product-card.incompatible .gpu-card-select-btn {
+    background: #9ca3af;
+    box-shadow: none;
+}
+
+.gpu-product-card.incompatible .gpu-card-select-btn:hover {
+    background: #6b7280;
+}
+
+/* ── Per-graph filter controls (price + brand chips) ───────── */
+.graph-controls {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary, #f1f5f9);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+}
+.graph-controls .gc-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.graph-controls .gc-label {
+    color: #64748b;
+    font-weight: 600;
+    min-width: 72px;
+}
+.graph-controls .gc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.graph-controls .gc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.graph-controls .gc-chip:hover { border-color: #94a3b8; }
+.graph-controls .gc-chip.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+.graph-controls .gc-chip.active .gc-dot { border: 1px solid rgba(255,255,255,0.6); }
+.graph-controls .gc-chip-legend {
+    align-items: center;
+}
+.graph-controls .gc-chip-legend .gc-chip {
+    background: transparent;
+    border: none;
+    color: #475569;
+    padding: 2px 5px;
+    border-radius: 6px;
+    font-size: 11px;
+}
+.graph-controls .gc-chip-legend .gc-chip:hover {
+    background: rgba(148, 163, 184, 0.14);
+}
+.graph-controls .gc-chip-legend .gc-chip.active {
+    background: transparent;
+    border-color: transparent;
+    color: #475569;
+}
+.graph-controls .gc-chip-legend .gc-chip:not(.active) {
+    opacity: 0.35;
+}
+.graph-controls .gc-chip-legend .gc-chip.active .gc-dot {
+    border: none;
+}
+.graph-controls .gc-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    background: #0f172a;
+    border: 1px solid #0f172a;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.graph-controls .gc-mode-btn:hover {
+    background: #334155;
+    border-color: #334155;
+}
+.graph-controls .gc-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #94a3b8;
+}
+.graph-controls .gc-slider {
+    flex: 1;
+    min-width: 140px;
+    accent-color: #2563eb;
+}
+.graph-controls .gc-price-row {
+    align-items: center;
+}
+.graph-controls .gc-range {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    height: 28px;
+}
+.graph-controls .gc-range::before,
+.graph-controls .gc-range-fill {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 12px;
+    height: 4px;
+    border-radius: 999px;
+}
+.graph-controls .gc-range::before {
+    background: #cbd5e1;
+}
+.graph-controls .gc-range-fill {
+    background: #2563eb;
+}
+.graph-controls .gc-range .gc-slider {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    pointer-events: none;
+}
+.graph-controls .gc-range .gc-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: transparent;
+}
+.graph-controls .gc-range .gc-slider::-moz-range-track {
+    height: 4px;
+    background: transparent;
+}
+.graph-controls .gc-range .gc-slider::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #2563eb;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-appearance: none;
+}
+.graph-controls .gc-range .gc-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #2563eb;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+    cursor: pointer;
+    pointer-events: auto;
+}
+.graph-controls .gc-slider-min {
+    z-index: 3;
+}
+.graph-controls .gc-slider-max {
+    z-index: 2;
+}
+.graph-controls .gc-price-val {
+    color: #0f172a;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: right;
+}
+.graph-controls .gc-price-range-val {
+    min-width: 112px;
+}
+.graph-controls .gc-legend {
+    display: flex;
+    gap: 14px;
+    color: #475569;
+    font-size: 11px;
+    padding-top: 2px;
+}
+.graph-controls .gc-leg-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Reviews */
@@ -5004,6 +5320,97 @@ tr.incompatible td {
     font-size: 0.8375rem;
     color: var(--text-muted);
     margin-top: var(--space-2);
+}
+
+.gpu-review-source-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: var(--space-3);
+}
+
+.gpu-featured-reviews {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: var(--space-4);
+}
+
+.gpu-featured-review-card {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.gpu-featured-review-card:hover {
+    border-color: #94a3b8;
+}
+
+.gpu-featured-review-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.gpu-featured-review-title {
+    font-size: 0.84rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.gpu-featured-review-card p {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0;
+}
+
+.gpu-review-links-title {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gpu-review-link {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 7px 9px;
+    text-decoration: none;
+    font-size: 0.78rem;
+}
+
+.gpu-review-link:hover {
+    border-color: #94a3b8;
+}
+
+.gpu-review-link-source {
+    color: #2563eb;
+    font-weight: 800;
+}
+
+.gpu-review-link-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .gpu-review-aggregate-card {

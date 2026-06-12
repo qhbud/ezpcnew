@@ -90,6 +90,7 @@
     "update-ram-prices": "node scripts/updateRamPrices.js",
     "update-psu-prices": "node scripts/updatePsuPrices.js",
     "update-gpu-prices": "node scripts/updateGpuPrices.js",
+    "update-gpu-reviews": "node scripts/updateGpuReviews.js",
     "update-all-component-prices": "node scripts/updateAllComponentPrices.js"
   },
   "keywords": [
