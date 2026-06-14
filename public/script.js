@@ -534,6 +534,7 @@ class PartsDatabase {
         // Update current tab and load appropriate data
         this.currentTab = tabName;
         this.updateHeaderForTab();
+        this.updateBuildDock();
 
         if (tabName === 'builder') {
             this.initializePCBuilder();
@@ -562,6 +563,101 @@ class PartsDatabase {
             });
         }
         return;
+    }
+
+    ensureBuildDock() {
+        let dock = document.getElementById('buildDock');
+        if (dock) return dock;
+
+        const nav = document.querySelector('.main-nav');
+        if (!nav || !nav.parentNode) return null;
+
+        dock = document.createElement('div');
+        dock.id = 'buildDock';
+        dock.className = 'build-dock hidden';
+        dock.innerHTML = `
+            <div class="build-dock-main">
+                <div class="build-dock-title">
+                    <i class="fas fa-desktop"></i>
+                    <span>Current Build</span>
+                </div>
+                <div class="build-dock-metrics">
+                    <span class="build-dock-chip" id="buildDockCount">0 parts</span>
+                    <span class="build-dock-chip strong" id="buildDockTotal">$0.00</span>
+                    <span class="build-dock-chip" id="buildDockWattage">0W est.</span>
+                    <span class="build-dock-status neutral" id="buildDockStatus">Start selecting parts</span>
+                </div>
+            </div>
+            <div class="build-dock-actions">
+                <button type="button" id="buildDockBuilderBtn" class="build-dock-btn primary">
+                    <i class="fas fa-cogs"></i>
+                    <span>Builder</span>
+                </button>
+                <button type="button" id="buildDockCopyBtn" class="build-dock-btn">
+                    <i class="fas fa-link"></i>
+                    <span>Copy Link</span>
+                </button>
+            </div>
+        `;
+
+        nav.insertAdjacentElement('afterend', dock);
+
+        const builderBtn = dock.querySelector('#buildDockBuilderBtn');
+        const copyBtn = dock.querySelector('#buildDockCopyBtn');
+
+        if (builderBtn) {
+            builderBtn.addEventListener('click', () => this.switchTab('builder'));
+        }
+
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => this.shareBuild());
+        }
+
+        return dock;
+    }
+
+    updateBuildDock() {
+        const dock = this.ensureBuildDock();
+        if (!dock) return;
+
+        const dockTabs = new Set(['gpu', 'cpu', 'motherboard', 'ram', 'psu', 'cooler', 'case', 'storage', 'addon']);
+        const shouldShow = dockTabs.has(this.currentTab);
+        dock.classList.toggle('hidden', !shouldShow);
+
+        const components = Object.values(this.currentBuild || {}).filter(Boolean);
+        const count = components.length;
+        const total = typeof this.totalPrice === 'number' ? this.totalPrice : 0;
+        const wattageInfo = this.calculateEstimatedWattage ? this.calculateEstimatedWattage() : { total: 0 };
+        const compatibilityResults = document.getElementById('compatibilityResults');
+        const hasWarnings = compatibilityResults?.classList.contains('has-warnings') || false;
+
+        const countEl = document.getElementById('buildDockCount');
+        const totalEl = document.getElementById('buildDockTotal');
+        const wattageEl = document.getElementById('buildDockWattage');
+        const statusEl = document.getElementById('buildDockStatus');
+        const copyBtn = document.getElementById('buildDockCopyBtn');
+
+        if (countEl) countEl.textContent = `${count} ${count === 1 ? 'part' : 'parts'}`;
+        if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+        if (wattageEl) wattageEl.textContent = `${wattageInfo.total || 0}W est.`;
+
+        if (statusEl) {
+            statusEl.classList.remove('ok', 'warning', 'neutral');
+            if (!count) {
+                statusEl.classList.add('neutral');
+                statusEl.innerHTML = '<i class="fas fa-circle"></i> Start selecting parts';
+            } else if (hasWarnings) {
+                statusEl.classList.add('warning');
+                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Check compatibility';
+            } else {
+                statusEl.classList.add('ok');
+                statusEl.innerHTML = '<i class="fas fa-check-circle"></i> No issues detected';
+            }
+        }
+
+        if (copyBtn) {
+            copyBtn.disabled = count === 0;
+        }
     }
 
     updateHeaderForTab() {
@@ -3045,9 +3141,11 @@ class PartsDatabase {
 
     populateSocketFilter() {
         const filter = document.getElementById('motherboardSocketFilter');
+        if (!filter) return;
+
         const sockets = new Set();
         
-        this.allMotherboards.forEach(motherboard => {
+        (this.allMotherboards || []).forEach(motherboard => {
             if (motherboard.socket) {
                 sockets.add(motherboard.socket);
             }
@@ -3064,9 +3162,11 @@ class PartsDatabase {
 
     populateRamTypeFilter() {
         const filter = document.getElementById('ramTypeFilter');
+        if (!filter) return;
+
         const types = new Set();
         
-        this.allRAM.forEach(ram => {
+        (this.allRAM || []).forEach(ram => {
             if (ram.memoryType) {
                 types.add(ram.memoryType);
             }
@@ -3083,9 +3183,11 @@ class PartsDatabase {
 
     populateCoolerTypeFilter() {
         const filter = document.getElementById('coolerTypeFilter');
+        if (!filter) return;
+
         const types = new Set();
         
-        this.allCoolers.forEach(cooler => {
+        (this.allCoolers || []).forEach(cooler => {
             if (cooler.coolerType) {
                 types.add(cooler.coolerType);
             }
@@ -3102,6 +3204,8 @@ class PartsDatabase {
 
     populatePsuWattageFilter() {
         const filter = document.getElementById('psuWattageFilter');
+        if (!filter) return;
+
         const wattageRanges = [
             { label: '400-500W', min: 400, max: 500 },
             { label: '500-650W', min: 500, max: 650 },
@@ -4070,6 +4174,7 @@ class PartsDatabase {
         // Update header with component count
         const componentCount = Object.values(this.currentBuild).filter(component => component !== null).length;
         const el = document.getElementById('totalParts'); if (el) el.textContent = componentCount;
+        this.updateBuildDock();
     }
 
     checkCompatibility() {
@@ -4235,6 +4340,7 @@ class PartsDatabase {
 
         // Update wattage display in build summary
         this.updateBuildSummaryWattage();
+        this.updateBuildDock();
     }
 
     updateBuildSummaryWattage() {

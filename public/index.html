@@ -2603,6 +2603,10 @@
                         </div>
                     </div>
 
+                    <div class="build-review-panel" id="buildReviewPanel" style="display: none;">
+                        <!-- Build quality notes will be dynamically added here -->
+                    </div>
+
                     <!-- Build Components -->
                     <div class="build-components" id="buildComponentsList">
                         <!-- Components will be dynamically added here -->
@@ -3018,6 +3022,8 @@
                 statusElement.style.color = '#f56565';
             }
 
+            renderBuildReviewPanel(data);
+
             // Build components list
             const componentsList = document.getElementById('buildComponentsList');
             componentsList.innerHTML = '';
@@ -3077,6 +3083,135 @@
             if (data.debug) {
                 displayDebugInfo(data.debug);
             }
+        }
+
+        function renderBuildReviewPanel(data) {
+            const panel = document.getElementById('buildReviewPanel');
+            if (!panel || !data || !data.build) return;
+
+            const notes = getBuildReviewNotes(data);
+            if (!notes.length) {
+                panel.style.display = 'none';
+                panel.innerHTML = '';
+                return;
+            }
+
+            const warningCount = notes.filter(note => note.type === 'warning').length;
+            const title = warningCount > 0 ? 'Review before buying' : 'Build quality notes';
+            const subtitle = warningCount > 0
+                ? 'This build fits the request, but a few choices deserve a second look.'
+                : 'No obvious red flags from the quick build review.';
+
+            panel.style.display = 'block';
+            panel.innerHTML = `
+                <div class="build-review-header">
+                    <div>
+                        <h3><i class="fas fa-clipboard-check"></i> ${title}</h3>
+                        <p>${subtitle}</p>
+                    </div>
+                    <span class="build-review-score ${warningCount > 0 ? 'warning' : 'ok'}">
+                        ${warningCount > 0 ? `${warningCount} flag${warningCount === 1 ? '' : 's'}` : 'Looks sane'}
+                    </span>
+                </div>
+                <div class="build-review-notes">
+                    ${notes.map(note => `
+                        <div class="build-review-note ${note.type}">
+                            <i class="fas ${note.type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+                            <div>
+                                <strong>${escapeBuildReviewHtml(note.title)}</strong>
+                                <span>${escapeBuildReviewHtml(note.body)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function getBuildReviewNotes(data) {
+            const build = data.build || {};
+            const notes = [];
+            const budget = parseFloat(data.budget || data.wizardData?.budget || 0) || 0;
+            const getPrice = component => parseFloat(component?.salePrice || component?.currentPrice || component?.basePrice || component?.price || 0) || 0;
+            const getName = component => `${component?.name || component?.title || component?.model || ''}`;
+            const lower = component => getName(component).toLowerCase();
+
+            const cpu = build.cpu;
+            const gpu = build.gpu;
+            const motherboard = build.motherboard;
+            const storage = Array.isArray(build.storage) ? build.storage[0] : build.storage;
+            const psu = build.psu;
+            const cooler = build.cooler;
+
+            const gpuPrice = getPrice(gpu);
+            const cpuPrice = getPrice(cpu);
+            const motherboardPrice = getPrice(motherboard);
+            const coolerPrice = getPrice(cooler);
+            const storagePrice = getPrice(storage);
+            const storageName = lower(storage);
+            const motherboardName = lower(motherboard);
+
+            if (budget >= 1400 && motherboardName.match(/\b(b450|x470|a320|b350)\b/)) {
+                notes.push({
+                    type: 'warning',
+                    title: 'Older platform for this budget',
+                    body: 'A B450/X470-class board can work, but at this budget a newer AM5 or current Intel platform may age better.'
+                });
+            }
+
+            if (gpuPrice >= 500 && motherboardPrice > 0 && motherboardPrice < 95) {
+                notes.push({
+                    type: 'warning',
+                    title: 'Motherboard looks unusually cheap',
+                    body: 'The GPU is a major spend, but the motherboard is budget-tier. Check VRMs, BIOS support, warranty, and seller quality.'
+                });
+            }
+
+            if (storage && storageName.includes('sata') && storagePrice > 90) {
+                notes.push({
+                    type: 'warning',
+                    title: 'Storage value may be weak',
+                    body: 'This looks like a SATA SSD at a price where a faster NVMe SSD may be available.'
+                });
+            }
+
+            if (cooler && coolerPrice > 0 && coolerPrice < 25 && (cpuPrice > 180 || parseInt(cpu?.wattage || cpu?.tdp || 0, 10) >= 100)) {
+                notes.push({
+                    type: 'warning',
+                    title: 'Cooler is very low cost',
+                    body: 'A cheap cooler may be fine for modest CPUs, but verify thermal headroom and noise before buying.'
+                });
+            }
+
+            const psuWattage = parseInt(psu?.wattage || 0, 10) || 0;
+            const cpuWatts = parseInt(cpu?.wattage || cpu?.tdp || 0, 10) || 95;
+            const gpuWatts = parseInt(gpu?.tdp || gpu?.wattage || 0, 10) || 220;
+            const estimatedWatts = cpuWatts + gpuWatts + 100;
+            if (psuWattage > 0 && estimatedWatts > psuWattage * 0.75) {
+                notes.push({
+                    type: 'warning',
+                    title: 'PSU headroom is tight',
+                    body: `Estimated draw is roughly ${estimatedWatts}W against a ${psuWattage}W PSU. Prefer 20-30% overhead.`
+                });
+            }
+
+            if (!notes.length && Object.values(build).some(Boolean)) {
+                notes.push({
+                    type: 'info',
+                    title: 'Quick review passed',
+                    body: 'No obvious budget, platform, power, or storage-value red flags were detected.'
+                });
+            }
+
+            return notes.slice(0, 4);
+        }
+
+        function escapeBuildReviewHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function toggleDebugInfo() {

@@ -6018,3 +6018,269 @@ tr.incompatible td {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* ---- Local UX experiment: sticky build dock on component tabs ---- */
+.build-dock {
+    position: sticky;
+    top: 0;
+    z-index: 850;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 10px 0 16px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(10px);
+}
+
+.build-dock.hidden {
+    display: none;
+}
+
+.build-dock-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.build-dock-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #172554;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.build-dock-title i {
+    color: #2563eb;
+}
+
+.build-dock-metrics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.build-dock-chip,
+.build-dock-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.build-dock-chip.strong {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.build-dock-status.ok {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.build-dock-status.warning {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
+.build-dock-status.neutral {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.build-dock-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.build-dock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.build-dock-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.build-dock-btn.primary {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+}
+
+.build-dock-btn.primary:hover {
+    background: #1e40af;
+    border-color: #1e40af;
+}
+
+.build-dock-btn:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+.build-review-panel {
+    margin: 14px 0 16px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+}
+
+.build-review-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.build-review-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.build-review-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.build-review-score {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.build-review-score.ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.build-review-score.warning {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.build-review-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.build-review-note {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 9px;
+    padding: 10px 11px;
+    border-radius: 7px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+}
+
+.build-review-note i {
+    margin-top: 1px;
+}
+
+.build-review-note strong {
+    display: block;
+    color: #111827;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.build-review-note span {
+    display: block;
+    margin-top: 3px;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.build-review-note.warning {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.build-review-note.warning i {
+    color: #ea580c;
+}
+
+.build-review-note.info {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.build-review-note.info i {
+    color: #2563eb;
+}
+
+@media (max-width: 720px) {
+    .build-dock {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .build-dock-main {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .build-dock-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .build-dock-btn {
+        width: 100%;
+    }
+}
