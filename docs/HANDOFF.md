@@ -9,9 +9,10 @@
   proactive compatibility, trust, and mobile UX.
 - Last work: Slice 1 (proactive compatibility, two-tier severity) built + architect-
   verified GREEN and committed to main (2026-06-14).
-- Next action: **Slice 3** (explainable build-review + price-freshness) gates frozen
-  + builder dispatched (2026-06-14). Judge next, then Tier-3 needs human scope calls.
-  Slices 0–2 merged to main.
+- Next action: **Slice 4** (preset budget-tier builds), then **Slice 5** (bottleneck/
+  balance meter), **Slice 6** (public build showcase, NO accounts), **Slice 7**
+  (agent component auto-ingestion). Slices 0–3 merged to main. Autonomous loop:
+  dispatch next slice as each completes; Quinn approved working through these.
 
 ## Project goal
 
@@ -82,10 +83,18 @@ errors** (today there are 3: missing-filter null-guards).
   build-review panel `renderBuildReviewPanel`/`getBuildReviewNotes` ~3088-3215,
   inline) + public/script.js price-render points — a different file set than
   Slices 1/2.
-- Status: DISPATCHED 2026-06-14 — NOT yet judged. (A) extend getBuildReviewNotes
-  to add plain-language "why this pick"/tradeoff explanations, not just warnings;
-  (B) surface "updated X ago" + volatility badges from existing
-  updatedAt/lastUpdated/priceHistory. Architect judges G1–G4 next.
+- Status: **PASS / MERGED** (architect-verified 2026-06-14, after one bounce).
+  Part A (explainable review) passed first cut. Part B (price freshness) was
+  initially wired into DEAD `createXCard` renderers (`renderParts()` early-returns
+  for all component tabs; live badge sweep = 0) — REJECTED at G4 despite R3
+  passing in isolation. Resumed same lane with exact live render-point targets;
+  builder moved badges into the listing renderers (`renderGpuListingsSection`
+  etc., script.js ~12939+) and strengthened R3 to drive real tabs. Re-judged:
+  G1 0, G2 0/0, G3 R1/R2/R3 PASS, independent live sweep now shows a freshness
+  badge per tab; G4 — badges in live renderers only, Slice-1/2 + wizard flow
+  untouched. Screenshots `.architect/slice3-shots/` (incl. freshness-live.png).
+  Caveat: volatility badge rarely shows in listings (priceHistory is lazy-loaded,
+  not present on listing objects) — honest (no fabrication), acceptable.
 
 ## Decisions log (architect + human)
 
@@ -94,6 +103,7 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-13 | Run discovery research + audit before building | Request is discovery-scale; build features blind = backwards |
 | 2026-06-13 | Slice 0 must establish a verification gate | Loop needs a gate; repo has none + 3 live console errors |
 | 2026-06-14 | Slice 2 PHASE-0 disagreements both ACCEPTED, scope unchanged | (1) server.js has only `app.get('/')`+static, no catch-all — immaterial, dock injects into index.html served at `/`; (2) mobile.html is statically reachable but NOT the served experience (no UA redirect), stays OUT OF SCOPE. Gate frozen as-is; ruling governs reading of "not served". |
+| 2026-06-14 | Tier-3 scope (Quinn) | BUILD: preset budget-tier builds (S4); bottleneck/balance meter (S5); public build showcase WITHOUT accounts/logins, on Copy-Link share + curated gallery (S6); agent-driven component auto-ingestion from Amazon for new GPU/mobo listings (S7, ties to findNewComponents.js + flaky-scraper fix). DEFER: accounts/email, multi-retailer pricing, standalone AI assistant. |
 
 ## Session log
 
@@ -104,6 +114,10 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Architect | slice-1 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent gate run + 3 UI screenshots; merged, not pushed |
 | 2026-06-14 | Builder | slice-2 | (uncommitted) | self: G1/G2/G3 pass | paused PHASE 0 w/ 2 disagreements, resumed after rulings; dock severity + mobile + dock-e2e; STATUS COMPLETE |
 | 2026-06-14 | Architect | slice-2 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent gate run + 4 dock screenshots (incl. mobile); merged, not pushed |
+| 2026-06-14 | Builder | slice-3 | (uncommitted) | self: G1/G2/G3 pass | Part A review explanations + Part B freshness badges; STATUS COMPLETE (Part B in dead code) |
+| 2026-06-14 | Architect | slice-3 | sent back | G4 reject Part B | freshness badges in dead createXCard renderers; live sweep = 0 badges; resumed lane |
+| 2026-06-14 | Builder | slice-3 fix | (uncommitted) | self: G1/G2/G3 pass | moved badges to live listing renderers; R3 now drives real tabs |
+| 2026-06-14 | Architect | slice-3 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent re-judge; live sweep shows badges; review + freshness screenshots; merged, not pushed |
 
 ## Notes for next session
 

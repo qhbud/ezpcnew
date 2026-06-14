@@ -780,6 +780,37 @@ tr.incompatible td {
     margin-top: 2px;
 }
 
+.price-meta-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.price-freshness-badge,
+.price-volatility-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.price-freshness-badge {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.price-volatility-badge {
+    background: #fef3c7;
+    color: #92400e;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .container {
@@ -5068,6 +5099,19 @@ tr.incompatible td {
     color: var(--text-primary);
 }
 
+.gpu-card-price-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+}
+
+.gpu-card-buyrow .price-meta-badges {
+    justify-content: flex-start;
+    margin-top: 0;
+}
+
 /* Buy is now a secondary action — smaller and quieter than Select */
 .gpu-card-buy-btn {
     display: inline-flex;
@@ -6305,6 +6349,10 @@ tr.incompatible td {
 
 .build-review-note.info i {
     color: #2563eb;
+}
+
+.build-review-note.info strong {
+    color: #1e3a8a;
 }
 
 @media (max-width: 720px) {

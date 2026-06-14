@@ -3097,10 +3097,11 @@
             }
 
             const warningCount = notes.filter(note => note.type === 'warning').length;
-            const title = warningCount > 0 ? 'Review before buying' : 'Build quality notes';
+            const infoCount = notes.filter(note => note.type === 'info').length;
+            const title = warningCount > 0 ? 'Review before buying' : 'Why this build makes sense';
             const subtitle = warningCount > 0
-                ? 'This build fits the request, but a few choices deserve a second look.'
-                : 'No obvious red flags from the quick build review.';
+                ? 'Warnings appear first, followed by the main reasons behind the part choices.'
+                : 'Key choices and tradeoffs from the selected parts.';
 
             panel.style.display = 'block';
             panel.innerHTML = `
@@ -3110,7 +3111,7 @@
                         <p>${subtitle}</p>
                     </div>
                     <span class="build-review-score ${warningCount > 0 ? 'warning' : 'ok'}">
-                        ${warningCount > 0 ? `${warningCount} flag${warningCount === 1 ? '' : 's'}` : 'Looks sane'}
+                        ${warningCount > 0 ? `${warningCount} flag${warningCount === 1 ? '' : 's'}` : `${infoCount} note${infoCount === 1 ? '' : 's'}`}
                     </span>
                 </div>
                 <div class="build-review-notes">
@@ -3130,10 +3131,32 @@
         function getBuildReviewNotes(data) {
             const build = data.build || {};
             const notes = [];
+            const explanationNotes = [];
             const budget = parseFloat(data.budget || data.wizardData?.budget || 0) || 0;
             const getPrice = component => parseFloat(component?.salePrice || component?.currentPrice || component?.basePrice || component?.price || 0) || 0;
             const getName = component => `${component?.name || component?.title || component?.model || ''}`;
             const lower = component => getName(component).toLowerCase();
+            const getMemoryType = component => {
+                const memory = component?.memoryType || component?.specifications?.memoryType || component?.memory?.type || '';
+                return Array.isArray(memory) ? memory.join(' ') : `${memory}`;
+            };
+            const getCapacity = component => {
+                const capacity = component?.capacity || component?.specifications?.capacity || component?.storage || '';
+                if (!capacity) return '';
+                const parsed = parseFloat(capacity);
+                if (!parsed) return `${capacity}`;
+                if (parsed >= 1000) return `${parsed / 1000}TB`;
+                return `${parsed}GB`;
+            };
+            const isCurrentPlatform = component => {
+                const platformText = [
+                    component?.socket,
+                    component?.chipset,
+                    component?.platform,
+                    getMemoryType(component)
+                ].join(' ').toLowerCase();
+                return /\b(am5|lga\s*1700|lga\s*1851|b650|x670|x870|z790|z890|b760|b860|ddr5)\b/.test(platformText);
+            };
 
             const cpu = build.cpu;
             const gpu = build.gpu;
@@ -3194,6 +3217,99 @@
                 });
             }
 
+            const pricedParts = Object.values(build)
+                .flatMap(component => Array.isArray(component) ? component : [component])
+                .filter(Boolean)
+                .map(component => getPrice(component))
+                .filter(price => price > 0);
+            const pricedTotal = pricedParts.reduce((sum, price) => sum + price, 0) || parseFloat(data.totalCost || 0) || 0;
+
+            if (gpu && gpuPrice > 0) {
+                const gpuShare = pricedTotal > 0 ? Math.round((gpuPrice / pricedTotal) * 100) : 0;
+                const highestPartPrice = pricedParts.length ? Math.max(...pricedParts) : gpuPrice;
+                if (gpuPrice >= highestPartPrice * 0.95 && gpuShare > 0) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'GPU is the performance anchor',
+                        body: `${getName(gpu) || 'The GPU'} is about ${gpuShare}% of the priced parts, so the build puts the largest spend toward graphics performance.`
+                    });
+                } else if (gpuShare > 0) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'GPU spend is measured',
+                        body: `${getName(gpu) || 'The GPU'} is about ${gpuShare}% of the priced parts, leaving more budget for CPU, platform, cooling, or storage.`
+                    });
+                }
+            }
+
+            if (cpu && gpu && cpuPrice > 0 && gpuPrice > 0) {
+                const cpuGpuRatio = cpuPrice / gpuPrice;
+                if (cpuGpuRatio < 0.28 && gpuPrice >= 400) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'CPU/GPU pairing favors graphics',
+                        body: 'The GPU is much more expensive than the CPU, which makes sense for GPU-bound gaming but may be less ideal for CPU-heavy work.'
+                    });
+                } else if (cpuGpuRatio > 0.9) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'CPU/GPU pairing favors processor work',
+                        body: 'The CPU takes a large share of the core budget, which helps CPU-heavy workloads but leaves less room for GPU upgrades.'
+                    });
+                } else {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'CPU/GPU spend looks balanced',
+                        body: 'CPU and GPU prices are in the same range, so neither core part appears to dominate the other by budget alone.'
+                    });
+                }
+            }
+
+            if (storage) {
+                const capacityText = getCapacity(storage);
+                if (/\b(nvme|m\.?2|pcie|gen\s*[345])\b/.test(storageName)) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'Storage is fast NVMe',
+                        body: `${capacityText ? `${capacityText} storage` : 'The storage pick'} should keep boot, load, and file-transfer times ahead of a SATA-only drive.`
+                    });
+                } else if (storageName.includes('sata')) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'Storage trades speed for value',
+                        body: `${capacityText ? `${capacityText} storage` : 'The storage pick'} appears to be SATA, which can be fine for capacity but is slower than NVMe.`
+                    });
+                }
+            }
+
+            if (psuWattage > 0 && estimatedWatts <= psuWattage * 0.75) {
+                const headroom = psuWattage - estimatedWatts;
+                explanationNotes.push({
+                    type: 'info',
+                    title: 'PSU has usable headroom',
+                    body: `Estimated draw is roughly ${estimatedWatts}W against a ${psuWattage}W PSU, leaving about ${headroom}W before the unit rating.`
+                });
+            }
+
+            if (motherboard) {
+                if (isCurrentPlatform(motherboard) || isCurrentPlatform(cpu)) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'Platform is current-generation',
+                        body: 'The motherboard/CPU platform points to modern socket, chipset, or DDR5 support, which should be friendlier to upgrades.'
+                    });
+                } else if (!motherboardName.match(/\b(b450|x470|a320|b350)\b/)) {
+                    explanationNotes.push({
+                        type: 'info',
+                        title: 'Platform choice is value-focused',
+                        body: 'The motherboard avoids the oldest flagged chipsets, but confirm socket, memory, and BIOS support before buying.'
+                    });
+                }
+            }
+
+            const remainingSlots = Math.max(0, 5 - notes.length);
+            notes.push(...explanationNotes.slice(0, remainingSlots));
+
             if (!notes.length && Object.values(build).some(Boolean)) {
                 notes.push({
                     type: 'info',
@@ -3202,7 +3318,7 @@
                 });
             }
 
-            return notes.slice(0, 4);
+            return notes.slice(0, 5);
         }
 
         function escapeBuildReviewHtml(value) {

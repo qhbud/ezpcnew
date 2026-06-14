@@ -463,6 +463,102 @@ class PartsDatabase {
         return this.priceHistoryRequests.get(cacheKey);
     }
 
+    parsePriceTimestamp(value) {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    getLatestPriceTimestamp(component) {
+        if (!component) return null;
+
+        const timestamps = [
+            this.parsePriceTimestamp(component.updatedAt),
+            this.parsePriceTimestamp(component.lastUpdated)
+        ].filter(Boolean);
+
+        if (Array.isArray(component.priceHistory)) {
+            component.priceHistory.forEach(entry => {
+                const date = this.parsePriceTimestamp(entry?.date || entry?.updatedAt || entry?.lastUpdated);
+                if (date) timestamps.push(date);
+            });
+        }
+
+        if (!timestamps.length) return null;
+        return timestamps.reduce((latest, date) => date > latest ? date : latest, timestamps[0]);
+    }
+
+    formatRelativePriceTime(date) {
+        if (!date) return '';
+
+        const elapsedMs = Math.max(0, Date.now() - date.getTime());
+        const minute = 60 * 1000;
+        const hour = 60 * minute;
+        const day = 24 * hour;
+        const month = 30 * day;
+
+        if (elapsedMs < minute) return 'just now';
+        if (elapsedMs < hour) {
+            const minutes = Math.floor(elapsedMs / minute);
+            return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+        }
+        if (elapsedMs < day) {
+            const hours = Math.floor(elapsedMs / hour);
+            return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+        }
+        if (elapsedMs < month) {
+            const days = Math.floor(elapsedMs / day);
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        }
+
+        const months = Math.floor(elapsedMs / month);
+        return `${months} month${months === 1 ? '' : 's'} ago`;
+    }
+
+    getPriceVolatility(component, currentPrice) {
+        if (!component || !Array.isArray(component.priceHistory) || currentPrice <= 0) return null;
+
+        const history = component.priceHistory
+            .map(entry => ({
+                date: this.parsePriceTimestamp(entry?.date || entry?.updatedAt || entry?.lastUpdated),
+                price: parseFloat(entry?.price || entry?.currentPrice || entry?.salePrice || entry?.basePrice || 0) || 0
+            }))
+            .filter(entry => entry.date && entry.price > 0)
+            .sort((a, b) => b.date - a.date)
+            .slice(0, 5);
+
+        if (history.length < 2) return null;
+
+        const prices = history.map(entry => entry.price);
+        const spread = Math.max(...prices) - Math.min(...prices);
+        const spreadRatio = spread / currentPrice;
+
+        if (spreadRatio < 0.12) return null;
+
+        return {
+            percent: Math.round(spreadRatio * 100),
+            points: history.length
+        };
+    }
+
+    createPriceMetaBadges(component, currentPrice) {
+        const numericPrice = parseFloat(currentPrice) || 0;
+        if (!component || numericPrice <= 0) return '';
+
+        const badges = [];
+        const timestamp = this.getLatestPriceTimestamp(component);
+        if (timestamp) {
+            badges.push(`<span class="price-freshness-badge" title="${timestamp.toLocaleString()}"><i class="fas fa-clock"></i> Updated ${this.formatRelativePriceTime(timestamp)}</span>`);
+        }
+
+        const volatility = this.getPriceVolatility(component, numericPrice);
+        if (volatility) {
+            badges.push(`<span class="price-volatility-badge" title="Price spread across the last ${volatility.points} history points"><i class="fas fa-chart-line"></i> ${volatility.percent}% swing</span>`);
+        }
+
+        return badges.length ? `<div class="price-meta-badges">${badges.join('')}</div>` : '';
+    }
+
     getTabLoadingSection(tabName) {
         const sectionIds = {
             gpu: 'gpuListingsSection',
@@ -1678,7 +1774,9 @@ class PartsDatabase {
                     </div>
                     <div class="part-title">${gpu.title || gpu.name || 'Unknown GPU'}</div>
                 </div>
-                <div class="part-price">${priceDisplay}</div>
+                <div class="part-price">
+                    ${priceDisplay}
+                </div>
             </div>
             <div class="part-specs">
                 <div class="spec-row">
@@ -1733,7 +1831,7 @@ class PartsDatabase {
         card.className = 'part-card';
         
         const title = cpu.title || cpu.name || 'Unknown CPU';
-        const price = cpu.currentPrice || cpu.price;
+        const price = parseFloat(cpu.currentPrice || cpu.salePrice || cpu.basePrice || cpu.price || 0) || 0;
         const specs = cpu.specifications || {};
         
         card.innerHTML = `
@@ -1743,7 +1841,7 @@ class PartsDatabase {
                     <p class="part-manufacturer ${this.getManufacturerClass(cpu.manufacturer)}">${cpu.manufacturer || 'Unknown'}</p>
                 </div>
                 <div class="part-price">
-                    <span class="current-price">$${price ? price.toFixed(2) : 'N/A'}</span>
+                    <span class="current-price">${price > 0 ? `$${price.toFixed(2)}` : 'N/A'}</span>
                 </div>
             </div>
             <div class="part-details">
@@ -12836,7 +12934,10 @@ class PartsDatabase {
             ${reviewHTML}
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(gpu, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -13620,7 +13721,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(cpu, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -14062,7 +14166,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(cooler, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -14525,7 +14632,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(mb, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -14932,7 +15042,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(ram, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -15378,7 +15491,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(psu, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
@@ -15759,7 +15875,10 @@ class PartsDatabase {
             <div class="gpu-card-title">${title}</div>
             <div class="gpu-card-image-area">${imgHTML}</div>
             <div class="gpu-card-buyrow">
-                <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                <div class="gpu-card-price-stack">
+                    <span class="gpu-card-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</span>
+                    ${this.createPriceMetaBadges(item, price)}
+                </div>
                 <a href="${buyUrl}" target="_blank" rel="noopener noreferrer" class="gpu-card-buy-btn${buyUrl === '#' ? ' disabled' : ''}">
                     Buy <i class="fas fa-external-link-alt"></i>
                 </a>
