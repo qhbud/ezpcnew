@@ -9,8 +9,9 @@
   proactive compatibility, trust, and mobile UX.
 - Last work: Slice 1 (proactive compatibility, two-tier severity) built + architect-
   verified GREEN and committed to main (2026-06-14).
-- Next action: **Slice 3** (explainable build-review panel + visible price-freshness
-  badges). Slices 0–2 merged to main (2026-06-14).
+- Next action: **Slice 3** (explainable build-review + price-freshness) gates frozen
+  + builder dispatched (2026-06-14). Judge next, then Tier-3 needs human scope calls.
+  Slices 0–2 merged to main.
 
 ## Project goal
 
@@ -73,6 +74,18 @@ errors** (today there are 3: missing-filter null-guards).
   (no duplicated rules), distinct problem(red)/warning(amber)/clean states,
   mobile `position:fixed` bottom dock + active-tab bottom padding, Slice-1 logic
   untouched. Screenshots: `.architect/slice2-shots/` (gitignored).
+
+- **Slice 3** — explainable build review + visible price freshness.
+- Gates: `docs/gates/slice-3.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice3.block.md`, bypass-sandbox).
+  Effort: xhigh. NOTE: this slice touches public/index.html (the wizard RESULT
+  build-review panel `renderBuildReviewPanel`/`getBuildReviewNotes` ~3088-3215,
+  inline) + public/script.js price-render points — a different file set than
+  Slices 1/2.
+- Status: DISPATCHED 2026-06-14 — NOT yet judged. (A) extend getBuildReviewNotes
+  to add plain-language "why this pick"/tradeoff explanations, not just warnings;
+  (B) surface "updated X ago" + volatility badges from existing
+  updatedAt/lastUpdated/priceHistory. Architect judges G1–G4 next.
 
 ## Decisions log (architect + human)
 
