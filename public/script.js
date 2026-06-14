@@ -80,6 +80,12 @@ class PartsDatabase {
         this.allCoolers = [];
         this.allStorage = [];
         this.allCases = [];
+        this.starterBuildPresets = [];
+        this.starterBuildPresetMap = new Map();
+        this.starterBuildsStatus = 'idle';
+        this.starterBuildPartsPromise = null;
+        this.starterBuildsReadyPromise = null;
+        this._starterBuildsClickBound = false;
         this.allAddons = [];
         this.priceHistoryRequests = new Map();
         this.dataReady = {
@@ -804,7 +810,488 @@ class PartsDatabase {
         ]);
 
         // After all data is loaded, check if there's a build to restore from URL
+        this.initializeStarterBuilds();
         this.loadBuildFromURL();
+    }
+
+    initializeStarterBuilds() {
+        const container = document.getElementById('starterBuildsGrid');
+        if (!container) return;
+
+        if (!this._starterBuildsClickBound) {
+            container.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-starter-build-action="load"]');
+                if (!button) return;
+                this.loadStarterBuild(button.getAttribute('data-starter-build-id'));
+            });
+            this._starterBuildsClickBound = true;
+        }
+
+        this.starterBuildsStatus = 'loading';
+        this.renderStarterBuilds();
+        this.starterBuildsReadyPromise = this.buildStarterBuildPresets()
+            .then(presets => {
+                this.starterBuildPresets = presets;
+                this.starterBuildPresetMap = new Map(presets.map(preset => [preset.id, preset]));
+                this.starterBuildsStatus = presets.length >= 3 ? 'ready' : 'partial';
+                this.renderStarterBuilds();
+                return presets;
+            })
+            .catch(error => {
+                console.error('Error building starter presets:', error);
+                this.starterBuildPresets = [];
+                this.starterBuildPresetMap = new Map();
+                this.starterBuildsStatus = 'error';
+                this.renderStarterBuilds();
+                return [];
+            });
+    }
+
+    getStarterBuildTierDefinitions() {
+        return [
+            { id: 'entry', name: 'Entry', target: 800, maxTotal: 1100, tagline: '1080p starter' },
+            { id: 'mainstream', name: 'Mainstream', target: 1500, tagline: 'Balanced gaming' },
+            { id: 'enthusiast', name: 'Enthusiast', target: 2800, minTotal: 1800, tagline: 'High-refresh build' }
+        ];
+    }
+
+    async fetchStarterBuildParts() {
+        if (this.starterBuildPartsPromise) return this.starterBuildPartsPromise;
+
+        const endpoints = {
+            cpus: '/api/parts/cpus',
+            gpus: '/api/parts/gpus?groupByModel=false',
+            motherboards: '/api/parts/motherboards',
+            rams: '/api/parts/rams?groupByModel=false',
+            psus: '/api/parts/psus',
+            cases: '/api/parts/cases?groupByModel=false',
+            storages: '/api/parts/storages?groupByModel=false',
+            coolers: '/api/parts/coolers'
+        };
+
+        this.starterBuildPartsPromise = Promise.all(Object.entries(endpoints).map(async ([key, endpoint]) => {
+            const response = await fetch(endpoint);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${key} for starter builds: ${response.status}`);
+            }
+            const data = await response.json();
+            return [key, Array.isArray(data) ? data : []];
+        })).then(entries => Object.fromEntries(entries));
+
+        return this.starterBuildPartsPromise;
+    }
+
+    async buildStarterBuildPresets() {
+        const rawParts = await this.fetchStarterBuildParts();
+        const parts = {};
+        Object.entries(rawParts).forEach(([key, list]) => {
+            parts[key] = list
+                .filter(part => this.isStarterPartSelectable(part, key))
+                .map(part => this.normalizeStarterPart(part))
+                .sort((a, b) => this.getStarterPartPrice(a) - this.getStarterPartPrice(b));
+        });
+
+        const presets = [];
+        let previousTotal = 0;
+        for (const tier of this.getStarterBuildTierDefinitions()) {
+            const preset = this.findStarterBuildForTier(tier, parts, previousTotal);
+            if (preset) {
+                presets.push(preset);
+                previousTotal = preset.total;
+            }
+        }
+
+        return presets;
+    }
+
+    normalizeStarterPart(part) {
+        const copy = { ...part };
+        if (!copy.wattage && (copy.tdp || copy.specifications?.tdp)) {
+            copy.wattage = Number(copy.tdp || copy.specifications.tdp) || copy.wattage;
+        }
+        return copy;
+    }
+
+    getStarterPartPrice(part) {
+        if (!part) return 0;
+        for (const key of ['salePrice', 'currentPrice', 'basePrice', 'price']) {
+            const value = parseFloat(part[key]);
+            if (Number.isFinite(value) && value > 0) return value;
+        }
+        return 0;
+    }
+
+    isStarterPartSelectable(part, collectionName = '') {
+        if (!(!!part &&
+            part.isAvailable !== false &&
+            part.available !== false &&
+            part.inStock !== false &&
+            this.getStarterPartPrice(part) > 0)) {
+            return false;
+        }
+
+        const searchText = [
+            part.name,
+            part.title,
+            part.description,
+            part.formFactor,
+            part.interfaceType,
+            part.storageType
+        ].filter(Boolean).join(' ').toUpperCase();
+
+        if (collectionName === 'rams' && /\bSO-?DIMM\b|LAPTOP|NOTEBOOK|RDIMM|REGISTERED ECC/.test(searchText)) {
+            return false;
+        }
+
+        if (collectionName === 'storages' && /\bSAS\b/.test(searchText)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    getStarterPartId(part) {
+        return part?._id || part?.id || '';
+    }
+
+    getStarterPartName(part) {
+        return part?.name || part?.title || part?.gpuModel || 'Unknown part';
+    }
+
+    getStarterReviewScore(part) {
+        const score = parseFloat(part?.reviewScore || part?.averageRating || part?.rating || 0);
+        return Number.isFinite(score) ? score : 0;
+    }
+
+    getStarterReviewCount(part) {
+        const count = parseInt(part?.reviewCount || part?.ratingCount || part?.ratingsCount || 0, 10);
+        return Number.isFinite(count) ? count : 0;
+    }
+
+    getStarterPerformanceScore(type, part) {
+        if (type === 'gpu') return this.getGpuPerformance(part) || 0;
+        if (type === 'cpu') {
+            const single = this.getCpuPerformance(part) || 0;
+            const multi = this.getCpuMultiThreadPerformance(part) || 0;
+            return Math.max(single, multi, (single + multi) / 2);
+        }
+        return 0;
+    }
+
+    getStarterBudgetShares(target) {
+        return {
+            gpu: target * 0.38,
+            cpu: target * 0.18,
+            motherboard: target * 0.10,
+            ram: target * 0.08,
+            storage: target * 0.08,
+            psu: target * 0.08,
+            case: target * 0.06,
+            cooler: target * 0.04
+        };
+    }
+
+    rankStarterParts(type, list, targetPrice) {
+        const priced = list.filter(part => this.getStarterPartPrice(part) > 0);
+        const underShare = priced.filter(part => this.getStarterPartPrice(part) <= targetPrice);
+        const pool = underShare.length >= 3
+            ? underShare
+            : priced.filter(part => this.getStarterPartPrice(part) <= targetPrice * 1.35);
+        const candidates = pool.length > 0 ? pool : priced;
+
+        return [...candidates].sort((a, b) => {
+            const aScore = this.scoreStarterPart(type, a, targetPrice);
+            const bScore = this.scoreStarterPart(type, b, targetPrice);
+            if (aScore !== bScore) return aScore - bScore;
+            return this.getStarterPartPrice(b) - this.getStarterPartPrice(a);
+        });
+    }
+
+    scoreStarterPart(type, part, targetPrice) {
+        const price = this.getStarterPartPrice(part);
+        const target = Math.max(targetPrice, 1);
+        const targetPenalty = Math.abs(price - target) / target;
+        const overBudgetPenalty = price > targetPrice ? ((price - targetPrice) / target) * 3 : 0;
+        const performanceCredit = this.getStarterPerformanceScore(type, part) * (type === 'gpu' ? 1.4 : 0.9);
+        const reviewScore = this.getStarterReviewScore(part);
+        const reviewCount = this.getStarterReviewCount(part);
+        const reviewCredit = (reviewScore > 0 ? reviewScore / 5 : 0) * 0.25 + Math.min(Math.log10(reviewCount + 1), 4) * 0.025;
+        const storageText = type === 'storage'
+            ? [part.name, part.title, part.storageType, part.interfaceType, part.formFactor].filter(Boolean).join(' ').toUpperCase()
+            : '';
+        const storageCredit = type === 'storage' && /\bSSD\b|NVME|M\.2/.test(storageText) ? 0.35 : 0;
+        const storagePenalty = type === 'storage' && /\bHDD\b|HARD DRIVE|5400RPM|7200RPM/.test(storageText) ? 0.12 : 0;
+        return targetPenalty + overBudgetPenalty + storagePenalty - performanceCredit - reviewCredit - storageCredit;
+    }
+
+    findStarterBuildForTier(tier, parts, previousTotal) {
+        const shares = this.getStarterBudgetShares(tier.target);
+        const ranked = {
+            gpu: this.rankStarterParts('gpu', parts.gpus.filter(gpu => gpu.tdp || gpu.wattage), shares.gpu).slice(0, 48),
+            cpu: this.rankStarterParts('cpu', parts.cpus.filter(cpu => cpu.socket), shares.cpu).slice(0, 24),
+            motherboard: this.rankStarterParts('motherboard', parts.motherboards.filter(motherboard => motherboard.socket && motherboard.formFactor), shares.motherboard).slice(0, 72),
+            ram: this.rankStarterParts('ram', parts.rams.filter(ram => ram.memoryType), shares.ram).slice(0, 120),
+            storage: this.rankStarterParts('storage', parts.storages, shares.storage).slice(0, 60),
+            psu: this.rankStarterParts('psu', parts.psus.filter(psu => parseInt(psu.wattage, 10) > 0), shares.psu).slice(0, 80),
+            case: this.rankStarterParts('case', parts.cases.filter(pcCase => pcCase.formFactor), shares.case).slice(0, 60),
+            cooler: this.rankStarterParts('cooler', parts.coolers.filter(cooler => Array.isArray(cooler.socketCompatibility) && cooler.socketCompatibility.length > 0), shares.cooler).slice(0, 50)
+        };
+
+        let best = null;
+        for (const gpu of ranked.gpu) {
+            for (const cpu of ranked.cpu) {
+                for (const motherboard of ranked.motherboard) {
+                    if (cpu.socket && motherboard.socket && cpu.socket !== motherboard.socket) continue;
+
+                    const ram = ranked.ram.find(candidate => this.starterBuildHasNoHardProblems({ cpu, motherboard, ram: candidate }));
+                    if (!ram) continue;
+
+                    const cooler = ranked.cooler.find(candidate => this.starterBuildHasNoHardProblems({ cpu, motherboard, ram, cooler: candidate }));
+                    if (!cooler) continue;
+
+                    const pcCase = ranked.case.find(candidate => this.starterBuildHasNoHardProblems({ cpu, motherboard, ram, cooler, gpu, case: candidate }));
+                    if (!pcCase) continue;
+
+                    const storage = ranked.storage.find(Boolean);
+                    if (!storage) continue;
+
+                    const partialBuild = { cpu, gpu, motherboard, ram, cooler, case: pcCase, storage };
+                    const psu = ranked.psu.find(candidate => {
+                        const build = { ...partialBuild, psu: candidate };
+                        const result = this.validateStarterBuild(build);
+                        return result.problems.length === 0 && result.warnings.length === 0;
+                    }) || ranked.psu.find(candidate => this.starterBuildHasNoHardProblems({ ...partialBuild, psu: candidate }));
+
+                    if (!psu) continue;
+
+                    const build = { ...partialBuild, psu };
+                    const validation = this.validateStarterBuild(build);
+                    if (validation.problems.length > 0) continue;
+
+                    const total = this.getStarterBuildTotal(build);
+                    if (total <= previousTotal) continue;
+                    if (tier.maxTotal && total > tier.maxTotal) continue;
+                    if (tier.minTotal && total < tier.minTotal) continue;
+
+                    const candidate = this.createStarterBuildPreset(tier, build, validation);
+                    if (!best || candidate.score < best.score) {
+                        best = candidate;
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+
+    starterBuildHasNoHardProblems(build) {
+        return this.validateStarterBuild(build).problems.length === 0;
+    }
+
+    validateStarterBuild(build) {
+        const wattageInfo = this.getStarterBuildWattageInfo(build);
+        const result = this.classifyCompatibilityIssues(build, wattageInfo);
+        return {
+            problems: Array.isArray(result.problems) ? result.problems : [],
+            warnings: Array.isArray(result.warnings) ? result.warnings : [],
+            wattageInfo
+        };
+    }
+
+    getStarterBuildWattageInfo(build) {
+        const previousBuild = this.currentBuild;
+        this.currentBuild = {
+            gpu: null,
+            cpu: null,
+            motherboard: null,
+            ram: null,
+            cooler: null,
+            psu: null,
+            storage: null,
+            case: null,
+            addon: null,
+            addon2: null,
+            addon3: null,
+            addon4: null,
+            addon5: null,
+            addon6: null,
+            ...build
+        };
+
+        try {
+            return this.calculateEstimatedWattage();
+        } finally {
+            this.currentBuild = previousBuild;
+        }
+    }
+
+    getStarterBuildTotal(build) {
+        return ['cpu', 'gpu', 'motherboard', 'ram', 'psu', 'case', 'storage', 'cooler']
+            .reduce((total, type) => total + this.getStarterPartPrice(build[type]), 0);
+    }
+
+    createStarterBuildPreset(tier, build, validation) {
+        const total = this.getStarterBuildTotal(build);
+        const score = this.scoreStarterBuild(tier, build, validation);
+        return {
+            id: tier.id,
+            name: tier.name,
+            tagline: tier.tagline,
+            target: tier.target,
+            total,
+            build,
+            buildData: this.getStarterBuildData(build),
+            validation: {
+                problems: validation.problems,
+                warnings: validation.warnings,
+                wattageInfo: validation.wattageInfo
+            },
+            score
+        };
+    }
+
+    scoreStarterBuild(tier, build, validation) {
+        const total = this.getStarterBuildTotal(build);
+        const targetDelta = Math.abs(total - tier.target) / Math.max(tier.target, 1);
+        const gpuPerf = this.getStarterPerformanceScore('gpu', build.gpu);
+        const cpuPerf = this.getStarterPerformanceScore('cpu', build.cpu);
+        const reviewCredit = ['cpu', 'gpu', 'motherboard', 'ram', 'psu', 'case', 'storage', 'cooler']
+            .reduce((sum, type) => sum + (this.getStarterReviewScore(build[type]) / 5), 0) / 8;
+        const warningPenalty = validation.warnings.length * 0.2;
+        return (targetDelta * 10) + warningPenalty - (gpuPerf * 0.9) - (cpuPerf * 0.45) - (reviewCredit * 0.3);
+    }
+
+    getStarterBuildData(build) {
+        return {
+            gpu: this.getStarterPartId(build.gpu),
+            cpu: this.getStarterPartId(build.cpu),
+            motherboard: this.getStarterPartId(build.motherboard),
+            ram: this.getStarterPartId(build.ram),
+            psu: this.getStarterPartId(build.psu),
+            case: this.getStarterPartId(build.case),
+            storage: this.getStarterPartId(build.storage),
+            cooler: this.getStarterPartId(build.cooler)
+        };
+    }
+
+    renderStarterBuilds() {
+        const grid = document.getElementById('starterBuildsGrid');
+        const status = document.getElementById('starterBuildsStatus');
+        if (!grid) return;
+
+        if (status) {
+            const label = {
+                idle: 'Loading',
+                loading: 'Loading',
+                ready: 'Ready',
+                partial: 'Partial',
+                error: 'Unavailable'
+            }[this.starterBuildsStatus] || 'Loading';
+            status.textContent = label;
+            status.className = `starter-builds-status ${this.starterBuildsStatus}`;
+        }
+
+        if (this.starterBuildsStatus === 'loading' || this.starterBuildsStatus === 'idle') {
+            grid.innerHTML = '<div class="starter-builds-loading">Loading starter builds...</div>';
+            return;
+        }
+
+        if (this.starterBuildsStatus === 'error' || this.starterBuildPresets.length === 0) {
+            grid.innerHTML = '<div class="starter-builds-loading error">Starter builds are unavailable.</div>';
+            return;
+        }
+
+        grid.innerHTML = this.starterBuildPresets.map(preset => this.renderStarterBuildCard(preset)).join('');
+    }
+
+    renderStarterBuildCard(preset) {
+        const esc = value => this._escapeHtml(value);
+        const partRows = [
+            ['GPU', preset.build.gpu],
+            ['CPU', preset.build.cpu],
+            ['Motherboard', preset.build.motherboard],
+            ['RAM', preset.build.ram],
+            ['Storage', preset.build.storage],
+            ['PSU', preset.build.psu],
+            ['Case', preset.build.case],
+            ['Cooler', preset.build.cooler]
+        ].map(([label, part]) => `
+            <li>
+                <span>${label}</span>
+                <strong title="${esc(this.getStarterPartName(part))}">${esc(this.getStarterPartName(part))}</strong>
+            </li>
+        `).join('');
+
+        const problems = preset.validation.problems.length;
+        const warnings = preset.validation.warnings.length;
+        const issueText = problems === 0 && warnings === 0
+            ? '0 problems'
+            : `${problems} problems, ${warnings} warnings`;
+
+        return `
+            <article class="starter-build-card" data-starter-build-tier="${esc(preset.id)}">
+                <div class="starter-build-card-top">
+                    <div>
+                        <h4>${esc(preset.name)}</h4>
+                        <span>${esc(preset.tagline)}</span>
+                    </div>
+                    <div class="starter-build-price">$${preset.total.toFixed(2)}</div>
+                </div>
+                <div class="starter-build-meta">
+                    <span>Target $${preset.target.toFixed(0)}</span>
+                    <span>${esc(issueText)}</span>
+                </div>
+                <ul class="starter-build-parts">
+                    ${partRows}
+                </ul>
+                <button type="button" class="starter-build-load-btn" data-starter-build-action="load" data-starter-build-id="${esc(preset.id)}">
+                    <i class="fas fa-folder-open"></i>
+                    <span>Load this build</span>
+                </button>
+            </article>
+        `;
+    }
+
+    ensureStarterBuildLoadCaches(preset) {
+        const cacheMap = {
+            cpu: 'allCPUs',
+            gpu: 'allGPUs',
+            motherboard: 'allMotherboards',
+            ram: 'allRAM',
+            psu: 'allPSUs',
+            case: 'allCases',
+            storage: 'allStorage',
+            cooler: 'allCoolers'
+        };
+
+        Object.entries(cacheMap).forEach(([type, cacheName]) => {
+            const part = preset.build[type];
+            const id = this.getStarterPartId(part);
+            if (!part || !id || !Array.isArray(this[cacheName])) return;
+            const existingIndex = this[cacheName].findIndex(candidate => this.getStarterPartId(candidate) === id);
+            if (existingIndex === -1) {
+                this[cacheName].push(part);
+            } else {
+                this[cacheName][existingIndex] = { ...this[cacheName][existingIndex], ...part };
+            }
+        });
+    }
+
+    async loadStarterBuild(presetId) {
+        const preset = this.starterBuildPresetMap.get(presetId);
+        if (!preset) return;
+
+        this.ensureStarterBuildLoadCaches(preset);
+        this.clearBuild();
+        const result = await this.applyBuildData(preset.buildData, {
+            sourceLabel: `${preset.name} starter build`,
+            notify: true
+        });
+        this.switchTab('builder');
+
+        if (result.failedComponents.length === 0) {
+            this.showToast(`Loaded ${preset.name} starter build`);
+        }
     }
 
     async loadOverallStats() {

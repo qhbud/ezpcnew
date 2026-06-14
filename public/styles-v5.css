@@ -6243,6 +6243,198 @@ tr.incompatible td {
     cursor: not-allowed;
 }
 
+.starter-builds-section {
+    margin: 0 0 16px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+}
+
+.starter-builds-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.starter-builds-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.starter-builds-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.starter-builds-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #075985;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.starter-builds-status.ready {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.starter-builds-status.partial,
+.starter-builds-status.error {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.starter-builds-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.starter-builds-loading {
+    grid-column: 1 / -1;
+    padding: 16px;
+    color: #64748b;
+    font-size: 13px;
+    text-align: center;
+}
+
+.starter-builds-loading.error {
+    color: #b91c1c;
+}
+
+.starter-build-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 100%;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.starter-build-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.starter-build-card h4 {
+    margin: 0 0 3px;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.starter-build-card-top span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+.starter-build-price {
+    color: #111827;
+    font-size: 15px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.starter-build-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.starter-build-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.starter-build-parts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.starter-build-parts li {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.starter-build-parts span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.starter-build-parts strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #1f2937;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.starter-build-load-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    min-height: 36px;
+    margin-top: auto;
+    padding: 8px 10px;
+    border: 1px solid #1d4ed8;
+    border-radius: 7px;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.starter-build-load-btn:hover {
+    background: #1e40af;
+    border-color: #1e40af;
+}
+
 .build-review-panel {
     margin: 14px 0 16px;
     padding: 14px;
@@ -6356,6 +6548,14 @@ tr.incompatible td {
 }
 
 @media (max-width: 720px) {
+    .starter-builds-header {
+        flex-direction: column;
+    }
+
+    .starter-builds-grid {
+        grid-template-columns: 1fr;
+    }
+
     .build-dock {
         position: fixed;
         top: auto;
