@@ -7,13 +7,15 @@
 
 - Goal: Make EZPC a full one-stop PC-build site that beats PCPartPicker on
   proactive compatibility, trust, and mobile UX.
-- Last work: Slice 5 (CPU↔GPU bottleneck/balance meter) built + architect-verified
-  GREEN and committed to main (2026-06-14, commit a51bfbb).
-- Next action: **Slice 6** (public build showcase — curated themed gallery +
-  Copy-Link share, NO accounts) DISPATCHED 2026-06-14; judge next session. Then
-  **Slice 7** (agent component auto-ingestion). Slices 0–5 merged to main.
-  Autonomous loop: dispatch next slice as each completes; Quinn approved working
-  through these. Quinn picked the curated-gallery flavor (vs localStorage) 2026-06-14.
+- Last work: Slice 6 (public build showcase — curated themed gallery + Copy-Link
+  share) built + architect-verified GREEN and committed to main (2026-06-14,
+  commit b995fee).
+- Next action: **Slice 7** (agent component auto-ingestion) — NOT SPEC'D. Different
+  risk class: touches scrapers/server/DB (server.js, scripts/, findNewComponents.js,
+  the flaky price_not_found scraper), NOT the frontend pattern of S1–S6. Needs a
+  scope discussion with Quinn + explicit confirmation before any DB-writing run
+  (AGENTS rule). Slices 0–6 merged to main, NOT pushed. Frontend campaign (S1–S6)
+  is complete.
 
 ## Project goal
 
@@ -135,8 +137,16 @@ errors** (today there are 3: missing-filter null-guards).
   Effort: xhigh. Reuses Slice-4 assembly helpers (by CALL), `applyBuildData`,
   `classifyCompatibilityIssues`, and the existing `?build=<btoa>` share encoding
   (`shareBuild`/`loadBuildFromURL`). No server routes, no DB writes.
-- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
-  (rule 4: never judge in the dispatching session).
+- Status: **PASS / MERGED** (architect-verified 2026-06-14, commit b995fee).
+  Independent gate run: G1 `node --check` 0; G2 smoke 0/0; G3 `showcase-e2e`
+  S1 gallery (4 distinct cards) / S2 complete real-parts builds / S3 zero hard
+  problems / S4 themes pairwise distinct / S5 one-click load / S6 Copy-Link
+  round-trips all PASS; G4 — assembled by CALLING Slice-4 helpers (new showcase
+  methods, no edits to S4), load via `applyBuildData`, validate via
+  `classifyCompatibilityIssues`, share URL via the existing `?build=<btoa>`
+  encoding, NO `incrementComponentSaveCounts`/server write, diff +707/-0 additive,
+  Slice-1..5 + wizard untouched. Live themes: Budget 1080p $930.74 / 1440p
+  $1618.81 / Streaming-Creator $2118.92 / 4K Ultra $2924.30, all 0/0.
 
 ## Decisions log (architect + human)
 
@@ -166,6 +176,9 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Architect | slice-5 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-5.md`; builder dispatched for balance meter |
 | 2026-06-14 | Builder | slice-5 | (uncommitted) | self: G1/G2/G3 pass | balance meter compute/render + bottleneck-e2e B1-B5; STATUS COMPLETE |
 | 2026-06-14 | Architect | slice-5 | committed to main a51bfbb | G1✓ G2✓ G3✓ G4✓ | independent gate run; scores==helpers verified, additive diff, one hook call; merged, not pushed |
+| 2026-06-14 | Architect | slice-6 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-6.md`; builder dispatched for curated showcase |
+| 2026-06-14 | Builder | slice-6 | (uncommitted) | self: G1/G2/G3 pass | 4 themed builds via S4-helper reuse + showcase-e2e S1-S6; STATUS COMPLETE |
+| 2026-06-14 | Architect | slice-6 | committed to main b995fee | G1✓ G2✓ G3✓ G4✓ | independent gate run; reuse-verified (applyBuildData + classifier + ?build= share, no server write), additive diff, 4 distinct 0/0 builds; merged, not pushed |
 
 ## Notes for next session
 
