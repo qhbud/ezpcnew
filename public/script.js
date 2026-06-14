@@ -12859,10 +12859,34 @@ class PartsDatabase {
                 </div>`;
         }
 
+        const priceCanvasId = 'gpuBenchPriceChart';
         section.innerHTML = `
             <div class="gpu-bench-title"><i class="fas fa-tachometer-alt"></i> FPS Estimates <span class="gpu-bench-disclaimer-badge">Calculated</span></div>
             <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> These are <strong>calculated estimates</strong> scaled from benchmark scores, not measured results. Actual FPS will vary based on drivers, settings, and system configuration.</p>
-            ${gamesHTML}`;
+            ${gamesHTML}
+            <div class="gpu-bench-pricehistory">
+                <div class="gpu-bench-title"><i class="fas fa-chart-line"></i> Price History</div>
+                <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Recorded daily prices for the selected card.</p>
+                <div class="gpu-bench-price-canvas-wrap">
+                    <canvas id="${priceCanvasId}" width="560" height="240"></canvas>
+                </div>
+            </div>`;
+
+        // Load + draw real price history for the selected GPU under the FPS estimates.
+        // A render token guards against a stale async draw landing in a newer canvas
+        // when the user clicks through cards quickly.
+        const basePrice = parseFloat(gpu.basePrice || gpu.price || gpu.currentPrice) || 0;
+        const salePrice = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
+        const renderToken = (gpu._id || gpu.title || gpu.name || '') + ':' + Date.now();
+        this._gpuBenchPriceToken = renderToken;
+        setTimeout(async () => {
+            if (this._gpuBenchPriceToken !== renderToken) return;
+            const saved = await this.ensurePriceHistory(gpu, 'gpu');
+            if (this._gpuBenchPriceToken !== renderToken) return;
+            if (!document.getElementById(priceCanvasId)) return;
+            const history = this.generatePriceHistory(basePrice, salePrice, saved);
+            this.drawPriceChart(priceCanvasId, history, basePrice, salePrice);
+        }, 50);
     }
 
     // ── Scatter-plot filters + manufacturer coloring ─────────────────
