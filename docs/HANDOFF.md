@@ -10,12 +10,11 @@
 - Last work: Slice 6 (public build showcase — curated themed gallery + Copy-Link
   share) built + architect-verified GREEN and committed to main (2026-06-14,
   commit b995fee).
-- Next action: **Slice 7** (agent component auto-ingestion) — NOT SPEC'D. Different
-  risk class: touches scrapers/server/DB (server.js, scripts/, findNewComponents.js,
-  the flaky price_not_found scraper), NOT the frontend pattern of S1–S6. Needs a
-  scope discussion with Quinn + explicit confirmation before any DB-writing run
-  (AGENTS rule). Slices 0–6 merged to main, NOT pushed. Frontend campaign (S1–S6)
-  is complete.
+- Next action: **Slice 7** (builder-page UX refinement) DISPATCHED 2026-06-14 from
+  Quinn's local-review feedback; judge next session. Then **Slice 8** (agent
+  component auto-ingestion — server/DB/scraper, different risk class, needs Quinn's
+  explicit go before any DB-writing run). Slices 0–6 merged to local main (NOT
+  pushed — Quinn is reviewing locally before push).
 
 ## Project goal
 
@@ -148,6 +147,20 @@ errors** (today there are 3: missing-filter null-guards).
   Slice-1..5 + wizard untouched. Live themes: Budget 1080p $930.74 / 1440p
   $1618.81 / Streaming-Creator $2118.92 / 4K Ultra $2924.30, all 0/0.
 
+- **Slice 7** — builder-page UX refinement (from Quinn's 2026-06-14 local review).
+- Gates: `docs/gates/slice-7.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice7.block.md`, bypass-sandbox).
+  Effort: xhigh. INTENTIONALLY revises Slice-2 dock + Slice-4/6 presets presentation;
+  must preserve Slice-1/3/5 logic. Six fixes: (1) merge starter+showcase into ONE
+  collapsible "quick-start" strip curated to 4 [A1]; (2) component cards ~4:3 +
+  more detail when selected; (3) wider build-summary (min-width); (4) fix
+  change-component scroll anchor (lands on selection section, not mid-tab); (5)
+  REMOVE Guides tab (keep wizard+review); (6) merge dock INTO tab strip, drop
+  redundant `#buildDockBuilderBtn` [B2].
+- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
+  (rule 4: never judge in the dispatching session). Aesthetic quality is judged by
+  Quinn in the running app; gates check objective structure/behavior only.
+
 ## Decisions log (architect + human)
 
 | Date | Decision | Why |
@@ -157,6 +170,7 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Slice 2 PHASE-0 disagreements both ACCEPTED, scope unchanged | (1) server.js has only `app.get('/')`+static, no catch-all — immaterial, dock injects into index.html served at `/`; (2) mobile.html is statically reachable but NOT the served experience (no UA redirect), stays OUT OF SCOPE. Gate frozen as-is; ruling governs reading of "not served". |
 | 2026-06-14 | Tier-3 scope (Quinn) | BUILD: preset budget-tier builds (S4); bottleneck/balance meter (S5); public build showcase WITHOUT accounts/logins, on Copy-Link share + curated gallery (S6); agent-driven component auto-ingestion from Amazon for new GPU/mobo listings (S7, ties to findNewComponents.js + flaky-scraper fix). DEFER: accounts/email, multi-retailer pricing, standalone AI assistant. |
 | 2026-06-14 | Slice 6 = curated themed gallery (Quinn) | Chose curated gallery over a localStorage "your shared builds" list — without accounts/DB, curated themed builds (assembled from live parts + Copy-Link share) are a credible public showcase; localStorage would be a personal-history feature, not a showcase. |
+| 2026-06-14 | Slice 7 UX refinement after local review (Quinn) | Reviewed S1-S6 locally; builder page too cluttered. Decided: A1 (one collapsible quick-start strip) + B2 (merge dock into tab strip) + curate presets to 4; also remove Guides page, fix component cards to ~4:3 w/ more detail, widen build-summary, fix change-component scroll anchor. Auto-ingestion renumbered S6→S8. |
 
 ## Session log
 
@@ -179,6 +193,7 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Architect | slice-6 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-6.md`; builder dispatched for curated showcase |
 | 2026-06-14 | Builder | slice-6 | (uncommitted) | self: G1/G2/G3 pass | 4 themed builds via S4-helper reuse + showcase-e2e S1-S6; STATUS COMPLETE |
 | 2026-06-14 | Architect | slice-6 | committed to main b995fee | G1✓ G2✓ G3✓ G4✓ | independent gate run; reuse-verified (applyBuildData + classifier + ?build= share, no server write), additive diff, 4 distinct 0/0 builds; merged, not pushed |
+| 2026-06-14 | Architect | slice-7 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-7.md`; builder dispatched for builder-page UX refinement (A1+B2, curate to 4, remove Guides); judge next session |
 
 ## Notes for next session
 
