@@ -7,11 +7,11 @@
 
 - Goal: Make EZPC a full one-stop PC-build site that beats PCPartPicker on
   proactive compatibility, trust, and mobile UX.
-- Last work: Slice 1 (proactive compatibility, two-tier severity) built + architect-
-  verified GREEN and committed to main (2026-06-14).
-- Next action: **Slice 4** (preset budget-tier builds), then **Slice 5** (bottleneck/
-  balance meter), **Slice 6** (public build showcase, NO accounts), **Slice 7**
-  (agent component auto-ingestion). Slices 0–3 merged to main. Autonomous loop:
+- Last work: Slice 4 (preset budget-tier starter builds) built + architect-verified
+  GREEN and committed to main (2026-06-14, commit 41cb983).
+- Next action: **Slice 5** (bottleneck/balance meter) DISPATCHED — judge it next
+  session. Then **Slice 6** (public build showcase, NO accounts), **Slice 7**
+  (agent component auto-ingestion). Slices 0–4 merged to main. Autonomous loop:
   dispatch next slice as each completes; Quinn approved working through these.
 
 ## Project goal
@@ -96,6 +96,30 @@ errors** (today there are 3: missing-filter null-guards).
   Caveat: volatility badge rarely shows in listings (priceHistory is lazy-loaded,
   not present on listing objects) — honest (no fabrication), acceptable.
 
+- **Slice 4** — preset budget-tier starter builds (Entry/Mainstream/Enthusiast).
+- Gates: `docs/gates/slice-4.md`, frozen at commit ede864d BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice4.block.md`). Effort: xhigh.
+- Status: **PASS / MERGED** (architect-verified 2026-06-14, commit 41cb983).
+  Independent gate run: G1 `node --check` 0; G2 smoke 0/0; G3 `presets-e2e`
+  P1 tiers render / P2 complete real-parts builds / P3 zero hard problems / P4
+  one-click load / P5 tiers differentiated all PASS; G4 — presets assembled
+  client-side from live `/api/parts`, validated via existing
+  `classifyCompatibilityIssues` + `calculateEstimatedWattage` (wattage reuses the
+  existing calc via a save/restore of `currentBuild`), loaded via existing
+  `applyBuildData`; script.js diff +487/-0 (purely additive), Slice-1/2/3 +
+  wizard untouched. Live totals Entry $797.98 / Mainstream $1439.32 / Enthusiast
+  $2640.65 (strictly increasing). presets-e2e P2 verifies every part id against
+  live `/api/parts` (anti-fabrication).
+
+- **Slice 5** — CPU↔GPU bottleneck / balance meter on the active build.
+- Gates: `docs/gates/slice-5.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice5.block.md`, bypass-sandbox).
+  Effort: xhigh. Reuses existing `getGpuPerformance`/`getCpuPerformance`/
+  `getCpuMultiThreadPerformance` (script.js ~4355-4400); mounts via ONE added
+  call in the live build-refresh path; no fabricated benchmark numbers.
+- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
+  (rule 4: never judge in the dispatching session).
+
 ## Decisions log (architect + human)
 
 | Date | Decision | Why |
@@ -118,6 +142,9 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Architect | slice-3 | sent back | G4 reject Part B | freshness badges in dead createXCard renderers; live sweep = 0 badges; resumed lane |
 | 2026-06-14 | Builder | slice-3 fix | (uncommitted) | self: G1/G2/G3 pass | moved badges to live listing renderers; R3 now drives real tabs |
 | 2026-06-14 | Architect | slice-3 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent re-judge; live sweep shows badges; review + freshness screenshots; merged, not pushed |
+| 2026-06-14 | Builder | slice-4 | (uncommitted) | self: G1/G2/G3 pass | client-side preset assembly + presets-e2e; STATUS COMPLETE |
+| 2026-06-14 | Architect | slice-4 | committed to main 41cb983 | G1✓ G2✓ G3✓ G4✓ | independent gate run; reuse-verified (applyBuildData + classifier + wattage), additive diff, live totals strictly increasing; merged, not pushed |
+| 2026-06-14 | Architect | slice-5 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-5.md`; builder dispatched for balance meter; judge next session |
 
 ## Notes for next session
 
