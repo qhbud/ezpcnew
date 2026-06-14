@@ -7,11 +7,11 @@
 
 - Goal: Make EZPC a full one-stop PC-build site that beats PCPartPicker on
   proactive compatibility, trust, and mobile UX.
-- Last work: Slice 4 (preset budget-tier starter builds) built + architect-verified
-  GREEN and committed to main (2026-06-14, commit 41cb983).
-- Next action: **Slice 5** (bottleneck/balance meter) DISPATCHED — judge it next
-  session. Then **Slice 6** (public build showcase, NO accounts), **Slice 7**
-  (agent component auto-ingestion). Slices 0–4 merged to main. Autonomous loop:
+- Last work: Slice 5 (CPU↔GPU bottleneck/balance meter) built + architect-verified
+  GREEN and committed to main (2026-06-14, commit a51bfbb).
+- Next action: **Slice 6** (public build showcase, NO accounts — curated gallery +
+  Copy-Link share) — NOT YET DISPATCHED (spec it, then dispatch). Then **Slice 7**
+  (agent component auto-ingestion). Slices 0–5 merged to main. Autonomous loop:
   dispatch next slice as each completes; Quinn approved working through these.
 
 ## Project goal
@@ -117,8 +117,15 @@ errors** (today there are 3: missing-filter null-guards).
   Effort: xhigh. Reuses existing `getGpuPerformance`/`getCpuPerformance`/
   `getCpuMultiThreadPerformance` (script.js ~4355-4400); mounts via ONE added
   call in the live build-refresh path; no fabricated benchmark numbers.
-- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
-  (rule 4: never judge in the dispatching session).
+- Status: **PASS / MERGED** (architect-verified 2026-06-14, commit a51bfbb).
+  Independent gate run: G1 `node --check` 0; G2 smoke 0/0; G3 `bottleneck-e2e`
+  B1 renders / B2 differentiates direction / B3 neutral when incomplete / B4
+  plain-language / B5 scores==helpers all PASS; G4 — scores derive only from
+  existing `getCpuPerformance`/`getCpuMultiThreadPerformance`/`getGpuPerformance`
+  (no fabricated benchmarks), mounted via ONE call in `checkCompatibility()`,
+  diff +346/-0 additive, Slice-1/2/3/4 + wizard untouched. Thresholds: ratio
+  gpu/cpu ≥1.25 → CPU-limited, ≤0.80 → GPU-bound, else Balanced; position =
+  log2(ratio) mapping. Explanations hedged (1080p/CPU-heavy framing), honest.
 
 ## Decisions log (architect + human)
 
@@ -144,7 +151,9 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Architect | slice-3 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent re-judge; live sweep shows badges; review + freshness screenshots; merged, not pushed |
 | 2026-06-14 | Builder | slice-4 | (uncommitted) | self: G1/G2/G3 pass | client-side preset assembly + presets-e2e; STATUS COMPLETE |
 | 2026-06-14 | Architect | slice-4 | committed to main 41cb983 | G1✓ G2✓ G3✓ G4✓ | independent gate run; reuse-verified (applyBuildData + classifier + wattage), additive diff, live totals strictly increasing; merged, not pushed |
-| 2026-06-14 | Architect | slice-5 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-5.md`; builder dispatched for balance meter; judge next session |
+| 2026-06-14 | Architect | slice-5 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-5.md`; builder dispatched for balance meter |
+| 2026-06-14 | Builder | slice-5 | (uncommitted) | self: G1/G2/G3 pass | balance meter compute/render + bottleneck-e2e B1-B5; STATUS COMPLETE |
+| 2026-06-14 | Architect | slice-5 | committed to main a51bfbb | G1✓ G2✓ G3✓ G4✓ | independent gate run; scores==helpers verified, additive diff, one hook call; merged, not pushed |
 
 ## Notes for next session
 
