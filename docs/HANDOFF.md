@@ -9,8 +9,8 @@
   proactive compatibility, trust, and mobile UX.
 - Last work: Slice 1 (proactive compatibility, two-tier severity) built + architect-
   verified GREEN and committed to main (2026-06-14).
-- Next action: **Slice 2** (sticky build dock) gates frozen + builder dispatched
-  (2026-06-14). Judge it next session against live :3000, then Slice 3.
+- Next action: **Slice 3** (explainable build-review panel + visible price-freshness
+  badges). Slices 0–2 merged to main (2026-06-14).
 
 ## Project goal
 
@@ -64,10 +64,15 @@ errors** (today there are 3: missing-filter null-guards).
 - Lane: single lane, dispatched in main checkout (`.architect/slice2.block.md`,
   `--dangerously-bypass-approvals-and-sandbox`). Builder block also reusable via
   `/goal`. Effort: xhigh.
-- Status: DISPATCHED 2026-06-14 — NOT yet judged. Builder finishes the ad6c470
-  dock prototype: (1) status reflects Slice-1 two-tier problem/warning/clean via
-  the existing classifier, (2) mobile-anchored dock (hole B3), (3) keep
-  return-to-builder button (hole B4). Architect judges G1–G4 next session.
+- Status: **PASS / MERGED** (architect-verified 2026-06-14). Builder paused at
+  PHASE 0 with 2 disagreements (server route wording; mobile.html statically
+  reachable) — both ACCEPTED, scope unchanged (see decisions log); resumed same
+  lane to build. Independent gate run: G1 `node --check` 0; G2 smoke 0/0; G3
+  `dock-e2e` D1 visibility / D2 metrics / D3 severity / D4 mobile-anchored all
+  PASS; G4 diff — dock status derives from the single `classifyCompatibilityIssues`
+  (no duplicated rules), distinct problem(red)/warning(amber)/clean states,
+  mobile `position:fixed` bottom dock + active-tab bottom padding, Slice-1 logic
+  untouched. Screenshots: `.architect/slice2-shots/` (gitignored).
 
 ## Decisions log (architect + human)
 
@@ -75,6 +80,7 @@ errors** (today there are 3: missing-filter null-guards).
 |------|----------|-----|
 | 2026-06-13 | Run discovery research + audit before building | Request is discovery-scale; build features blind = backwards |
 | 2026-06-13 | Slice 0 must establish a verification gate | Loop needs a gate; repo has none + 3 live console errors |
+| 2026-06-14 | Slice 2 PHASE-0 disagreements both ACCEPTED, scope unchanged | (1) server.js has only `app.get('/')`+static, no catch-all — immaterial, dock injects into index.html served at `/`; (2) mobile.html is statically reachable but NOT the served experience (no UA redirect), stays OUT OF SCOPE. Gate frozen as-is; ruling governs reading of "not served". |
 
 ## Session log
 
@@ -83,6 +89,8 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-13 | Architect | discovery | (docs only) | n/a | 3 researchers + audit; roadmap PRD written |
 | 2026-06-14 | Builder | slice-1 | (uncommitted) | self: G1/G2/G3 pass | classifier + grouped render + compat-e2e; STATUS COMPLETE_WITH_CONCERNS (no real case clearance fields) |
 | 2026-06-14 | Architect | slice-1 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent gate run + 3 UI screenshots; merged, not pushed |
+| 2026-06-14 | Builder | slice-2 | (uncommitted) | self: G1/G2/G3 pass | paused PHASE 0 w/ 2 disagreements, resumed after rulings; dock severity + mobile + dock-e2e; STATUS COMPLETE |
+| 2026-06-14 | Architect | slice-2 | committed to main | G1✓ G2✓ G3✓ G4✓ | independent gate run + 4 dock screenshots (incl. mobile); merged, not pushed |
 
 ## Notes for next session
 

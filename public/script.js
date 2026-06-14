@@ -628,8 +628,12 @@ class PartsDatabase {
         const count = components.length;
         const total = typeof this.totalPrice === 'number' ? this.totalPrice : 0;
         const wattageInfo = this.calculateEstimatedWattage ? this.calculateEstimatedWattage() : { total: 0 };
-        const compatibilityResults = document.getElementById('compatibilityResults');
-        const hasWarnings = compatibilityResults?.classList.contains('has-warnings') || false;
+        const issueSummary = typeof this.classifyCompatibilityIssues === 'function'
+            ? this.classifyCompatibilityIssues(this.currentBuild || {}, wattageInfo)
+            : { problems: [], warnings: [] };
+        const problemCount = Array.isArray(issueSummary.problems) ? issueSummary.problems.length : 0;
+        const warningCount = Array.isArray(issueSummary.warnings) ? issueSummary.warnings.length : 0;
+        const formatIssueCount = (issueCount, label) => `${issueCount} ${label}${issueCount === 1 ? '' : 's'}`;
 
         const countEl = document.getElementById('buildDockCount');
         const totalEl = document.getElementById('buildDockTotal');
@@ -642,13 +646,16 @@ class PartsDatabase {
         if (wattageEl) wattageEl.textContent = `${wattageInfo.total || 0}W est.`;
 
         if (statusEl) {
-            statusEl.classList.remove('ok', 'warning', 'neutral');
+            statusEl.classList.remove('ok', 'warning', 'problem', 'neutral');
             if (!count) {
                 statusEl.classList.add('neutral');
                 statusEl.innerHTML = '<i class="fas fa-circle"></i> Start selecting parts';
-            } else if (hasWarnings) {
+            } else if (problemCount > 0) {
+                statusEl.classList.add('problem');
+                statusEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${formatIssueCount(problemCount, 'problem')}`;
+            } else if (warningCount > 0) {
                 statusEl.classList.add('warning');
-                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Check compatibility';
+                statusEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${formatIssueCount(warningCount, 'warning')}`;
             } else {
                 statusEl.classList.add('ok');
                 statusEl.innerHTML = '<i class="fas fa-check-circle"></i> No issues detected';
