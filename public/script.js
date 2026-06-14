@@ -920,7 +920,7 @@ class PartsDatabase {
             this.filteredGPUs = gpus;
             this.refreshModalIfOpen('gpu', 'gpu2', 'gpu3', 'gpu4');
 
-            this.populateManufacturerFilter();
+            this.populatePrimaryManufacturerFilter();
             this.populateGpuSelector();
             this.updateStats();
             this.renderGPUs();
@@ -1414,7 +1414,7 @@ class PartsDatabase {
         this.filterGPUsByManufacturer();
     }
 
-    async populateManufacturerFilter() {
+    async populatePrimaryManufacturerFilter() {
         const manufacturerFilter = document.getElementById('manufacturerFilter');
         if (!manufacturerFilter) {
             // Filter element doesn't exist in current UI, skip
@@ -2993,8 +2993,12 @@ class PartsDatabase {
 
     populateBuilderFilters() {
         // Populate manufacturer filters
-        this.populateManufacturerFilter('gpuManufacturerFilter', this.allGPUs);
-        this.populateManufacturerFilter('cpuManufacturerFilter', this.allCPUs);
+        if (document.getElementById('gpuManufacturerFilter')) {
+            this.populateManufacturerFilter('gpuManufacturerFilter', this.allGPUs);
+        }
+        if (document.getElementById('cpuManufacturerFilter')) {
+            this.populateManufacturerFilter('cpuManufacturerFilter', this.allCPUs);
+        }
         
         // Populate socket filter for motherboards
         this.populateSocketFilter();
@@ -3012,7 +3016,6 @@ class PartsDatabase {
     populateManufacturerFilter(filterId, components) {
         const filter = document.getElementById(filterId);
         if (!filter) {
-            console.error(`Filter element ${filterId} not found`);
             return;
         }
 
