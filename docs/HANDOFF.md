@@ -9,8 +9,8 @@
   proactive compatibility, trust, and mobile UX.
 - Last work: Slice 1 (proactive compatibility, two-tier severity) built + architect-
   verified GREEN and committed to main (2026-06-14).
-- Next action: Human picks next slice — recommended **Slice 2** (sticky build dock)
-  per roadmap, reconciling with the uncommitted June-session dock prototype first.
+- Next action: **Slice 2** (sticky build dock) gates frozen + builder dispatched
+  (2026-06-14). Judge it next session against live :3000, then Slice 3.
 
 ## Project goal
 
@@ -58,6 +58,16 @@ errors** (today there are 3: missing-filter null-guards).
   test/compat-e2e.js. index.html/server.js/models/scripts untouched.
 - Next: Slice 2 (sticky build dock) — surfacing compatibility on component tabs is
   also still a later slice.
+
+- **Slice 2** — sticky build dock (component tabs + mobile), severity-aware.
+- Gates: `docs/gates/slice-2.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, dispatched in main checkout (`.architect/slice2.block.md`,
+  `--dangerously-bypass-approvals-and-sandbox`). Builder block also reusable via
+  `/goal`. Effort: xhigh.
+- Status: DISPATCHED 2026-06-14 — NOT yet judged. Builder finishes the ad6c470
+  dock prototype: (1) status reflects Slice-1 two-tier problem/warning/clean via
+  the existing classifier, (2) mobile-anchored dock (hole B3), (3) keep
+  return-to-builder button (hole B4). Architect judges G1–G4 next session.
 
 ## Decisions log (architect + human)
 
