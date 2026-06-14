@@ -86,6 +86,11 @@ class PartsDatabase {
         this.starterBuildPartsPromise = null;
         this.starterBuildsReadyPromise = null;
         this._starterBuildsClickBound = false;
+        this.showcaseBuilds = [];
+        this.showcaseBuildMap = new Map();
+        this.showcaseBuildsStatus = 'idle';
+        this.showcaseBuildsReadyPromise = null;
+        this._showcaseBuildsClickBound = false;
         this.allAddons = [];
         this.priceHistoryRequests = new Map();
         this.dataReady = {
@@ -825,6 +830,7 @@ class PartsDatabase {
 
         // After all data is loaded, check if there's a build to restore from URL
         this.initializeStarterBuilds();
+        this.initializeShowcaseBuilds();
         this.loadBuildFromURL();
     }
 
@@ -1305,6 +1311,465 @@ class PartsDatabase {
 
         if (result.failedComponents.length === 0) {
             this.showToast(`Loaded ${preset.name} starter build`);
+        }
+    }
+
+    initializeShowcaseBuilds() {
+        const container = document.getElementById('showcaseBuildsGrid');
+        if (!container) return;
+
+        if (!this._showcaseBuildsClickBound) {
+            container.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-showcase-action]');
+                if (!button) return;
+
+                const themeId = button.getAttribute('data-showcase-build-id') || button.getAttribute('data-showcase-theme');
+                if (!themeId) return;
+
+                const action = button.getAttribute('data-showcase-action');
+                if (action === 'load') {
+                    this.loadShowcaseBuild(themeId);
+                } else if (action === 'copy-link') {
+                    this.copyShowcaseShareUrl(themeId);
+                }
+            });
+            this._showcaseBuildsClickBound = true;
+        }
+
+        this.showcaseBuildsStatus = 'loading';
+        this.renderShowcaseBuilds();
+        this.showcaseBuildsReadyPromise = this.buildShowcaseBuilds()
+            .then(builds => {
+                this.showcaseBuilds = builds;
+                this.showcaseBuildMap = new Map(builds.map(build => [build.id, build]));
+                this.showcaseBuildsStatus = builds.length >= this.getShowcaseThemeDefinitions().length ? 'ready' : 'partial';
+                this.renderShowcaseBuilds();
+                return builds;
+            })
+            .catch(error => {
+                console.error('Error building showcase builds:', error);
+                this.showcaseBuilds = [];
+                this.showcaseBuildMap = new Map();
+                this.showcaseBuildsStatus = 'error';
+                this.renderShowcaseBuilds();
+                return [];
+            });
+    }
+
+    getShowcaseThemeDefinitions() {
+        return [
+            {
+                id: 'budget-1080p',
+                name: 'Budget 1080p Gaming',
+                target: 950,
+                maxTotal: 1250,
+                minRamCapacity: 16,
+                minStorageCapacity: 500,
+                blurb: 'Affordable gaming build for esports and mainstream 1080p play.',
+                shares: { gpu: 0.34, cpu: 0.18, motherboard: 0.11, ram: 0.09, storage: 0.08, psu: 0.08, case: 0.07, cooler: 0.05 }
+            },
+            {
+                id: '1440p-high-refresh',
+                name: '1440p High-Refresh Gaming',
+                target: 1700,
+                minTotal: 1150,
+                minRamCapacity: 16,
+                minStorageCapacity: 1000,
+                blurb: 'Balanced higher-frame-rate gaming build for 1440p monitors.',
+                shares: { gpu: 0.42, cpu: 0.17, motherboard: 0.09, ram: 0.08, storage: 0.08, psu: 0.07, case: 0.06, cooler: 0.03 }
+            },
+            {
+                id: 'streaming-creator',
+                name: 'Streaming / Creator',
+                target: 2200,
+                minTotal: 1500,
+                minRamCapacity: 32,
+                minStorageCapacity: 1000,
+                blurb: 'CPU-forward build for streaming, editing, and gaming on the side.',
+                shares: { gpu: 0.30, cpu: 0.28, motherboard: 0.10, ram: 0.10, storage: 0.08, psu: 0.06, case: 0.05, cooler: 0.03 }
+            },
+            {
+                id: '4k-ultra',
+                name: '4K Ultra Gaming',
+                target: 3050,
+                minTotal: 2000,
+                minRamCapacity: 32,
+                minStorageCapacity: 1000,
+                blurb: 'High-end graphics-first build for 4K and ultra settings.',
+                shares: { gpu: 0.48, cpu: 0.16, motherboard: 0.09, ram: 0.07, storage: 0.07, psu: 0.07, case: 0.04, cooler: 0.02 }
+            }
+        ];
+    }
+
+    getShowcaseRequiredTypes() {
+        return ['gpu', 'cpu', 'motherboard', 'ram', 'cooler', 'psu', 'storage', 'case'];
+    }
+
+    async buildShowcaseBuilds() {
+        const rawParts = await this.fetchStarterBuildParts();
+        const parts = this.prepareShowcaseParts(rawParts);
+        const builds = [];
+
+        for (const theme of this.getShowcaseThemeDefinitions()) {
+            const build = this.findShowcaseBuildForTheme(theme, parts, builds);
+            if (build) {
+                builds.push(build);
+            }
+        }
+
+        return builds;
+    }
+
+    prepareShowcaseParts(rawParts) {
+        const parts = {};
+        Object.entries(rawParts).forEach(([key, list]) => {
+            parts[key] = (Array.isArray(list) ? list : [])
+                .filter(part => this.isStarterPartSelectable(part, key))
+                .map(part => this.normalizeStarterPart(part))
+                .sort((a, b) => this.getStarterPartPrice(a) - this.getStarterPartPrice(b));
+        });
+        return parts;
+    }
+
+    getShowcaseRamCapacity(ram) {
+        if (!ram) return 0;
+
+        const totalCapacity = Number(ram.totalCapacity || ram.capacityGB || 0);
+        if (Number.isFinite(totalCapacity) && totalCapacity > 0) return totalCapacity;
+
+        const moduleCapacity = Number(ram.capacity || 0);
+        if (Number.isFinite(moduleCapacity) && moduleCapacity > 0) {
+            const moduleCount = Number(ram.kitSize || ram.modules || 1);
+            return moduleCapacity * (Number.isFinite(moduleCount) && moduleCount > 0 ? moduleCount : 1);
+        }
+
+        const capacityMatch = String(ram.name || ram.title || '').match(/(\d+)\s*GB/i);
+        return capacityMatch ? Number(capacityMatch[1]) : 0;
+    }
+
+    getShowcaseStorageCapacity(storage) {
+        if (!storage) return 0;
+
+        const structuredCapacity = Number(storage.capacityGB || storage.capacity || 0);
+        if (Number.isFinite(structuredCapacity) && structuredCapacity > 0) return structuredCapacity;
+
+        const name = String(storage.name || storage.title || '');
+        const tbMatch = name.match(/(\d+(?:\.\d+)?)\s*TB/i);
+        if (tbMatch) return Number(tbMatch[1]) * 1000;
+
+        const gbMatch = name.match(/(\d+)\s*GB/i);
+        return gbMatch ? Number(gbMatch[1]) : 0;
+    }
+
+    isShowcasePreferredStorage(storage) {
+        const searchText = [
+            storage?.storageType,
+            storage?.interfaceType,
+            storage?.formFactor,
+            storage?.type,
+            storage?.name,
+            storage?.title
+        ].filter(Boolean).join(' ').toUpperCase();
+
+        return /\bSSD\b|NVME|M\.2/.test(searchText) && !/\bHDD\b|HARD DRIVE|SSHD/.test(searchText);
+    }
+
+    rankShowcaseParts(theme, parts) {
+        const usePool = (preferred, fallback, minimum = 8) => preferred.length >= minimum ? preferred : fallback;
+        const ramFallback = parts.rams.filter(ram => ram.memoryType);
+        const storageFallback = parts.storages;
+        const ramPool = usePool(
+            ramFallback.filter(ram => this.getShowcaseRamCapacity(ram) >= (theme.minRamCapacity || 16)),
+            ramFallback
+        );
+        const storagePool = usePool(
+            storageFallback.filter(storage =>
+                this.isShowcasePreferredStorage(storage) &&
+                this.getShowcaseStorageCapacity(storage) >= (theme.minStorageCapacity || 500)
+            ),
+            storageFallback
+        );
+
+        return {
+            gpu: this.rankStarterParts('gpu', parts.gpus.filter(gpu => gpu.tdp || gpu.wattage), theme.target * theme.shares.gpu).slice(0, 60),
+            cpu: this.rankStarterParts('cpu', parts.cpus.filter(cpu => cpu.socket), theme.target * theme.shares.cpu).slice(0, 36),
+            motherboard: this.rankStarterParts('motherboard', parts.motherboards.filter(motherboard => motherboard.socket && motherboard.formFactor), theme.target * theme.shares.motherboard).slice(0, 90),
+            ram: this.rankStarterParts('ram', ramPool, theme.target * theme.shares.ram).slice(0, 140),
+            storage: this.rankStarterParts('storage', storagePool, theme.target * theme.shares.storage).slice(0, 80),
+            psu: this.rankStarterParts('psu', parts.psus.filter(psu => parseInt(psu.wattage, 10) > 0), theme.target * theme.shares.psu).slice(0, 100),
+            case: this.rankStarterParts('case', parts.cases.filter(pcCase => pcCase.formFactor), theme.target * theme.shares.case).slice(0, 80),
+            cooler: this.rankStarterParts('cooler', parts.coolers.filter(cooler => Array.isArray(cooler.socketCompatibility) && cooler.socketCompatibility.length > 0), theme.target * theme.shares.cooler).slice(0, 80)
+        };
+    }
+
+    findShowcaseBuildForTheme(theme, parts, existingBuilds) {
+        const ranked = this.rankShowcaseParts(theme, parts);
+        let best = null;
+
+        for (const gpu of ranked.gpu) {
+            for (const cpu of ranked.cpu) {
+                for (const motherboard of ranked.motherboard) {
+                    if (cpu.socket && motherboard.socket && cpu.socket !== motherboard.socket) continue;
+
+                    const ram = ranked.ram.find(candidate => this.validateStarterBuild({ cpu, motherboard, ram: candidate }).problems.length === 0);
+                    if (!ram) continue;
+
+                    const cooler = ranked.cooler.find(candidate => this.validateStarterBuild({ cpu, motherboard, ram, cooler: candidate }).problems.length === 0);
+                    if (!cooler) continue;
+
+                    const pcCase = ranked.case.find(candidate => this.validateStarterBuild({ cpu, motherboard, ram, cooler, gpu, case: candidate }).problems.length === 0);
+                    if (!pcCase) continue;
+
+                    const storage = ranked.storage.find(Boolean);
+                    if (!storage) continue;
+
+                    const partialBuild = { cpu, gpu, motherboard, ram, cooler, case: pcCase, storage };
+                    const psu = ranked.psu.find(candidate => {
+                        const validation = this.validateStarterBuild({ ...partialBuild, psu: candidate });
+                        return validation.problems.length === 0;
+                    });
+
+                    if (!psu) continue;
+
+                    const build = { ...partialBuild, psu };
+                    const validation = this.validateStarterBuild(build);
+                    if (validation.problems.length > 0) continue;
+
+                    const total = this.getStarterBuildTotal(build);
+                    if (theme.minTotal && total < theme.minTotal) continue;
+                    if (theme.maxTotal && total > theme.maxTotal) continue;
+                    if (existingBuilds.some(existing => this.getShowcaseBuildKey(existing.build) === this.getShowcaseBuildKey(build))) continue;
+
+                    const score = this.scoreShowcaseBuild(theme, build, validation, existingBuilds);
+                    const candidate = this.createShowcaseBuild(theme, build, validation, score);
+                    if (!best || candidate.score < best.score) {
+                        best = candidate;
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+
+    scoreShowcaseBuild(theme, build, validation, existingBuilds) {
+        const total = this.getStarterBuildTotal(build);
+        const targetDelta = Math.abs(total - theme.target) / Math.max(theme.target, 1);
+        const gpuPerf = this.getStarterPerformanceScore('gpu', build.gpu);
+        const cpuPerf = this.getStarterPerformanceScore('cpu', build.cpu);
+        const cpuWeight = theme.id === 'streaming-creator' ? 0.75 : 0.35;
+        const gpuWeight = theme.id === 'streaming-creator' ? 0.35 : 0.75;
+        let maxOverlap = 0;
+
+        for (const existing of existingBuilds) {
+            const overlapCount = this.getShowcaseRequiredTypes()
+                .reduce((count, type) => {
+                    return count + (this.getStarterPartId(existing.build[type]) === this.getStarterPartId(build[type]) ? 1 : 0);
+                }, 0);
+            maxOverlap = Math.max(maxOverlap, overlapCount / this.getShowcaseRequiredTypes().length);
+        }
+
+        return (targetDelta * 10) +
+            (validation.warnings.length * 0.15) +
+            (maxOverlap * 0.75) -
+            (gpuPerf * gpuWeight) -
+            (cpuPerf * cpuWeight);
+    }
+
+    createShowcaseBuild(theme, build, validation, score) {
+        return {
+            id: theme.id,
+            name: theme.name,
+            blurb: theme.blurb,
+            target: theme.target,
+            total: this.getStarterBuildTotal(build),
+            build,
+            buildData: this.getShowcaseBuildData(build),
+            validation: {
+                problems: validation.problems,
+                warnings: validation.warnings,
+                wattageInfo: validation.wattageInfo
+            },
+            score
+        };
+    }
+
+    getShowcaseBuildData(build) {
+        const requiredTypes = new Set(this.getShowcaseRequiredTypes());
+        const buildData = {};
+
+        Object.keys(this.currentBuild).forEach(type => {
+            if (!requiredTypes.has(type)) return;
+            const id = this.getStarterPartId(build[type]);
+            if (id) {
+                buildData[type] = id;
+            }
+        });
+
+        return buildData;
+    }
+
+    getShowcaseBuildKey(build) {
+        return this.getShowcaseRequiredTypes()
+            .map(type => `${type}:${this.getStarterPartId(build[type])}`)
+            .join('|');
+    }
+
+    renderShowcaseBuilds() {
+        const grid = document.getElementById('showcaseBuildsGrid');
+        const status = document.getElementById('showcaseBuildsStatus');
+        if (!grid) return;
+
+        if (status) {
+            const label = {
+                idle: 'Loading',
+                loading: 'Loading',
+                ready: 'Ready',
+                partial: 'Partial',
+                error: 'Unavailable'
+            }[this.showcaseBuildsStatus] || 'Loading';
+            status.textContent = label;
+            status.className = `showcase-builds-status ${this.showcaseBuildsStatus}`;
+        }
+
+        if (this.showcaseBuildsStatus === 'loading' || this.showcaseBuildsStatus === 'idle') {
+            grid.innerHTML = '<div class="showcase-builds-loading">Loading featured builds...</div>';
+            return;
+        }
+
+        if (this.showcaseBuildsStatus === 'error' || this.showcaseBuilds.length === 0) {
+            grid.innerHTML = '<div class="showcase-builds-loading error">Featured builds are unavailable.</div>';
+            return;
+        }
+
+        grid.innerHTML = this.showcaseBuilds.map(build => this.renderShowcaseBuildCard(build)).join('');
+    }
+
+    renderShowcaseBuildCard(showcaseBuild) {
+        const esc = value => this._escapeHtml(value);
+        const partRows = [
+            ['CPU', showcaseBuild.build.cpu],
+            ['GPU', showcaseBuild.build.gpu],
+            ['Motherboard', showcaseBuild.build.motherboard],
+            ['RAM', showcaseBuild.build.ram],
+            ['Storage', showcaseBuild.build.storage],
+            ['PSU', showcaseBuild.build.psu],
+            ['Case', showcaseBuild.build.case],
+            ['Cooler', showcaseBuild.build.cooler]
+        ].map(([label, part]) => {
+            const name = this.getStarterPartName(part);
+            return `
+                <li>
+                    <span>${label}</span>
+                    <strong title="${esc(name)}">${esc(name)}</strong>
+                </li>
+            `;
+        }).join('');
+
+        const problems = showcaseBuild.validation.problems.length;
+        const warnings = showcaseBuild.validation.warnings.length;
+        const issueText = problems === 0 && warnings === 0
+            ? '0 problems'
+            : `${problems} problems, ${warnings} warnings`;
+        const shareUrl = this.getShowcaseShareUrl(showcaseBuild.id);
+
+        return `
+            <article class="showcase-build-card"
+                data-showcase-build-id="${esc(showcaseBuild.id)}"
+                data-showcase-theme="${esc(showcaseBuild.id)}"
+                data-share-url="${esc(shareUrl)}"
+                data-total="${showcaseBuild.total.toFixed(2)}">
+                <div class="showcase-build-card-top">
+                    <div>
+                        <h4>${esc(showcaseBuild.name)}</h4>
+                        <p class="showcase-build-blurb">${esc(showcaseBuild.blurb)}</p>
+                    </div>
+                    <div class="showcase-build-price">$${showcaseBuild.total.toFixed(2)}</div>
+                </div>
+                <div class="showcase-build-meta">
+                    <span>Target $${showcaseBuild.target.toFixed(0)}</span>
+                    <span>${esc(issueText)}</span>
+                </div>
+                <ul class="showcase-build-parts">
+                    ${partRows}
+                </ul>
+                <div class="showcase-build-actions">
+                    <button type="button" class="showcase-build-load-btn" data-showcase-action="load" data-showcase-build-id="${esc(showcaseBuild.id)}">
+                        <i class="fas fa-folder-open"></i>
+                        <span>Load this build</span>
+                    </button>
+                    <button type="button" class="showcase-build-share-btn" data-showcase-action="copy-link" data-showcase-build-id="${esc(showcaseBuild.id)}" title="Copy Link" aria-label="Copy Link for ${esc(showcaseBuild.name)}">
+                        <i class="fas fa-link"></i>
+                    </button>
+                </div>
+            </article>
+        `;
+    }
+
+    async loadShowcaseBuild(themeId) {
+        const showcaseBuild = this.showcaseBuildMap.get(themeId);
+        if (!showcaseBuild) return;
+
+        this.ensureStarterBuildLoadCaches(showcaseBuild);
+        this.clearBuild();
+        const result = await this.applyBuildData(showcaseBuild.buildData, {
+            sourceLabel: `${showcaseBuild.name} featured build`,
+            notify: true
+        });
+        this.switchTab('builder');
+
+        if (result.failedComponents.length === 0) {
+            this.showToast(`Loaded ${showcaseBuild.name}`);
+        }
+    }
+
+    getShowcaseShareUrl(themeId) {
+        const showcaseBuild = this.showcaseBuildMap.get(themeId);
+        if (!showcaseBuild) return '';
+
+        const encodedBuild = btoa(JSON.stringify(showcaseBuild.buildData));
+        return `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
+    }
+
+    async copyShowcaseShareUrl(themeId) {
+        const shareUrl = this.getShowcaseShareUrl(themeId);
+        if (!shareUrl) return;
+
+        const copyToClipboard = async (text) => {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.log('Clipboard API failed, using fallback:', err);
+                }
+            }
+
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                textArea.remove();
+                return successful;
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                textArea.remove();
+                return false;
+            }
+        };
+
+        const copied = await copyToClipboard(shareUrl);
+        if (copied) {
+            this.showToast('Showcase link copied to clipboard');
+        } else {
+            alert('Failed to copy link. Please try again.');
         }
     }
 
