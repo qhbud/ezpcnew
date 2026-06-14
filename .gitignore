@@ -30,3 +30,6 @@ build/
 *.tmp
 *.log
 nul
+
+# Architect loop raw working data (only distilled docs/ are committed)
+.architect/
