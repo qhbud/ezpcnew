@@ -1336,6 +1336,31 @@
                 </div>
             </section>
 
+            <section id="buildBalanceSection" class="balance-meter-section is-incomplete" aria-labelledby="buildBalanceHeading" data-balance-meter data-balance-state="incomplete" data-balance-label="Add CPU/GPU" data-balance-position="" data-cpu-score="" data-cpu-multi-score="" data-gpu-score="" data-balance-ratio="">
+                <div class="balance-meter-header">
+                    <div>
+                        <h3 id="buildBalanceHeading"><i class="fas fa-balance-scale"></i> CPU/GPU Balance</h3>
+                        <p id="buildBalanceExplanation">Add a CPU and GPU to see whether the pair is balanced.</p>
+                    </div>
+                    <span id="buildBalanceStatus" class="balance-meter-status incomplete">Add CPU/GPU</span>
+                </div>
+                <div class="balance-meter-track-wrap">
+                    <div id="buildBalanceTrack" class="balance-meter-track" role="meter" aria-label="CPU and GPU balance position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+                        <span id="buildBalanceNeedle" class="balance-meter-needle" style="left: 50%;" aria-hidden="true"></span>
+                    </div>
+                    <div class="balance-meter-scale" aria-hidden="true">
+                        <span>GPU limit</span>
+                        <span>Balanced</span>
+                        <span>CPU limit</span>
+                    </div>
+                </div>
+                <div class="balance-meter-scores" aria-label="Balance scores">
+                    <span>CPU <strong id="buildBalanceCpuScore">-</strong></span>
+                    <span>GPU <strong id="buildBalanceGpuScore">-</strong></span>
+                    <span>Ratio <strong id="buildBalanceRatio">-</strong></span>
+                </div>
+            </section>
+
             <div class="pc-build-container">
                 <div class="component-selectors">
                     <!-- Row 1: GPU and CPU -->

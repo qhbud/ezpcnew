@@ -129,6 +129,20 @@ class PartsDatabase {
             addon6: null
         };
         this.totalPrice = 0;
+        this.balanceMeterState = {
+            state: 'incomplete',
+            label: 'Add CPU/GPU',
+            explanation: 'Add a CPU and GPU to see whether the pair is balanced.',
+            position: null,
+            cpuScore: null,
+            cpuMultiScore: null,
+            gpuScore: null,
+            ratio: null,
+            thresholds: {
+                gpuBoundMaxRatio: 0.8,
+                cpuLimitedMinRatio: 1.25
+            }
+        };
 
         this.initializeEventListeners();
         this.loadInitialData();
@@ -4396,6 +4410,145 @@ class PartsDatabase {
         return null; // No performance data available
     }
 
+    getNeutralBalanceState(reason = 'incomplete') {
+        const missingCpu = !this.currentBuild?.cpu;
+        const missingGpu = !this.currentBuild?.gpu;
+        let label = 'Add CPU/GPU';
+        let explanation = 'Add a CPU and GPU to see whether the pair is balanced.';
+
+        if (reason === 'missing-cpu') {
+            label = 'Add CPU';
+            explanation = 'Add a CPU to compare it with your selected GPU.';
+        } else if (reason === 'missing-gpu') {
+            label = 'Add GPU';
+            explanation = 'Add a GPU to compare it with your selected CPU.';
+        } else if (!missingCpu && !missingGpu) {
+            label = 'Needs data';
+            explanation = 'One selected part does not have a performance score, so balance cannot be estimated.';
+        }
+
+        return {
+            state: reason === 'unavailable' ? 'unavailable' : 'incomplete',
+            label,
+            explanation,
+            position: null,
+            cpuScore: null,
+            cpuMultiScore: null,
+            gpuScore: null,
+            ratio: null,
+            cpuScoreSource: null,
+            thresholds: {
+                gpuBoundMaxRatio: 0.8,
+                cpuLimitedMinRatio: 1.25
+            }
+        };
+    }
+
+    computeBuildBalanceState() {
+        const cpu = this.currentBuild?.cpu;
+        const gpu = this.currentBuild?.gpu;
+
+        if (!cpu && !gpu) return this.getNeutralBalanceState('incomplete');
+        if (!cpu) return this.getNeutralBalanceState('missing-cpu');
+        if (!gpu) return this.getNeutralBalanceState('missing-gpu');
+
+        const cpuSingleScore = this.getCpuPerformance(cpu);
+        const cpuMultiScore = this.getCpuMultiThreadPerformance(cpu);
+        const gpuScore = this.getGpuPerformance(gpu);
+        const hasCpuScore = Number.isFinite(cpuSingleScore);
+        const hasGpuScore = Number.isFinite(gpuScore);
+
+        if (!hasCpuScore || !hasGpuScore || cpuSingleScore <= 0 || gpuScore <= 0) {
+            const state = this.getNeutralBalanceState('unavailable');
+            state.cpuScore = hasCpuScore ? cpuSingleScore : null;
+            state.cpuMultiScore = Number.isFinite(cpuMultiScore) ? cpuMultiScore : null;
+            state.gpuScore = hasGpuScore ? gpuScore : null;
+            state.cpuScoreSource = hasCpuScore ? 'single' : null;
+            return state;
+        }
+
+        const thresholds = {
+            gpuBoundMaxRatio: 0.8,
+            cpuLimitedMinRatio: 1.25
+        };
+        const ratio = gpuScore / cpuSingleScore;
+        const position = Math.round(Math.min(100, Math.max(0, 50 + (Math.log2(ratio) * 35))));
+        let state = 'balanced';
+        let label = 'Balanced';
+        let explanation = 'Your CPU and GPU are closely matched, so neither part should consistently hold the other back.';
+
+        if (ratio >= thresholds.cpuLimitedMinRatio) {
+            state = 'cpu-limited';
+            label = 'CPU bottleneck';
+            explanation = 'Your GPU is much faster than your CPU; at 1080p or in CPU-heavy games, the CPU may limit frame rates.';
+        } else if (ratio <= thresholds.gpuBoundMaxRatio) {
+            state = 'gpu-bound';
+            label = 'GPU is the limit';
+            explanation = 'Your CPU has more headroom than this GPU; gaming performance will usually be limited by the graphics card, which is normal.';
+        }
+
+        return {
+            state,
+            label,
+            explanation,
+            position,
+            cpuScore: cpuSingleScore,
+            cpuMultiScore: Number.isFinite(cpuMultiScore) ? cpuMultiScore : null,
+            gpuScore,
+            ratio,
+            cpuScoreSource: 'single',
+            thresholds
+        };
+    }
+
+    updateBuildBalanceMeter() {
+        const state = this.computeBuildBalanceState();
+        this.balanceMeterState = state;
+
+        const meter = document.querySelector('[data-balance-meter]');
+        if (!meter) return state;
+
+        const statusEl = document.getElementById('buildBalanceStatus');
+        const trackEl = document.getElementById('buildBalanceTrack');
+        const needleEl = document.getElementById('buildBalanceNeedle');
+        const explanationEl = document.getElementById('buildBalanceExplanation');
+        const cpuScoreEl = document.getElementById('buildBalanceCpuScore');
+        const gpuScoreEl = document.getElementById('buildBalanceGpuScore');
+        const ratioEl = document.getElementById('buildBalanceRatio');
+
+        meter.dataset.balanceState = state.state;
+        meter.dataset.balanceLabel = state.label;
+        meter.dataset.balancePosition = Number.isFinite(state.position) ? String(state.position) : '';
+        meter.dataset.cpuScore = Number.isFinite(state.cpuScore) ? String(state.cpuScore) : '';
+        meter.dataset.cpuMultiScore = Number.isFinite(state.cpuMultiScore) ? String(state.cpuMultiScore) : '';
+        meter.dataset.gpuScore = Number.isFinite(state.gpuScore) ? String(state.gpuScore) : '';
+        meter.dataset.balanceRatio = Number.isFinite(state.ratio) ? String(state.ratio) : '';
+
+        meter.classList.remove('is-incomplete', 'is-unavailable', 'is-balanced', 'is-cpu-limited', 'is-gpu-bound');
+        meter.classList.add(`is-${state.state}`);
+
+        if (statusEl) {
+            statusEl.textContent = state.label;
+            statusEl.className = `balance-meter-status ${state.state}`;
+        }
+
+        const position = Number.isFinite(state.position) ? state.position : 50;
+        if (trackEl) {
+            trackEl.setAttribute('aria-valuenow', String(position));
+        }
+
+        if (needleEl) {
+            needleEl.style.left = `${position}%`;
+        }
+
+        if (explanationEl) explanationEl.textContent = state.explanation;
+        if (cpuScoreEl) cpuScoreEl.textContent = Number.isFinite(state.cpuScore) ? `${(state.cpuScore * 100).toFixed(1)}%` : '-';
+        if (gpuScoreEl) gpuScoreEl.textContent = Number.isFinite(state.gpuScore) ? `${(state.gpuScore * 100).toFixed(1)}%` : '-';
+        if (ratioEl) ratioEl.textContent = Number.isFinite(state.ratio) ? `${state.ratio.toFixed(2)}x` : '-';
+
+        return state;
+    }
+
     getDiscountColor(discount) {
         // Gradient from yellow (#ffd700) to red (#ff0000)
         // Yellow at 0-10%, transitioning to red at 50%+
@@ -4990,6 +5143,7 @@ class PartsDatabase {
         }
 
         // Update wattage display in build summary
+        this.updateBuildBalanceMeter();
         this.updateBuildSummaryWattage();
         this.updateBuildDock();
     }
