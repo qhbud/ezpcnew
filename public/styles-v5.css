@@ -1707,20 +1707,59 @@ tr.incompatible td {
     padding: var(--space-3) var(--space-4);
 }
 
+.compatibility-results.has-problems {
+    background: rgba(220, 38, 38, 0.06);
+    border-left-color: #dc2626;
+}
+
 .compatibility-issues {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-3);
+}
+
+.compatibility-issue-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.compatibility-issue-group h5 {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-primary);
 }
 
 .compatibility-issue {
-    color: var(--warning);
     font-weight: 500;
     font-size: 0.875rem;
     margin: 0;
     padding: var(--space-2) var(--space-3);
-    background: rgba(202, 138, 4, 0.08);
     border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.compatibility-issue strong {
+    color: var(--text-primary);
+}
+
+.compatibility-issue span {
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.compatibility-problem {
+    background: rgba(220, 38, 38, 0.10);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.compatibility-warning {
+    background: rgba(202, 138, 4, 0.10);
+    border: 1px solid rgba(202, 138, 4, 0.25);
 }
 
 .compatibility-message {

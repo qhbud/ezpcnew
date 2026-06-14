@@ -4177,17 +4177,19 @@ class PartsDatabase {
         this.updateBuildDock();
     }
 
-    checkCompatibility() {
-        const results = document.getElementById('compatibilityResults');
-        const compatibilityIcon = document.getElementById('compatibilityIcon');
-        const issues = [];
-
-        const { cpu, motherboard, ram, cooler, psu, gpu, case: pcCase } = this.currentBuild;
+    classifyCompatibilityIssues(build, wattageInfo = { total: 0 }) {
+        const problems = [];
+        const warnings = [];
+        const { cpu, motherboard, ram, cooler, psu, gpu, case: pcCase } = build || {};
+        const getName = (component, fallback) => component?.name || component?.title || component?.gpuModel || fallback;
 
         // Check CPU and Motherboard socket compatibility
         if (cpu && motherboard) {
             if (cpu.socket && motherboard.socket && cpu.socket !== motherboard.socket) {
-                issues.push(`⚠️ CPU socket (${cpu.socket}) doesn't match motherboard socket (${motherboard.socket})`);
+                problems.push({
+                    title: 'CPU socket mismatch',
+                    detail: `${getName(cpu, 'The selected CPU')} uses ${cpu.socket}, but ${getName(motherboard, 'the selected motherboard')} uses ${motherboard.socket}. The CPU will not install in this motherboard.`
+                });
             }
         }
 
@@ -4198,7 +4200,11 @@ class PartsDatabase {
             const mbRamSupport = motherboard.specifications?.memoryType || motherboard.memoryType || '';
 
             if (ramType && mbRamSupport && !mbRamSupport.includes(ramType)) {
-                issues.push(`⚠️ RAM type (${ramType}) may not be compatible with motherboard`);
+                const mbRamSupportDisplay = Array.isArray(mbRamSupport) ? mbRamSupport.join(', ') : mbRamSupport;
+                problems.push({
+                    title: 'RAM type not supported',
+                    detail: `${getName(ram, 'The selected RAM')} is ${ramType}, but ${getName(motherboard, 'the selected motherboard')} supports ${mbRamSupportDisplay}. The memory type must match the motherboard.`
+                });
             }
         }
 
@@ -4253,7 +4259,10 @@ class PartsDatabase {
 
                 if (!caseCompatible) {
                     const caseFFDisplay = caseFormFactorArray.join('/');
-                    issues.push(`⚠️ Motherboard (${motherboardFormFactor}) is too large for case (${caseFFDisplay})`);
+                    problems.push({
+                        title: 'Motherboard too large for case',
+                        detail: `${getName(motherboard, 'The selected motherboard')} is ${motherboardFormFactor}, but ${getName(pcCase, 'the selected case')} supports ${caseFFDisplay}. A motherboard that is too large cannot mount in the case.`
+                    });
                 }
             }
         }
@@ -4261,11 +4270,13 @@ class PartsDatabase {
         // Check PSU wattage using accurate calculation
         if (psu) {
             const psuWattage = parseInt(psu.wattage) || 0;
-            const wattageInfo = this.calculateEstimatedWattage();
             const estimatedPower = wattageInfo.total;
 
             if (psuWattage > 0 && estimatedPower > psuWattage * 0.8) { // 80% rule
-                issues.push(`⚠️ PSU wattage (${psuWattage}W) may be insufficient for estimated system power (~${estimatedPower}W)`);
+                warnings.push({
+                    title: 'Limited PSU headroom',
+                    detail: `Estimated system draw is about ${estimatedPower}W, which is more than 80% of the ${psuWattage}W PSU rating. The build may work, but there is little power headroom for spikes or upgrades.`
+                });
             }
         }
 
@@ -4275,7 +4286,10 @@ class PartsDatabase {
             const coolerSockets = cooler.socketCompatibility || [];
 
             if (cpuSocket && coolerSockets.length > 0 && !coolerSockets.includes(cpuSocket)) {
-                issues.push(`⚠️ Cooler may not support CPU socket (${cpuSocket})`);
+                problems.push({
+                    title: 'Cooler socket not listed',
+                    detail: `${getName(cooler, 'The selected cooler')} lists ${coolerSockets.join(', ')}, but ${getName(cpu, 'the selected CPU')} uses ${cpuSocket}. The cooler mounting hardware may not fit this CPU socket.`
+                });
             }
         }
 
@@ -4298,44 +4312,89 @@ class PartsDatabase {
                 const gpuName = gpu.gpuModel || gpu.name || 'Selected GPU';
 
                 if (isITXCase && gpuLength > 300) {
-                    issues.push(`⚠️ ${gpuName} (≈${gpuLength}mm) may be too long for many ITX cases (typical limit: 300mm)`);
+                    warnings.push({
+                        title: 'GPU length may be tight',
+                        detail: `${gpuName} is about ${gpuLength}mm long. Many ITX cases are limited around 300mm, so confirm the case GPU clearance before buying.`
+                    });
                 } else if (isMATXCase && gpuLength > 340) {
-                    issues.push(`⚠️ ${gpuName} (≈${gpuLength}mm) may be too long for most Micro-ATX cases (typical limit: 340mm)`);
+                    warnings.push({
+                        title: 'GPU length may be tight',
+                        detail: `${gpuName} is about ${gpuLength}mm long. Many Micro-ATX cases are limited around 340mm, so confirm the case GPU clearance before buying.`
+                    });
                 }
             }
         }
 
-        // Update compatibility icon and heading text based on issues
+        return { problems, warnings };
+    }
+
+    checkCompatibility() {
+        const results = document.getElementById('compatibilityResults');
+        const wattageInfo = this.calculateEstimatedWattage();
+        const { problems, warnings } = this.classifyCompatibilityIssues(this.currentBuild, wattageInfo);
+        const issueCount = problems.length + warnings.length;
+        const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
+
+        // Update compatibility heading text based on severity.
         const compatibilityHeading = document.getElementById('compatibilityCheckHeading');
-        if (issues.length > 0) {
-            // Show warning icon and change text when there are issues
+        const formatCount = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
+        const summaryParts = [];
+        if (problems.length > 0) summaryParts.push(formatCount(problems.length, 'problem'));
+        if (warnings.length > 0) summaryParts.push(formatCount(warnings.length, 'warning'));
+
+        if (issueCount > 0) {
             if (compatibilityHeading) {
-                compatibilityHeading.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i> Compatibility Problem';
+                const iconColor = problems.length > 0 ? '#dc2626' : '#f59e0b';
+                compatibilityHeading.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: ${iconColor};"></i> ${summaryParts.join(', ')}`;
             }
-        } else {
-            // Show check icon and normal text when no issues
-            if (compatibilityHeading) {
-                compatibilityHeading.innerHTML = '<i class="fas fa-check-circle"></i> Compatibility Check';
-            }
+        } else if (compatibilityHeading) {
+            compatibilityHeading.innerHTML = hasComponents
+                ? '<i class="fas fa-check-circle"></i> All compatible'
+                : '<i class="fas fa-check-circle"></i> Compatibility Check';
         }
 
         // Display results and update styling
-        if (issues.length === 0) {
-            // Remove warning class and add success class
-            results.classList.remove('has-warnings');
+        if (issueCount === 0) {
+            results.classList.remove('has-warnings', 'has-problems');
             results.classList.add('no-warnings');
 
-            if (Object.values(this.currentBuild).some(component => component !== null)) {
+            if (hasComponents) {
                 results.innerHTML = '<p class="compatibility-message success"><span class="compat-ok-dot"></span>No issues detected</p>';
             } else {
                 results.innerHTML = '<p class="compatibility-message" style="color:var(--text-muted);">Select components to check</p>';
             }
         } else {
-            // Add warning class and remove success class
             results.classList.remove('no-warnings');
             results.classList.add('has-warnings');
+            results.classList.toggle('has-problems', problems.length > 0);
 
-            results.innerHTML = `<div class="compatibility-issues">${issues.map(issue => `<p class="compatibility-issue">${issue}</p>`).join('')}</div>`;
+            const escapeCompatibilityText = (value) => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            const renderIssueGroup = (type, label, items) => {
+                if (items.length === 0) return '';
+                return `
+                    <section class="compatibility-issue-group compatibility-${type}-group">
+                        <h5>${escapeCompatibilityText(label)}</h5>
+                        ${items.map(issue => `
+                            <article class="compatibility-issue compatibility-${type}">
+                                <strong>${escapeCompatibilityText(issue.title)}</strong>
+                                <span>${escapeCompatibilityText(issue.detail)}</span>
+                            </article>
+                        `).join('')}
+                    </section>
+                `;
+            };
+
+            results.innerHTML = `
+                <div class="compatibility-issues">
+                    ${renderIssueGroup('problem', 'Problems', problems)}
+                    ${renderIssueGroup('warning', 'Warnings', warnings)}
+                </div>
+            `;
         }
 
         // Update wattage display in build summary
