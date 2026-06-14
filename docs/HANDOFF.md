@@ -9,10 +9,11 @@
   proactive compatibility, trust, and mobile UX.
 - Last work: Slice 5 (CPU↔GPU bottleneck/balance meter) built + architect-verified
   GREEN and committed to main (2026-06-14, commit a51bfbb).
-- Next action: **Slice 6** (public build showcase, NO accounts — curated gallery +
-  Copy-Link share) — NOT YET DISPATCHED (spec it, then dispatch). Then **Slice 7**
-  (agent component auto-ingestion). Slices 0–5 merged to main. Autonomous loop:
-  dispatch next slice as each completes; Quinn approved working through these.
+- Next action: **Slice 6** (public build showcase — curated themed gallery +
+  Copy-Link share, NO accounts) DISPATCHED 2026-06-14; judge next session. Then
+  **Slice 7** (agent component auto-ingestion). Slices 0–5 merged to main.
+  Autonomous loop: dispatch next slice as each completes; Quinn approved working
+  through these. Quinn picked the curated-gallery flavor (vs localStorage) 2026-06-14.
 
 ## Project goal
 
@@ -127,6 +128,16 @@ errors** (today there are 3: missing-filter null-guards).
   gpu/cpu ≥1.25 → CPU-limited, ≤0.80 → GPU-bound, else Balanced; position =
   log2(ratio) mapping. Explanations hedged (1080p/CPU-heavy framing), honest.
 
+- **Slice 6** — public build showcase: curated themed gallery + Copy-Link share,
+  NO accounts/persistence.
+- Gates: `docs/gates/slice-6.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice6.block.md`, bypass-sandbox).
+  Effort: xhigh. Reuses Slice-4 assembly helpers (by CALL), `applyBuildData`,
+  `classifyCompatibilityIssues`, and the existing `?build=<btoa>` share encoding
+  (`shareBuild`/`loadBuildFromURL`). No server routes, no DB writes.
+- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
+  (rule 4: never judge in the dispatching session).
+
 ## Decisions log (architect + human)
 
 | Date | Decision | Why |
@@ -135,6 +146,7 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-13 | Slice 0 must establish a verification gate | Loop needs a gate; repo has none + 3 live console errors |
 | 2026-06-14 | Slice 2 PHASE-0 disagreements both ACCEPTED, scope unchanged | (1) server.js has only `app.get('/')`+static, no catch-all — immaterial, dock injects into index.html served at `/`; (2) mobile.html is statically reachable but NOT the served experience (no UA redirect), stays OUT OF SCOPE. Gate frozen as-is; ruling governs reading of "not served". |
 | 2026-06-14 | Tier-3 scope (Quinn) | BUILD: preset budget-tier builds (S4); bottleneck/balance meter (S5); public build showcase WITHOUT accounts/logins, on Copy-Link share + curated gallery (S6); agent-driven component auto-ingestion from Amazon for new GPU/mobo listings (S7, ties to findNewComponents.js + flaky-scraper fix). DEFER: accounts/email, multi-retailer pricing, standalone AI assistant. |
+| 2026-06-14 | Slice 6 = curated themed gallery (Quinn) | Chose curated gallery over a localStorage "your shared builds" list — without accounts/DB, curated themed builds (assembled from live parts + Copy-Link share) are a credible public showcase; localStorage would be a personal-history feature, not a showcase. |
 
 ## Session log
 
