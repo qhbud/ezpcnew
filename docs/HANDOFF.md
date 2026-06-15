@@ -12,10 +12,9 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 8** (agent component auto-ingestion — server/DB/scraper,
-  different risk class, needs Quinn's explicit go before any DB-writing run). The
-  whole S0–S7 frontend campaign is live in prod (Railway/Render auto-deploy from
-  origin/main).
+- Next action: **Slice 8** (new-component scraper → review queue, GitHub-run)
+  DISPATCHED 2026-06-15 with Quinn's go; judge next session. The whole S0–S7
+  frontend campaign is live in prod (Railway/Render auto-deploy from origin/main).
 
 ## Project goal
 
@@ -177,6 +176,18 @@ errors** (today there are 3: missing-filter null-guards).
      `attachPriceChartHover` adds a $price • date hover tooltip.
   (Quick-start preset-strip restyle proposal was offered but superseded — Quinn
   moved on to the above; revisit only if he raises it again.)
+
+- **Slice 8** — new-component scraper → `pending_components` review queue, run on
+  GitHub Actions. Discovers components not yet in the catalog, saves icon/name/
+  link/price + type-specific `fields` (mapped from models/*) for human review
+  before any go-live. SAFETY INVARIANT: writes ONLY to `pending_components`, never
+  the live collections. Promotion-to-live deferred to a later slice.
+- Gates: `docs/gates/slice-8.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice8.block.md`, bypass-sandbox).
+  Effort: xhigh. Reuses `findNewComponents.js` + `scripts/scrapers/*`; deterministic
+  format test (`buildPendingComponent`) since live Amazon scraping is flaky.
+- Status: **DISPATCHED 2026-06-15** — awaiting builder; judge next session
+  (rule 4: never judge in the dispatching session).
 
 ## Decisions log (architect + human)
 
