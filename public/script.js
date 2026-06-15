@@ -14869,9 +14869,12 @@ class PartsDatabase {
         const maxPrice = Math.ceil(Math.max(...prices));
         const brands = [...new Set(st.allPts.map(p => st.getBrand(p)))].sort();
         const hasTypes = typeof st.getType === 'function';
-        const typeOrder = hasTypes
-            ? (st.typeOrder || [...new Set(st.allPts.map(p => st.getType(p)))].sort())
-            : [];
+        const present = hasTypes ? new Set(st.allPts.map(p => st.getType(p))) : new Set();
+        const typeOrder = !hasTypes ? []
+            : st.typeOrder
+                ? st.typeOrder.filter(t => present.has(t))
+                    .concat([...present].filter(t => !st.typeOrder.includes(t)).sort())
+                : [...present].sort();
 
         this._graphFilters = this._graphFilters || {};
         const f = this._graphFilters[kind] || (this._graphFilters[kind] = {
@@ -16971,6 +16974,12 @@ class PartsDatabase {
         this._graphState.ram = {
             canvasId: 'ramTabScatterPlot', ptsProp: '_ramTabChartPts', allPts: pts,
             getBrand: (p) => this._detectBrand(p.ram, 'ram'), brandColors: false,
+            getType: (p) => {
+                const t = (p.ram.memoryType || p.ram.type || '').toUpperCase();
+                return t.includes('DDR5') ? 'DDR5' : t.includes('DDR4') ? 'DDR4' : 'Other';
+            },
+            typeOrder: ['DDR4', 'DDR5'], typeLabel: 'Memory',
+            typeColors: { DDR4: '#f59e0b', DDR5: '#3b82f6', Other: '#9ca3af' },
             legendHigh: 'Fast (speed/latency)', legendLow: 'Slow (speed/latency)',
             draw: () => this._drawRamTabChart(this._ramTabSelectedRam || null),
         };
@@ -17406,6 +17415,21 @@ class PartsDatabase {
         this._graphState.psu = {
             canvasId: 'psuTabScatterPlot', ptsProp: '_psuTabChartPts', allPts: pts,
             getBrand: (p) => this._detectBrand(p.psu, 'psu'), brandColors: false,
+            getType: (p) => {
+                const c = (p.psu.certification || p.psu.efficiency || p.psu.efficiencyRating || '').toLowerCase();
+                if (c.includes('titanium')) return 'Titanium';
+                if (c.includes('platinum')) return 'Platinum';
+                if (c.includes('gold')) return 'Gold';
+                if (c.includes('silver')) return 'Silver';
+                if (c.includes('bronze')) return 'Bronze';
+                return 'Unrated';
+            },
+            typeOrder: ['Titanium', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Unrated'],
+            typeLabel: '80+ Rating',
+            typeColors: {
+                Titanium: '#a855f7', Platinum: '#64748b', Gold: '#f59e0b',
+                Silver: '#9ca3af', Bronze: '#b45309', Unrated: '#cbd5e1'
+            },
             legendHigh: 'Higher efficiency', legendLow: 'Lower efficiency',
             draw: () => this._drawPsuTabChart(this._psuTabSelectedPsu || null),
         };
