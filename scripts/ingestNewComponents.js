@@ -141,12 +141,15 @@ function parseArgs(argv) {
   const options = {
     type: 'all',
     limit: 5,
-    dryRun: false
+    dryRun: false,
+    includeExisting: false
   };
 
   for (const arg of argv) {
     if (arg === '--dry-run') {
       options.dryRun = true;
+    } else if (arg === '--include-existing') {
+      options.includeExisting = true;
     } else if (arg.startsWith('--type=')) {
       options.type = arg.slice('--type='.length).trim().toLowerCase();
     } else if (arg.startsWith('--limit=')) {
@@ -1140,7 +1143,8 @@ async function runIngest(options) {
     discovered: 0,
     queued: 0,
     upserted: 0,
-    skipped: 0
+    skipped: 0,
+    alreadyInLiveSkipped: 0
   };
 
   if (options.dryRun) {
@@ -1181,6 +1185,16 @@ async function runIngest(options) {
           rawProduct.scrapedAt = new Date().toISOString();
           rawProduct.affiliateTag = affiliateTag;
           rawProduct.alreadyInLive = isAlreadyInLive(liveIndex, componentType, rawProduct);
+
+          // Only queue genuinely NEW components. Skip anything already in the live
+          // catalog (the whole point is discovering parts not yet listed); does not
+          // count toward the limit, so the run keeps digging for new candidates.
+          if (rawProduct.alreadyInLive && !options.includeExisting) {
+            summary.skipped += 1;
+            summary.alreadyInLiveSkipped += 1;
+            console.log(`Skipped (already in live catalog): ${rawProduct.name || candidate.name}`);
+            continue;
+          }
 
           const pendingDoc = buildPendingComponent(componentType, rawProduct);
 
