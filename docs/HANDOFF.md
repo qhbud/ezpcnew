@@ -198,6 +198,16 @@ errors** (today there are 3: missing-filter null-guards).
   workflow `npm ci` timeout 25→40 (GPU Review Update failed on a 25-min npm ci
   timeout 2026-06-14). Pushed to origin/main; first manual `Component Ingest`
   dispatch fired to populate `pending_components`.
+- TEST (2026-06-15): first GitHub dispatch failed on a plain `npm ci` hanging on
+  Puppeteer's Chromium postinstall (the documented stall in price-update.yml).
+  Fixed `component-ingest.yml` to use price-update's retry-capped install
+  (`timeout 480 npm ci` × 3, clean tree between) — commit fb527ee. Re-run
+  (27528145908) SUCCEEDED: upserted 3 RTX 4090 GPUs into Atlas `pending_components`
+  (all alreadyInLive:true — search terms hit known cards; tune terms / filter
+  alreadyInLive:false to surface genuinely new parts). NOTE: local `.env` points to
+  a different DB than Atlas — use `.env.atlas` MONGODB_URI to review the queue
+  locally. `gpu-review-update.yml` still has the SAME plain-`npm ci` bug (failed
+  2026-06-14) — apply the same retry-install fix when Quinn confirms.
 - Next: review the queued `pending_components` (via `npm run review-pending`), then
   a later slice for promotion-to-live tooling/UI.
 
