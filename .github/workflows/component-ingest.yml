@@ -1,0 +1,66 @@
+name: Component Ingest
+
+on:
+  schedule:
+    # Weekly at 05:15 UTC. New component discovery is slow and Amazon can rate-limit.
+    - cron: '15 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Component type to ingest, or all'
+        required: false
+        default: 'all'
+      limit:
+        description: 'Maximum candidate documents per selected component type'
+        required: false
+        default: '5'
+
+concurrency:
+  group: component-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest-components:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        timeout-minutes: 40
+        run: npm ci
+
+      - name: Install system libraries headless Chrome needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libatk-bridge2.0-0 libgbm1 libxkbcommon0 libgtk-3-0 libasound2
+
+      - name: Run component ingest
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+          TYPE: ${{ github.event.inputs.type || 'all' }}
+          LIMIT: ${{ github.event.inputs.limit || '5' }}
+        run: |
+          if [ -z "${MONGODB_URI}" ]; then
+            echo "::error::MONGODB_URI secret is empty. Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          node scripts/ingestNewComponents.js --type="${TYPE}" --limit="${LIMIT}" 2>&1 | tee component-ingest.log
+
+      - name: Upload component ingest log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: component-ingest-${{ github.run_number }}
+          path: component-ingest.log
+          if-no-files-found: warn
+          retention-days: 14

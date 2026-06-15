@@ -12,9 +12,10 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 8** (new-component scraper → review queue, GitHub-run)
-  DISPATCHED 2026-06-15 with Quinn's go; judge next session. The whole S0–S7
-  frontend campaign is live in prod (Railway/Render auto-deploy from origin/main).
+- Next action: **Slice 8** (new-component scraper → `pending_components` review
+  queue) verified GREEN, pushed to origin/main 2026-06-15, first test dispatch
+  fired. Review queued items with `npm run review-pending`. Then a later slice for
+  promotion-to-live tooling. S0–S7 frontend campaign live in prod.
 
 ## Project goal
 
@@ -186,8 +187,19 @@ errors** (today there are 3: missing-filter null-guards).
 - Lane: single lane, main checkout (`.architect/slice8.block.md`, bypass-sandbox).
   Effort: xhigh. Reuses `findNewComponents.js` + `scripts/scrapers/*`; deterministic
   format test (`buildPendingComponent`) since live Amazon scraping is flaky.
-- Status: **DISPATCHED 2026-06-15** — awaiting builder; judge next session
-  (rule 4: never judge in the dispatching session).
+- Status: **PASS / MERGED + PUSHED** (architect-verified 2026-06-15). Independent
+  gate run: G1 both scripts parse 0; G2 `test/ingest-format.js` F1–F4 PASS; G3
+  `--dry-run` "no DB writes" upserted 0 exit 0; G4 — only write target is
+  `pending_components` (upsert guarded behind `!dryRun`), live collections read-only
+  for `alreadyInLive`, fields mapped from models, reuses existing scrapers, valid
+  `component-ingest.yml` (schedule + dispatch + MONGODB_URI + log artifact),
+  package.json scripts-only. Dry-run pulled a real RTX 4090 → full pending doc
+  (icon/name/link/$3999/type-specific fields, alreadyInLive:true). Bumped the
+  workflow `npm ci` timeout 25→40 (GPU Review Update failed on a 25-min npm ci
+  timeout 2026-06-14). Pushed to origin/main; first manual `Component Ingest`
+  dispatch fired to populate `pending_components`.
+- Next: review the queued `pending_components` (via `npm run review-pending`), then
+  a later slice for promotion-to-live tooling/UI.
 
 ## Decisions log (architect + human)
 
