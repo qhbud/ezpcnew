@@ -701,6 +701,7 @@ function parseCoolerFields(text) {
   const heatpipes = parseInteger(text, [/(\d+)\s*heat\s?pipes?/i]);
   const noise = parseNumber(text, [/(\d+(?:\.\d+)?)\s*db\(?a\)?\b/i]);
   const airflow = parseNumber(text, [/(\d+(?:\.\d+)?)\s*cfm\b/i]);
+  const fanSpeed = parseFanSpeed(text);
   const capacity = estimateCoolingCapacity(text, { type, radiatorSize, heatpipes });
 
   return {
@@ -714,6 +715,7 @@ function parseCoolerFields(text) {
       count: parseInteger(text, [/(\d)\s*(?:x\s*)?(?:fans?|fan)\b/i]),
       size: parseFanSizes(text),
       rgb: /\bargb\b|\brgb\b/i.test(text) ? true : null,
+      speed: fanSpeed,
       noise,
       airflow
     },
@@ -738,6 +740,16 @@ function parseFanSizes(text) {
     sizes.add(Number.parseInt(match[1], 10));
   }
   return Array.from(sizes);
+}
+
+// Fan speed in RPM. Prefers a stated range ("500-1800 RPM"), falling back to a
+// single max figure.
+function parseFanSpeed(text) {
+  const range = text.match(/(\d{3,4})\s*(?:-|–|to)\s*(\d{3,4})\s*rpm/i);
+  if (range) return { min: Number.parseInt(range[1], 10), max: Number.parseInt(range[2], 10) };
+  const single = text.match(/(\d{3,4})\s*rpm/i);
+  if (single) return { min: null, max: Number.parseInt(single[1], 10) };
+  return { min: null, max: null };
 }
 
 function parseAddonFields(text) {
@@ -1309,5 +1321,6 @@ module.exports = {
   parseCoolerFields,
   parseRadiatorSize,
   estimateCoolingCapacity,
+  extractAmazonPageDetails,
   PENDING_COLLECTION
 };
