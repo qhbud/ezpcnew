@@ -493,7 +493,9 @@ function parseRamFields(text) {
     voltage: parseNumber(text, [/(\d+(?:\.\d+)?)\s*v\b/i]),
     formFactor: /\bsodimm\b|\bso-dimm\b/i.test(text) ? 'SODIMM' : (/\bdimm\b|\bdesktop\b/i.test(text) ? 'DIMM' : null),
     ecc: parseBooleanMention(text, 'ecc', 'non-ecc'),
-    registered: parseBooleanMention(text, 'registered', 'unregistered'),
+    // "registered" alone misfires on boilerplate ("registered trademark"); key
+    // off DIMM-type tokens instead. RDIMM = registered, UDIMM/unbuffered = not.
+    registered: /\brdimm\b/i.test(text) ? true : (/\budimm\b|\bunbuffered\b|\bunregistered\b/i.test(text) ? false : null),
     xmp: /\bxmp\b/i.test(text) ? true : null,
     expo: /\bexpo\b/i.test(text) ? true : null,
     rgb: /\bargb\b|\brgb\b/i.test(text) ? true : null
@@ -544,8 +546,8 @@ function parseStorageFields(text) {
     formFactor: parseStorageFormFactor(text, type),
     capacity: parseCapacityGb(text),
     interface: parseStorageInterface(text),
-    readSpeed: parseInteger(text, [/(?:read|up to)\D{0,20}(\d{3,5})\s*mb\/s/i]),
-    writeSpeed: parseInteger(text, [/(?:write)\D{0,20}(\d{3,5})\s*mb\/s/i]),
+    readSpeed: parseInteger(text, [/read\D{0,20}([\d,]{3,7})\s*mb\/s/i, /up to\D{0,12}([\d,]{3,7})\s*mb\/s/i]),
+    writeSpeed: parseInteger(text, [/write\D{0,20}([\d,]{3,7})\s*mb\/s/i]),
     specifications: {
       rpm: parseInteger(text, [/(\d{4,5})\s*rpm/i])
     }
@@ -553,10 +555,12 @@ function parseStorageFields(text) {
 }
 
 function parseStorageType(text) {
-  if (/\bhdd\b|\bhard drive\b/i.test(text)) return 'HDD';
+  // SSD/NVMe signals must win over "hard drive" — many SSDs are titled
+  // "...Internal Solid State Hard Drive", which would otherwise match HDD.
+  if (/\bsshd\b|\bhybrid drive\b/i.test(text)) return 'SSHD';
   if (/\bm\.?2\b|\bnvme\b/i.test(text)) return 'M.2 SSD';
-  if (/\bssd\b/i.test(text)) return 'Other SSD';
-  if (/\bsshd\b|\bhybrid\b/i.test(text)) return 'SSHD';
+  if (/\bssd\b|\bsolid state\b/i.test(text)) return 'Other SSD';
+  if (/\bhdd\b|\bhard drive\b/i.test(text)) return 'HDD';
   return null;
 }
 
@@ -640,11 +644,64 @@ function parseCaseFields(text) {
   };
 }
 
+// Radiator size for AIOs is the largest standard radiator dimension in the
+// title — taking the max avoids picking up a 120mm fan size on a 360mm unit.
+function parseRadiatorSize(text) {
+  const sizes = [];
+  for (const match of text.matchAll(/\b(120|140|240|280|360|420)\s*mm\b/ig)) {
+    sizes.push(Number.parseInt(match[1], 10));
+  }
+  return sizes.length ? Math.max(...sizes) : null;
+}
+
+// Watts of CPU heat a radiator of this size can realistically dissipate. These
+// are reviewer-consensus ballparks, not vendor claims.
+const AIO_CAPACITY_WATTS = { 120: 150, 140: 170, 240: 220, 280: 250, 360: 280, 420: 320 };
+
+// Derive an estimated cooling capacity (watts) for the price/performance axis.
+// Prefers an explicitly stated, plausible rated TDP; otherwise estimates from
+// physical class (radiator size for liquid, tower/heatpipe class for air).
+function estimateCoolingCapacity(text, { type, radiatorSize, heatpipes }) {
+  const rated = parseExplicitWatts(text, ['tdp', 'cooling capacity', 'thermal design power']);
+  if (rated && rated >= 50 && rated <= 500) {
+    return { watts: rated, basis: 'rated' };
+  }
+
+  if (type === 'Liquid') {
+    const size = radiatorSize || 240;
+    const watts = AIO_CAPACITY_WATTS[size]
+      || (size >= 360 ? 280 : size >= 280 ? 250 : size >= 240 ? 220 : 160);
+    return { watts, basis: 'estimated' };
+  }
+
+  if (type === 'Air') {
+    const lower = text.toLowerCase();
+    let watts;
+    if (/low[-\s]?profile|\bslim\b|low height/.test(lower)) watts = 90;
+    else if (/\bstock\b|\bbasic\b|\boem\b/.test(lower)) watts = 75;
+    else if (/dual[-\s]?tower|nh-d15|dark rock pro|peerless assassin|phantom spirit|\bfuma\b/.test(lower)) watts = 230;
+    else if ((heatpipes && heatpipes >= 6) || /dual[-\s]?fan/.test(lower)) watts = 180;
+    else if (/\btower\b|heat ?pipe/.test(lower)) watts = 130;
+    else watts = 110;
+    if (heatpipes && heatpipes >= 8 && watts < 240) watts = 250;
+    return { watts, basis: 'estimated' };
+  }
+
+  return { watts: null, basis: null };
+}
+
 function parseCoolerFields(text) {
-  const radiatorSize = parseInteger(text, [/(\d{3})\s*mm/i]);
-  const isLiquid = /\bliquid\b|\baio\b|\bradiator\b/i.test(text);
-  const isAir = /\bair cooler\b|\btower cooler\b|\bheatsink\b/i.test(text);
+  const radiatorSize = parseRadiatorSize(text);
+  const isLiquid = /\bliquid\b|\baio\b|\bradiator\b|\bwater cool/i.test(text);
+  // In a cooler listing, anything that isn't liquid is an air cooler. Match
+  // common air phrasings ("dual tower", "heatsink", "heatpipe", fan) so a tower
+  // cooler like the NH-D15 resolves to Air instead of leaving the type null.
+  const isAir = !isLiquid && /\bair cooler\b|\bcpu cooler\b|\bcooler\b|\btower\b|\bheatsink\b|\bheat ?pipe\b|\bfans?\b/i.test(text);
   const type = isLiquid ? 'Liquid' : (isAir ? 'Air' : null);
+  const heatpipes = parseInteger(text, [/(\d+)\s*heat\s?pipes?/i]);
+  const noise = parseNumber(text, [/(\d+(?:\.\d+)?)\s*db\(?a\)?\b/i]);
+  const airflow = parseNumber(text, [/(\d+(?:\.\d+)?)\s*cfm\b/i]);
+  const capacity = estimateCoolingCapacity(text, { type, radiatorSize, heatpipes });
 
   return {
     manufacturer: findManufacturer(text, ['Noctua', 'Arctic', 'ARCTIC', 'Corsair', 'be quiet!', 'Cooler Master', 'NZXT', 'DeepCool', 'Thermalright']),
@@ -652,16 +709,25 @@ function parseCoolerFields(text) {
     type,
     coolingMethod: isLiquid ? 'AIO' : (isAir ? 'Air' : null),
     socket: parseSocketList(text),
+    heatpipes: type === 'Air' ? heatpipes : null,
     fan: {
       count: parseInteger(text, [/(\d)\s*(?:x\s*)?(?:fans?|fan)\b/i]),
       size: parseFanSizes(text),
-      rgb: /\bargb\b|\brgb\b/i.test(text) ? true : null
+      rgb: /\bargb\b|\brgb\b/i.test(text) ? true : null,
+      noise,
+      airflow
     },
     radiator: {
       size: isLiquid ? radiatorSize : null
     },
     performance: {
-      tdp: parseExplicitWatts(text, ['tdp'])
+      // Explicit vendor-rated TDP only when actually stated; estimatedTdp is the
+      // derived capacity score the price/performance graph plots.
+      tdp: capacity.basis === 'rated' ? capacity.watts : null,
+      estimatedTdp: capacity.watts,
+      tdpBasis: capacity.basis,
+      noise,
+      airflow
     }
   };
 }
@@ -696,7 +762,9 @@ function parseAddonFields(text) {
     },
     cableSpecs: {
       connectorType: matchFirst(text, [/\b(24-pin|8-pin|6\+2-pin|12VHPWR|12V-2x6)\b/i], (match) => match[1]),
-      length: parseInteger(text, [/(\d{2,4})\s*(?:mm|cm)\b/i])
+      // Only read a mm/cm measurement as cable length for actual cable products,
+      // otherwise a fan's "120mm" size bleeds into the cable length field.
+      length: category === 'Cables' ? parseInteger(text, [/(\d{2,4})\s*(?:mm|cm)\b/i]) : null
     },
     thermalSpecs: {
       amount: matchFirst(text, [/\b(\d+(?:\.\d+)?\s*g)\b/i])
@@ -1238,5 +1306,8 @@ module.exports = {
   extractAsin,
   normalizeAmazonProductUrl,
   buildDedupKey,
+  parseCoolerFields,
+  parseRadiatorSize,
+  estimateCoolingCapacity,
   PENDING_COLLECTION
 };
