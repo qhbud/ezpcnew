@@ -33,9 +33,25 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        timeout-minutes: 40
-        run: npm ci
+      - name: Install dependencies (includes Puppeteer's Chromium)
+        # npm ci intermittently stalls forever on Puppeteer's Chromium postinstall
+        # download — burning the whole job timeout. Cap each attempt and retry on a
+        # fresh tree so a transient stall fails fast instead of eating the budget.
+        timeout-minutes: 25
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::npm ci (attempt $attempt, 8-min cap)"
+            if timeout 480 npm ci; then
+              echo "::endgroup::"
+              echo "npm ci succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "::warning::npm ci stalled/failed on attempt $attempt — cleaning node_modules and retrying"
+            rm -rf node_modules
+          done
+          echo "::error::npm ci failed after 3 attempts"
+          exit 1
 
       - name: Install system libraries headless Chrome needs
         run: |
