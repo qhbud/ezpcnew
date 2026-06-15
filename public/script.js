@@ -14868,12 +14868,17 @@ class PartsDatabase {
         const minPrice = Math.floor(Math.min(...prices));
         const maxPrice = Math.ceil(Math.max(...prices));
         const brands = [...new Set(st.allPts.map(p => st.getBrand(p)))].sort();
+        const hasTypes = typeof st.getType === 'function';
+        const typeOrder = hasTypes
+            ? (st.typeOrder || [...new Set(st.allPts.map(p => st.getType(p)))].sort())
+            : [];
 
         this._graphFilters = this._graphFilters || {};
         const f = this._graphFilters[kind] || (this._graphFilters[kind] = {
             brands: new Set(brands), minPrice, maxPrice, brandsTouched: false, priceTouched: false
         });
         if (!f.brandsTouched) f.brands = new Set(brands);
+        if (hasTypes && (!f.types || !f.typesTouched)) f.types = new Set(typeOrder);
         if (!f.priceTouched) {
             f.minPrice = minPrice;
             f.maxPrice = maxPrice;
@@ -14912,7 +14917,18 @@ class PartsDatabase {
                 <span class="gc-leg-item"><span class="gc-dot" style="background:rgba(220,60,60,0.85)"></span>${st.legendLow}</span>
             </div>`);
 
+        const typeRowHTML = hasTypes ? `
+            <div class="gc-row">
+                <span class="gc-label">${st.typeLabel || 'Type'}</span>
+                <div class="gc-chips">${typeOrder.map(t => {
+                    const active = f.types.has(t);
+                    const color = (st.typeColors && st.typeColors[t]) || '#9ca3af';
+                    return `<button type="button" class="gc-chip gc-type-chip${active ? ' active' : ''}" data-type="${t.replace(/"/g, '&quot;')}"><span class="gc-dot" style="background:${color}"></span>${t}</button>`;
+                }).join('')}</div>
+            </div>` : '';
+
         bar.innerHTML = `
+            ${typeRowHTML}
             <div class="gc-row">
                 <span class="gc-label">${kind === 'gpu' && !showBrandChips ? 'Legend' : (colored ? 'Manufacturer' : 'Brand')}</span>
                 <div class="gc-chips${tagHTML ? '' : ' hidden'}${kind === 'gpu' && tagHTML ? ' gc-chip-legend' : ''}">${tagHTML}</div>
@@ -14929,12 +14945,22 @@ class PartsDatabase {
             </div>
             ${legendHTML}`;
 
-        bar.querySelectorAll('.gc-chip').forEach(chip => {
+        bar.querySelectorAll('.gc-chip:not(.gc-type-chip)').forEach(chip => {
             chip.addEventListener('click', () => {
                 const b = chip.dataset.brand;
                 if (f.brands.has(b)) f.brands.delete(b); else f.brands.add(b);
                 f.brandsTouched = true;
                 chip.classList.toggle('active');
+                this._applyGraphFilters(kind);
+            });
+        });
+        bar.querySelectorAll('.gc-type-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const t = chip.dataset.type;
+                if (f.types.has(t)) { if (f.types.size > 1) f.types.delete(t); }
+                else f.types.add(t);
+                f.typesTouched = true;
+                chip.classList.toggle('active', f.types.has(t));
                 this._applyGraphFilters(kind);
             });
         });
@@ -14990,6 +15016,7 @@ class PartsDatabase {
         const f = this._graphFilters[kind];
         const visible = st.allPts.filter(p =>
             (kind === 'gpu' && this._gpuColorMode !== 'manufacturer' ? true : f.brands.has(st.getBrand(p))) &&
+            (typeof st.getType !== 'function' || f.types.has(st.getType(p))) &&
             p.price >= f.minPrice && p.price <= f.maxPrice);
         this[st.ptsProp] = visible;
         st.draw();
@@ -16093,6 +16120,12 @@ class PartsDatabase {
         this._graphState.cooler = {
             canvasId: 'coolerTabScatterPlot', ptsProp: '_coolerTabChartPts', allPts: pts,
             getBrand: (p) => this._detectBrand(p.cooler, 'cooler'), brandColors: false,
+            getType: (p) => {
+                const t = (p.cooler.coolerType || p.cooler.type || p.cooler.coolingMethod || '').toLowerCase();
+                return (t.includes('liquid') || t.includes('aio') || t.includes('water')) ? 'Liquid' : 'Air';
+            },
+            typeOrder: ['Air', 'Liquid'], typeLabel: 'Cooling',
+            typeColors: { Air: '#f59e0b', Liquid: '#3b82f6' },
             legendHigh: 'Best value', legendLow: 'Poor value',
             draw: () => this._drawCoolerTabChart(this._coolerTabSelectedCooler || null),
         };
