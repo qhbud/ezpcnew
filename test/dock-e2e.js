@@ -190,7 +190,9 @@ function formatError(error) {
                     className: '',
                     display: '',
                     statusText: '',
-                    statusClassName: ''
+                    statusClassName: '',
+                    inNavShell: false,
+                    hasBuilderButton: false
                 };
             }
 
@@ -203,7 +205,9 @@ function formatError(error) {
                 className: dock.className,
                 display: styles.display,
                 statusText: status ? status.textContent.trim() : '',
-                statusClassName: status ? status.className : ''
+                statusClassName: status ? status.className : '',
+                inNavShell: !!dock.closest('.main-nav-shell'),
+                hasBuilderButton: !!document.querySelector('#buildDockBuilderBtn')
             };
         };
 
@@ -236,7 +240,7 @@ function formatError(error) {
             }, build);
         }
 
-        await runCheck('D1 visibility', async () => {
+        await runCheck('D1 merged nav visibility', async () => {
             const states = await page.evaluate(async (snapshotSource) => {
                 const readDock = eval(`(${snapshotSource})`);
                 const initial = readDock();
@@ -249,10 +253,10 @@ function formatError(error) {
                 return { initial, gpu, builder };
             }, dockSnapshot.toString());
 
-            if (states.initial.visible) throw new Error(`expected initial dock hidden, got ${JSON.stringify(states.initial)}`);
-            if (!states.gpu.visible) throw new Error(`expected gpu dock visible, got ${JSON.stringify(states.gpu)}`);
-            if (states.builder.visible || !states.builder.className.includes('hidden')) {
-                throw new Error(`expected builder dock hidden, got ${JSON.stringify(states.builder)}`);
+            for (const [name, state] of Object.entries(states)) {
+                if (!state.visible) throw new Error(`expected ${name} dock visible, got ${JSON.stringify(state)}`);
+                if (!state.inNavShell) throw new Error(`expected ${name} dock inside .main-nav-shell, got ${JSON.stringify(state)}`);
+                if (state.hasBuilderButton) throw new Error(`expected no in-dock Builder button, got ${JSON.stringify(state)}`);
             }
         });
 
@@ -312,17 +316,23 @@ function formatError(error) {
             }
         });
 
-        await runCheck('D4 mobile anchored', async () => {
+        await runCheck('D4 mobile nav anchored', async () => {
             await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
             const mobile = await page.evaluate(async () => {
+                window.scrollTo(0, 0);
                 window.partsDatabase.switchTab('gpu');
                 await new Promise(requestAnimationFrame);
+                window.scrollTo(0, 0);
+                await new Promise(requestAnimationFrame);
                 const dock = document.querySelector('#buildDock');
+                const shell = document.querySelector('.main-nav-shell');
                 const rect = dock ? dock.getBoundingClientRect() : null;
                 const styles = dock ? getComputedStyle(dock) : null;
                 return {
                     exists: !!dock,
                     visible: !!dock && styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+                    inNavShell: !!(dock && shell && shell.contains(dock)),
+                    position: styles ? styles.position : '',
                     innerHeight: window.innerHeight,
                     rect: rect ? {
                         top: rect.top,
@@ -336,6 +346,8 @@ function formatError(error) {
             });
 
             if (!mobile.exists || !mobile.visible) throw new Error(`expected visible mobile dock, got ${JSON.stringify(mobile)}`);
+            if (!mobile.inNavShell) throw new Error(`expected mobile dock inside nav shell, got ${JSON.stringify(mobile)}`);
+            if (mobile.position === 'fixed') throw new Error(`expected mobile dock not fixed, got ${JSON.stringify(mobile)}`);
             if (mobile.rect.top < 0 || mobile.rect.bottom > mobile.innerHeight) {
                 throw new Error(`expected dock within viewport height 0..${mobile.innerHeight}, got ${JSON.stringify(mobile.rect)}`);
             }

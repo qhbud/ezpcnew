@@ -7,14 +7,15 @@
 
 - Goal: Make EZPC a full one-stop PC-build site that beats PCPartPicker on
   proactive compatibility, trust, and mobile UX.
-- Last work: Slice 6 (public build showcase — curated themed gallery + Copy-Link
-  share) built + architect-verified GREEN and committed to main (2026-06-14,
-  commit b995fee).
-- Next action: **Slice 7** (builder-page UX refinement) DISPATCHED 2026-06-14 from
-  Quinn's local-review feedback; judge next session. Then **Slice 8** (agent
-  component auto-ingestion — server/DB/scraper, different risk class, needs Quinn's
-  explicit go before any DB-writing run). Slices 0–6 merged to local main (NOT
-  pushed — Quinn is reviewing locally before push).
+- Last work: Slice 7 (builder-page UX refinement) + an interactive polish round
+  with Quinn (image-dominant cards, uniform Choose-button grid, balance meter only
+  on full CPU+GPU, full-width Performance Statistics, deduped price-history
+  snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
+  2026-06-15** (all of Slices 0–7).
+- Next action: **Slice 8** (agent component auto-ingestion — server/DB/scraper,
+  different risk class, needs Quinn's explicit go before any DB-writing run). The
+  whole S0–S7 frontend campaign is live in prod (Railway/Render auto-deploy from
+  origin/main).
 
 ## Project goal
 
@@ -157,9 +158,25 @@ errors** (today there are 3: missing-filter null-guards).
   change-component scroll anchor (lands on selection section, not mid-tab); (5)
   REMOVE Guides tab (keep wizard+review); (6) merge dock INTO tab strip, drop
   redundant `#buildDockBuilderBtn` [B2].
-- Status: **DISPATCHED 2026-06-14** — awaiting builder; judge next session
-  (rule 4: never judge in the dispatching session). Aesthetic quality is judged by
-  Quinn in the running app; gates check objective structure/behavior only.
+- Status: **PASS / MERGED + PUSHED** (architect-verified 2026-06-15). Independent
+  full-suite gate run all PASS: G1 parse 0; G2 smoke 0/0; refine-e2e R1–R7;
+  presets P1–P5; showcase S1–S6; dock D1–D4; bottleneck B1–B5; compat S1–S3.
+- **Polish round with Quinn (2026-06-14/15, all done + verified + pushed):**
+  1. Selected component cards: product image dominates, info above (same-lane
+     resume bfw1f9kof). Approved by Quinn.
+  2. "Choose" buttons made a uniform 2-col grid (CSS: `.component-row` →
+     `grid-template-columns: repeat(2, minmax(0,1fr))`, container `align-items:
+     stretch`); all slots 423×210. Approved.
+  3. Balance meter (`#buildBalanceSection`) now hidden by default in markup +
+     `updateBuildBalanceMeter` shows it only on a real CPU+GPU verdict (states
+     balanced/cpu-limited/gpu-bound). Verified hidden when empty/CPU-only.
+  4. Performance Statistics (`#buildStatisticsSection`) full-width override (it
+     carries `.build-summary-box` only for styling) → 3 charts top row, 2 bottom.
+  5. GPU price history: `generatePriceHistory` collapses consecutive unchanged
+     snapshots (keeps first + changes + latest); `drawPriceChart` +
+     `attachPriceChartHover` adds a $price • date hover tooltip.
+  (Quick-start preset-strip restyle proposal was offered but superseded — Quinn
+  moved on to the above; revisit only if he raises it again.)
 
 ## Decisions log (architect + human)
 

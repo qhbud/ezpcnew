@@ -5,7 +5,7 @@ class PartsDatabase {
         this.currentManufacturer = '';
 
         // Layout mode: 'single' or 'double'
-        this.layoutMode = 'single';
+        this.layoutMode = 'double';
 
         // Modal state
         this.currentModalType = '';
@@ -80,6 +80,11 @@ class PartsDatabase {
         this.allCoolers = [];
         this.allStorage = [];
         this.allCases = [];
+        this.quickStartBuilds = [];
+        this.quickStartBuildMap = new Map();
+        this.quickStartBuildsStatus = 'idle';
+        this.quickStartBuildsReadyPromise = null;
+        this._quickStartBuildsClickBound = false;
         this.starterBuildPresets = [];
         this.starterBuildPresetMap = new Map();
         this.starterBuildsStatus = 'idle';
@@ -157,6 +162,8 @@ class PartsDatabase {
 
         // Initialize addon plus buttons visibility
         this.updateAddonPlusButtons();
+
+        this.updateBuildDock();
 
         console.log('PartsDatabase initialized successfully');
     }
@@ -316,35 +323,35 @@ class PartsDatabase {
 
         // PC Builder event listeners - "Choose X" buttons navigate to that component's tab
         document.getElementById('builderGpuSelectBtn').addEventListener('click', () => {
-            this.switchTab('gpu');
+            this.openComponentTabFromBuilder('gpu');
         });
 
         document.getElementById('builderCpuSelectBtn').addEventListener('click', () => {
-            this.switchTab('cpu');
+            this.openComponentTabFromBuilder('cpu');
         });
 
         document.getElementById('builderMotherboardSelectBtn').addEventListener('click', () => {
-            this.switchTab('motherboard');
+            this.openComponentTabFromBuilder('motherboard');
         });
 
         document.getElementById('builderRamSelectBtn').addEventListener('click', () => {
-            this.switchTab('ram');
+            this.openComponentTabFromBuilder('ram');
         });
 
         document.getElementById('builderCoolerSelectBtn').addEventListener('click', () => {
-            this.switchTab('cooler');
+            this.openComponentTabFromBuilder('cooler');
         });
 
         document.getElementById('builderPsuSelectBtn').addEventListener('click', () => {
-            this.switchTab('psu');
+            this.openComponentTabFromBuilder('psu');
         });
 
         document.getElementById('builderCaseSelectBtn').addEventListener('click', () => {
-            this.switchTab('case');
+            this.openComponentTabFromBuilder('case');
         });
 
         document.getElementById('builderStorageSelectBtn').addEventListener('click', () => {
-            this.switchTab('storage');
+            this.openComponentTabFromBuilder('storage');
         });
 
         // Remove component buttons
@@ -382,7 +389,7 @@ class PartsDatabase {
 
         // Addon select buttons
         document.getElementById('builderAddonSelectBtn').addEventListener('click', () => {
-            this.switchTab('addon');
+            this.openComponentTabFromBuilder('addon');
         });
 
         // Remove addon buttons
@@ -662,11 +669,6 @@ class PartsDatabase {
             return;
         }
 
-        if (tabName === 'guides') {
-            // Guides tab is static - nothing to load
-            return;
-        }
-
         if (this.dataReady[tabName]) {
             this.renderTabListings(tabName);
             return;
@@ -686,6 +688,44 @@ class PartsDatabase {
         return;
     }
 
+    normalizeComponentTabName(componentType) {
+        return String(componentType || '').replace(/\d+$/, '');
+    }
+
+    openComponentTabFromBuilder(componentType) {
+        const tabName = this.normalizeComponentTabName(componentType);
+        this.switchTab(tabName);
+        this.scrollToComponentSelection(tabName);
+    }
+
+    getComponentSelectionAnchor(componentType) {
+        const sectionIds = {
+            gpu: 'gpuListingsSection',
+            cpu: 'cpuListingsSection',
+            motherboard: 'moboListingsSection',
+            ram: 'ramListingsSection',
+            psu: 'psuListingsSection',
+            cooler: 'coolerListingsSection',
+            case: 'caseListingsSection',
+            storage: 'storageListingsSection',
+            addon: 'addonListingsSection'
+        };
+        const section = document.getElementById(sectionIds[componentType]);
+        if (!section) return null;
+        return section.querySelector('.gpu-listing-left, .gpu-product-card, .gpu-listing-header') || section;
+    }
+
+    scrollToComponentSelection(componentType) {
+        const scroll = () => {
+            const target = this.getComponentSelectionAnchor(componentType);
+            if (target) {
+                target.scrollIntoView({ behavior: 'auto', block: 'start', inline: 'nearest' });
+            }
+        };
+
+        requestAnimationFrame(() => requestAnimationFrame(scroll));
+    }
+
     ensureBuildDock() {
         let dock = document.getElementById('buildDock');
         if (dock) return dock;
@@ -693,9 +733,17 @@ class PartsDatabase {
         const nav = document.querySelector('.main-nav');
         if (!nav || !nav.parentNode) return null;
 
+        let navShell = document.querySelector('.main-nav-shell');
+        if (!navShell) {
+            navShell = document.createElement('div');
+            navShell.className = 'main-nav-shell';
+            nav.parentNode.insertBefore(navShell, nav);
+            navShell.appendChild(nav);
+        }
+
         dock = document.createElement('div');
         dock.id = 'buildDock';
-        dock.className = 'build-dock hidden';
+        dock.className = 'build-dock';
         dock.innerHTML = `
             <div class="build-dock-main">
                 <div class="build-dock-title">
@@ -710,10 +758,6 @@ class PartsDatabase {
                 </div>
             </div>
             <div class="build-dock-actions">
-                <button type="button" id="buildDockBuilderBtn" class="build-dock-btn primary">
-                    <i class="fas fa-cogs"></i>
-                    <span>Builder</span>
-                </button>
                 <button type="button" id="buildDockCopyBtn" class="build-dock-btn">
                     <i class="fas fa-link"></i>
                     <span>Copy Link</span>
@@ -721,14 +765,9 @@ class PartsDatabase {
             </div>
         `;
 
-        nav.insertAdjacentElement('afterend', dock);
+        navShell.appendChild(dock);
 
-        const builderBtn = dock.querySelector('#buildDockBuilderBtn');
         const copyBtn = dock.querySelector('#buildDockCopyBtn');
-
-        if (builderBtn) {
-            builderBtn.addEventListener('click', () => this.switchTab('builder'));
-        }
 
         if (copyBtn) {
             copyBtn.addEventListener('click', () => this.shareBuild());
@@ -740,10 +779,6 @@ class PartsDatabase {
     updateBuildDock() {
         const dock = this.ensureBuildDock();
         if (!dock) return;
-
-        const dockTabs = new Set(['gpu', 'cpu', 'motherboard', 'ram', 'psu', 'cooler', 'case', 'storage', 'addon']);
-        const shouldShow = dockTabs.has(this.currentTab);
-        dock.classList.toggle('hidden', !shouldShow);
 
         const components = Object.values(this.currentBuild || {}).filter(Boolean);
         const count = components.length;
@@ -829,9 +864,228 @@ class PartsDatabase {
         ]);
 
         // After all data is loaded, check if there's a build to restore from URL
-        this.initializeStarterBuilds();
-        this.initializeShowcaseBuilds();
+        this.initializeQuickStartBuilds();
         this.loadBuildFromURL();
+    }
+
+    initializeQuickStartBuilds() {
+        const section = document.getElementById('quickStartBuildsSection');
+        const container = document.getElementById('quickStartBuildsGrid');
+        const toggle = document.getElementById('quickStartToggleBtn');
+        if (!section || !container) return;
+
+        if (!this._quickStartBuildsClickBound) {
+            if (toggle) {
+                toggle.addEventListener('click', () => this.setQuickStartCollapsed(!section.classList.contains('is-collapsed')));
+            }
+
+            container.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-quick-start-action]');
+                if (!button) return;
+
+                const buildId = button.getAttribute('data-quick-start-build-id');
+                if (!buildId) return;
+
+                const action = button.getAttribute('data-quick-start-action');
+                if (action === 'load') {
+                    this.loadQuickStartBuild(buildId);
+                } else if (action === 'copy-link') {
+                    this.copyQuickStartShareUrl(buildId);
+                }
+            });
+
+            this._quickStartBuildsClickBound = true;
+        }
+
+        this.setQuickStartCollapsed(true);
+        this.quickStartBuildsStatus = 'loading';
+        this.renderQuickStartBuilds();
+        this.quickStartBuildsReadyPromise = this.buildShowcaseBuilds()
+            .then(builds => {
+                this.quickStartBuilds = builds.slice(0, 4);
+                this.quickStartBuildMap = new Map(this.quickStartBuilds.map(build => [build.id, build]));
+                this.showcaseBuilds = this.quickStartBuilds;
+                this.showcaseBuildMap = this.quickStartBuildMap;
+                this.quickStartBuildsStatus = this.quickStartBuilds.length === 4 ? 'ready' : 'partial';
+                this.renderQuickStartBuilds();
+                return this.quickStartBuilds;
+            })
+            .catch(error => {
+                console.error('Error building quick-start builds:', error);
+                this.quickStartBuilds = [];
+                this.quickStartBuildMap = new Map();
+                this.showcaseBuilds = [];
+                this.showcaseBuildMap = new Map();
+                this.quickStartBuildsStatus = 'error';
+                this.renderQuickStartBuilds();
+                return [];
+            });
+    }
+
+    setQuickStartCollapsed(collapsed) {
+        const section = document.getElementById('quickStartBuildsSection');
+        const grid = document.getElementById('quickStartBuildsGrid');
+        const toggle = document.getElementById('quickStartToggleBtn');
+        if (!section || !grid) return;
+
+        section.classList.toggle('is-collapsed', collapsed);
+        section.dataset.collapsed = collapsed ? 'true' : 'false';
+        grid.hidden = collapsed;
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        }
+    }
+
+    renderQuickStartBuilds() {
+        const grid = document.getElementById('quickStartBuildsGrid');
+        const status = document.getElementById('quickStartBuildsStatus');
+        if (!grid) return;
+
+        if (status) {
+            const label = {
+                idle: 'Loading',
+                loading: 'Loading',
+                ready: '4 ready',
+                partial: `${this.quickStartBuilds.length} ready`,
+                error: 'Unavailable'
+            }[this.quickStartBuildsStatus] || 'Loading';
+            status.textContent = label;
+            status.className = `quick-start-builds-status ${this.quickStartBuildsStatus}`;
+        }
+
+        if (this.quickStartBuildsStatus === 'loading' || this.quickStartBuildsStatus === 'idle') {
+            grid.innerHTML = '<div class="quick-start-builds-loading">Loading quick-start builds...</div>';
+            return;
+        }
+
+        if (this.quickStartBuildsStatus === 'error' || this.quickStartBuilds.length === 0) {
+            grid.innerHTML = '<div class="quick-start-builds-loading error">Quick-start builds are unavailable.</div>';
+            return;
+        }
+
+        grid.innerHTML = this.quickStartBuilds.map(build => this.renderQuickStartBuildCard(build)).join('');
+    }
+
+    renderQuickStartBuildCard(quickStartBuild) {
+        const esc = value => this._escapeHtml(value);
+        const partRows = [
+            ['CPU', quickStartBuild.build.cpu],
+            ['GPU', quickStartBuild.build.gpu],
+            ['Motherboard', quickStartBuild.build.motherboard]
+        ].map(([label, part]) => {
+            const name = this.getStarterPartName(part);
+            return `
+                <li>
+                    <span>${label}</span>
+                    <strong title="${esc(name)}">${esc(name)}</strong>
+                </li>
+            `;
+        }).join('');
+
+        const problems = quickStartBuild.validation.problems.length;
+        const warnings = quickStartBuild.validation.warnings.length;
+        const issueText = problems === 0 && warnings === 0
+            ? '0 problems'
+            : `${problems} problems, ${warnings} warnings`;
+        const shareUrl = this.getQuickStartShareUrl(quickStartBuild.id);
+
+        return `
+            <article class="quick-start-build-card"
+                data-quick-start-build-id="${esc(quickStartBuild.id)}"
+                data-share-url="${esc(shareUrl)}"
+                data-total="${quickStartBuild.total.toFixed(2)}">
+                <div class="quick-start-build-card-top">
+                    <div>
+                        <h4>${esc(quickStartBuild.name)}</h4>
+                        <p>${esc(quickStartBuild.blurb || quickStartBuild.tagline || '')}</p>
+                    </div>
+                    <div class="quick-start-build-price">$${quickStartBuild.total.toFixed(2)}</div>
+                </div>
+                <div class="quick-start-build-meta">
+                    <span>Target $${quickStartBuild.target.toFixed(0)}</span>
+                    <span>${esc(issueText)}</span>
+                </div>
+                <ul class="quick-start-build-parts">
+                    ${partRows}
+                </ul>
+                <div class="quick-start-build-actions">
+                    <button type="button" class="quick-start-build-load-btn" data-quick-start-action="load" data-quick-start-build-id="${esc(quickStartBuild.id)}">
+                        <i class="fas fa-folder-open"></i>
+                        <span>Load</span>
+                    </button>
+                    <button type="button" class="quick-start-build-share-btn" data-quick-start-action="copy-link" data-quick-start-build-id="${esc(quickStartBuild.id)}" title="Copy Link" aria-label="Copy Link for ${esc(quickStartBuild.name)}">
+                        <i class="fas fa-link"></i>
+                    </button>
+                </div>
+            </article>
+        `;
+    }
+
+    async loadQuickStartBuild(buildId) {
+        const quickStartBuild = this.quickStartBuildMap.get(buildId);
+        if (!quickStartBuild) return;
+
+        this.ensureStarterBuildLoadCaches(quickStartBuild);
+        this.clearBuild();
+        const result = await this.applyBuildData(quickStartBuild.buildData, {
+            sourceLabel: `${quickStartBuild.name} quick-start build`,
+            notify: true
+        });
+        this.switchTab('builder');
+
+        if (result.failedComponents.length === 0) {
+            this.showToast(`Loaded ${quickStartBuild.name}`);
+        }
+    }
+
+    getQuickStartShareUrl(buildId) {
+        const quickStartBuild = this.quickStartBuildMap.get(buildId);
+        if (!quickStartBuild) return '';
+
+        const encodedBuild = btoa(JSON.stringify(quickStartBuild.buildData));
+        return `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
+    }
+
+    async copyQuickStartShareUrl(buildId) {
+        const shareUrl = this.getQuickStartShareUrl(buildId);
+        if (!shareUrl) return;
+
+        const copyToClipboard = async (text) => {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.log('Clipboard API failed, using fallback:', err);
+                }
+            }
+
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                textArea.remove();
+                return successful;
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                textArea.remove();
+                return false;
+            }
+        };
+
+        const copied = await copyToClipboard(shareUrl);
+        if (copied) {
+            this.showToast('Quick-start link copied to clipboard');
+        } else {
+            alert('Failed to copy link. Please try again.');
+        }
     }
 
     initializeStarterBuilds() {
@@ -2624,8 +2878,8 @@ class PartsDatabase {
     }
 
     renderParts() {
-        // All tabs are now informational guides or the builder — no parts grid needed
-        if (this.currentTab === 'builder' || this.currentTab === 'guides' || this.currentTab === 'gpu' || this.currentTab === 'cpu' || this.currentTab === 'motherboard' || this.currentTab === 'ram' || this.currentTab === 'psu' || this.currentTab === 'cooler') {
+        // Component tabs render their own listing sections; no legacy parts grid needed.
+        if (this.currentTab === 'builder' || this.currentTab === 'gpu' || this.currentTab === 'cpu' || this.currentTab === 'motherboard' || this.currentTab === 'ram' || this.currentTab === 'psu' || this.currentTab === 'cooler') {
             const partsGrid = document.getElementById('partsGrid');
             partsGrid.innerHTML = '';
             document.getElementById('noResults').classList.add('hidden');
@@ -5010,6 +5264,11 @@ class PartsDatabase {
         if (cpuScoreEl) cpuScoreEl.textContent = Number.isFinite(state.cpuScore) ? `${(state.cpuScore * 100).toFixed(1)}%` : '-';
         if (gpuScoreEl) gpuScoreEl.textContent = Number.isFinite(state.gpuScore) ? `${(state.gpuScore * 100).toFixed(1)}%` : '-';
         if (ratioEl) ratioEl.textContent = Number.isFinite(state.ratio) ? `${state.ratio.toFixed(2)}x` : '-';
+
+        // Only surface the balance meter once BOTH a CPU and GPU produce a real
+        // verdict; stay hidden in the incomplete/unavailable states.
+        const hasVerdict = state.state === 'balanced' || state.state === 'cpu-limited' || state.state === 'gpu-bound';
+        meter.style.display = hasVerdict ? '' : 'none';
 
         return state;
     }
@@ -10509,6 +10768,131 @@ class PartsDatabase {
         this._applyCardCompat(card, type, this[`_${type}CardCurrent`]);
     }
 
+    getBuilderComponentDetailRows(componentType, component, currentPrice, quantity = 1) {
+        const rows = [];
+        const add = (label, value) => {
+            if (value === undefined || value === null || value === '') return;
+            if (Array.isArray(value) && value.length === 0) return;
+            const formatted = Array.isArray(value) ? value.filter(Boolean).join(', ') : String(value);
+            if (formatted.trim()) rows.push({ label, value: formatted.trim() });
+        };
+        const specs = component.specifications || component.specs || {};
+        const price = Number(currentPrice) || this.getStarterPartPrice(component) * quantity || 0;
+        const reviewScore = this.getStarterReviewScore(component);
+        const reviewCount = this.getStarterReviewCount(component);
+        const wattage = component.wattage || component.tdp || component.powerConsumption || specs.tdp || specs.wattage;
+
+        if (componentType === 'gpu') {
+            add('Memory', [component.memorySize || specs.memory || component.memory, component.memoryType || specs.memoryType].filter(Boolean).join(' '));
+            add('Power', wattage ? `${wattage}W` : '');
+            const perf = this.getGpuPerformance(component);
+            add('Perf score', Number.isFinite(perf) ? perf.toFixed(1) : '');
+            add('Value', price > 0 && Number.isFinite(perf) ? `${((perf / price) * 1000).toFixed(1)} score/$1k` : '');
+        } else if (componentType === 'cpu') {
+            add('Socket', component.socket || component.socketType);
+            add('Cores', component.cores && component.threads ? `${component.cores}C / ${component.threads}T` : component.cores);
+            add('Boost', component.boostClock ? `${component.boostClock}MHz` : specs.boostClock);
+            const perf = Math.max(this.getCpuPerformance(component) || 0, this.getCpuMultiThreadPerformance(component) || 0);
+            add('Perf score', perf > 0 ? perf.toFixed(1) : '');
+        } else if (componentType === 'motherboard') {
+            add('Socket', component.socket || component.socketType);
+            add('Form factor', component.formFactor);
+            add('Memory', component.memoryType || specs.memoryType);
+            add('Chipset', component.chipset || specs.chipset);
+        } else if (componentType === 'ram') {
+            const totalCapacity = component.totalCapacity || (component.kitSize && component.capacity ? component.kitSize * component.capacity : '');
+            add('Capacity', totalCapacity ? `${totalCapacity * quantity}GB` : '');
+            add('Type', component.memoryType);
+            add('Speed', component.speed ? `${component.speed}MHz` : specs.speed);
+            add('Latency', component.latency || component.casLatency || specs.latency);
+        } else if (componentType === 'psu') {
+            add('Wattage', component.wattage ? `${component.wattage}W` : '');
+            add('Efficiency', component.efficiency || component.certification || specs.efficiency);
+            add('Modularity', component.modularity || specs.modularity);
+            add('Form factor', component.formFactor || specs.formFactor);
+        } else if (componentType === 'case') {
+            add('Form factor', component.formFactor);
+            add('GPU clearance', component.gpuClearance ? `${component.gpuClearance}mm` : specs.gpuClearance);
+            add('Cooler clearance', component.coolerClearance ? `${component.coolerClearance}mm` : specs.coolerClearance);
+            add('Fans', component.fanSupport || specs.fanSupport);
+        } else if (componentType.startsWith('storage')) {
+            add('Capacity', component.capacity ? `${component.capacity}GB` : component.capacityGB ? `${component.capacityGB}GB` : '');
+            add('Type', component.storageType || component.type);
+            add('Interface', component.interfaceType || component.interface || specs.interfaceType);
+            add('Read', component.readSpeed ? `${component.readSpeed}MB/s` : specs.readSpeed);
+        } else if (componentType === 'cooler') {
+            add('Type', component.coolerType || component.type);
+            add('Sockets', component.socketCompatibility);
+            add('TDP', component.tdp ? `${component.tdp}W` : specs.tdp);
+            add('Height', component.height ? `${component.height}mm` : specs.height);
+        } else if (componentType.startsWith('addon')) {
+            add('Type', component.type || component.category);
+            add('Brand', component.manufacturer || component.brand);
+            add('Interface', component.interfaceType || component.interface);
+        }
+
+        add('Price', price > 0 ? `$${price.toFixed(2)}` : '');
+        add('Reviews', reviewScore > 0 ? `${reviewScore.toFixed(1)}/5${reviewCount ? ` (${reviewCount})` : ''}` : '');
+
+        if (rows.length < 3) {
+            const existingLabels = new Set(rows.map(row => row.label));
+            const addFallback = (label, value) => {
+                if (existingLabels.has(label)) return;
+                const before = rows.length;
+                add(label, value);
+                if (rows.length > before) existingLabels.add(label);
+            };
+            addFallback('Brand', component.manufacturer || component.brand);
+            addFallback('Category', component.category || component.type);
+            addFallback('Model', component.model || component.modelName);
+        }
+
+        return rows.slice(0, 6);
+    }
+
+    getCompactBuilderComponentDetailRows(detailRows, maxRows = 4) {
+        if (!Array.isArray(detailRows) || detailRows.length === 0) return [];
+
+        const compactRows = [];
+        const push = (row) => {
+            if (!row || compactRows.length >= maxRows) return;
+            if (compactRows.some(existing => existing.label === row.label)) return;
+            compactRows.push(row);
+        };
+
+        const lowerPriority = new Set(['price', 'reviews', 'value', 'perf score']);
+        detailRows.filter(row => !lowerPriority.has(row.label.toLowerCase())).slice(0, 2).forEach(push);
+        ['Price', 'Value', 'Perf score', 'Reviews'].forEach(label => push(detailRows.find(row => row.label === label)));
+        detailRows.forEach(push);
+
+        return compactRows.slice(0, maxRows);
+    }
+
+    renderComponentDetailGrid(detailRows, className = 'builder-component-detail-grid') {
+        if (!Array.isArray(detailRows) || detailRows.length === 0) return '';
+
+        return `
+            <dl class="${className}">
+                ${detailRows.map(row => `
+                    <div>
+                        <dt>${this._escapeHtml(row.label)}</dt>
+                        <dd>${this._escapeHtml(row.value)}</dd>
+                    </div>
+                `).join('')}
+            </dl>
+        `;
+    }
+
+    renderScatterSelectedInfo(componentType, component, name, currentPrice, extraClass = '') {
+        const rows = this.getBuilderComponentDetailRows(componentType, component, currentPrice, 1);
+        return `
+            <div class="scatter-selected-info ${extraClass}">
+                <div class="scatter-selected-title">${this._escapeHtml(name)}</div>
+                ${this.renderComponentDetailGrid(rows, 'scatter-selected-detail-grid')}
+            </div>
+        `;
+    }
+
     // True if a scatter-plot point's component is incompatible with the current
     // build. Resolves the component from the point's type-named key. GPU/PSU have
     // no hard compatibility constraints, so they are never flagged.
@@ -10716,6 +11100,8 @@ class PartsDatabase {
         const currentPrice = unitCurrentPrice * quantity;
         const basePrice = unitBasePrice * quantity;
         const isOnSale = component.isOnSale || (unitCurrentPrice < unitBasePrice);
+        const detailRows = this.getCompactBuilderComponentDetailRows(this.getBuilderComponentDetailRows(componentType, component, currentPrice, quantity));
+        const detailRowsHtml = this.renderComponentDetailGrid(detailRows, 'builder-component-detail-grid');
 
         // Calculate discount (based on unit price, not total)
         const discount = isOnSale && unitBasePrice > 0 ? Math.round(((unitBasePrice - unitCurrentPrice) / unitBasePrice) * 100) : 0;
@@ -11037,12 +11423,22 @@ class PartsDatabase {
         // Create detailed component card similar to details panel
         const detailsHTML = `
             <div class="builder-component-card ${!isCompatible ? 'incompatible-build-card' : ''}">
-                <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Change Component">
-                    <i class="fas fa-exchange-alt"></i> Change
-                </button>
-                <button class="remove-from-build-btn" onclick="pcBuilder.removeBuilderComponent('${componentType}')" title="Remove Component">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="builder-component-info">
+                    <div class="builder-component-info-head">
+                        ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-title-link">` : ''}
+                            <div class="detail-title">${name}</div>
+                        ${amazonUrl ? `</a>` : ''}
+                        <div class="builder-card-actions-inline">
+                            <button class="swap-component-btn ${!isCompatible ? 'incompatible-swap-btn' : ''}" onclick="pcBuilder.swapComponent('${componentType}')" title="Change Component">
+                                <i class="fas fa-exchange-alt"></i> Change
+                            </button>
+                            <button class="remove-from-build-btn" onclick="pcBuilder.removeBuilderComponent('${componentType}')" title="Remove Component" aria-label="Remove Component">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${detailRowsHtml}
+                </div>
                 ${stockCoolerBtn}
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
                     <div class="detail-image-container ${!isCompatible ? 'incompatible-build-component' : ''}" style="position: relative;">
@@ -11074,12 +11470,6 @@ class PartsDatabase {
                         `}
                     </div>
                 ${amazonUrl ? `</a>` : ''}
-                <div class="builder-component-info">
-                    ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-title-link">` : ''}
-                        <div class="detail-title">${name}</div>
-                    ${amazonUrl ? `</a>` : ''}
-                    ${storageDetails}
-                </div>
             </div>
         `;
 
@@ -11110,11 +11500,7 @@ class PartsDatabase {
     }
 
     swapComponent(componentType) {
-        // Open the component selector modal for the specified component type
-        const selectBtn = document.getElementById(`builder${this.capitalizeFirst(componentType)}SelectBtn`);
-        if (selectBtn) {
-            selectBtn.click();
-        }
+        this.openComponentTabFromBuilder(componentType);
     }
 
     cycleRAMQuantity(componentType) {
@@ -11239,13 +11625,29 @@ class PartsDatabase {
             coolerName = 'AMD Stock Cooler';
         }
 
+        const stockCoolerRows = [
+            { label: 'Source', value: 'CPU included' },
+            { label: 'CPU', value: cpu.name || cpu.title || 'Selected CPU' },
+            { label: 'Price', value: 'FREE' },
+            { label: 'Maker', value: cpu.manufacturer || 'Stock' }
+        ];
+        const stockCoolerDetails = this.renderComponentDetailGrid(stockCoolerRows, 'builder-component-detail-grid');
+
         const detailsHTML = `
-            <div class="builder-component-card stock-cooler-card" style="padding-bottom: 12px;">
-                <button class="swap-component-btn" onclick="pcBuilder.swapComponent('cooler')" title="Change Cooler">
-                    <i class="fas fa-exchange-alt"></i> Change
-                </button>
-                <div class="stock-cooler-badge" style="position: absolute; top: 25px; right: 85px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; z-index: 10; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
-                    <i class="fas fa-gift" style="margin-right: 4px;"></i>INCLUDED
+            <div class="builder-component-card stock-cooler-card">
+                <div class="builder-component-info">
+                    <div class="builder-component-info-head">
+                        <div class="detail-title">${this._escapeHtml(coolerName)}</div>
+                        <div class="builder-card-actions-inline">
+                            <span class="stock-cooler-pill">
+                                <i class="fas fa-gift"></i> Included
+                            </span>
+                            <button class="swap-component-btn" onclick="pcBuilder.swapComponent('cooler')" title="Change Cooler">
+                                <i class="fas fa-exchange-alt"></i> Change
+                            </button>
+                        </div>
+                    </div>
+                    ${stockCoolerDetails}
                 </div>
                 <div class="detail-image-container">
                     ${imageUrl ?
@@ -11255,18 +11657,6 @@ class PartsDatabase {
                     <div class="image-manufacturer-badge">${cpu.manufacturer || ''}</div>
                     <div class="image-price-overlay" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
                         <div class="overlay-current-price" style="font-size: 18px;">FREE</div>
-                    </div>
-                </div>
-                <div class="builder-component-info" style="padding: 8px 12px 0 12px;">
-                    <div class="detail-title" style="margin-bottom: 3px; font-size: 14px;">${coolerName}</div>
-                    <div class="stock-cooler-info" style="font-size: 10.5px; color: #666; line-height: 1.3;">
-                        <div style="margin-bottom: 1px;">
-                            <i class="fas fa-check-circle" style="margin-right: 3px; color: #10b981; font-size: 9px;"></i>
-                            <span>Included with ${cpu.name || cpu.title}</span>
-                        </div>
-                        <div style="color: #999; font-style: italic; font-size: 9.5px;">
-                            You can upgrade to a better cooler if needed
-                        </div>
                     </div>
                 </div>
             </div>
@@ -13586,10 +13976,21 @@ class PartsDatabase {
             // Sort by date (oldest to newest)
             history.sort((a, b) => a.date - b.date);
 
+            // Collapse consecutive snapshots with an UNCHANGED price — only show
+            // points where the price actually changed, plus the first and the
+            // latest snapshot (so the line still spans to the current date).
+            const changed = [];
+            history.forEach((point, i) => {
+                const prev = changed[changed.length - 1];
+                const isLast = i === history.length - 1;
+                if (!prev || prev.price !== point.price || isLast) {
+                    changed.push(point);
+                }
+            });
+
             // Return only actual data points - no padding/backpropagation
-            if (history.length > 0) {
-                console.log('Using actual price history with', history.length, 'real data points (no padding)');
-                return history;
+            if (changed.length > 0) {
+                return changed;
             }
         }
 
@@ -13766,7 +14167,9 @@ class PartsDatabase {
             ctx.closePath();
             ctx.fill();
 
-            // Draw data point markers (circles on actual data points)
+            // Draw data point markers (circles on actual data points) and
+            // remember their pixel positions for hover tooltips.
+            const hoverPoints = [];
             priceHistory.forEach((point) => {
                 const x = xScale(point.date);
                 const y = yScale(point.price);
@@ -13775,7 +14178,10 @@ class PartsDatabase {
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 ctx.fill();
+
+                hoverPoints.push({ x, y, price: point.price, date: point.date });
             });
+            this.attachPriceChartHover(canvas, hoverPoints);
 
             // Draw current price marker (last point in red)
             const currentX = xScale(priceHistory[priceHistory.length - 1].date);
@@ -13821,6 +14227,62 @@ class PartsDatabase {
         ctx.setLineDash([]);
         ctx.fillStyle = '#333';
         ctx.fillText('Original: $' + basePrice.toFixed(2), padding.left + 135, 13);
+    }
+
+    // Hover tooltip for the price-history chart: show the price + date when the
+    // cursor is over one of the (deduped) snapshot markers.
+    attachPriceChartHover(canvas, points) {
+        if (!canvas) return;
+        canvas._pricePoints = points;
+        if (canvas._priceHoverBound) return;
+        canvas._priceHoverBound = true;
+        canvas.style.cursor = 'crosshair';
+
+        const showAt = (clientX, clientY, pt) => {
+            let tooltip = document.getElementById('graph-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'graph-tooltip';
+                tooltip.style.cssText = 'position:fixed;background:rgba(0,0,0,0.9);color:#fff;padding:8px 12px;border-radius:6px;border:2px solid #2563eb;font-size:11px;font-family:Arial,sans-serif;z-index:10000;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+                document.body.appendChild(tooltip);
+            }
+            const date = pt.date instanceof Date
+                ? pt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : '';
+            tooltip.textContent = `$${pt.price.toFixed(2)}${date ? ' • ' + date : ''}`;
+            let tx = clientX + 14;
+            let ty = clientY - 34;
+            const r = tooltip.getBoundingClientRect();
+            if (tx + r.width > window.innerWidth) tx = clientX - r.width - 14;
+            if (ty < 0) ty = clientY + 18;
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+            tooltip.style.display = 'block';
+        };
+
+        canvas.addEventListener('mousemove', (e) => {
+            const pts = canvas._pricePoints || [];
+            if (!pts.length) return;
+            const rect = canvas.getBoundingClientRect();
+            const sx = rect.width ? canvas.width / rect.width : 1;
+            const sy = rect.height ? canvas.height / rect.height : 1;
+            const mx = (e.clientX - rect.left) * sx;
+            const my = (e.clientY - rect.top) * sy;
+            let nearest = null;
+            let best = Infinity;
+            for (const p of pts) {
+                const d = Math.hypot(p.x - mx, p.y - my);
+                if (d < best) { best = d; nearest = p; }
+            }
+            if (nearest && best <= 14 * sx) {
+                showAt(e.clientX, e.clientY, nearest);
+                canvas.style.cursor = 'pointer';
+            } else {
+                this.hideGraphTooltip();
+                canvas.style.cursor = 'crosshair';
+            }
+        });
+        canvas.addEventListener('mouseleave', () => this.hideGraphTooltip());
     }
 
     closeDetailsPanel() {
@@ -18028,12 +18490,7 @@ class PartsDatabase {
             }
         }
 
-        // Style it exactly like component details panel
-        let html = `
-            <div class="image-title-box ${!isCpuCompatible ? 'incompatible-component' : ''}">
-                <div class="title-box-text">${name}</div>
-            </div>
-        `;
+        let html = this.renderScatterSelectedInfo('cpu', cpu, name, currentPrice, !isCpuCompatible ? 'incompatible-component' : '');
 
         if (imageUrl) {
             html += `
@@ -18079,7 +18536,7 @@ class PartsDatabase {
         this.initializeImageTooltip();
 
         // Scroll to show the selected CPU
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     renderSelectedGpuFromScatter(gpu) {
@@ -18167,12 +18624,7 @@ class PartsDatabase {
         // Store the selected GPU for comparison
         this.selectedScatterGpu = gpu;
 
-        // Style it exactly like component details panel - show title box even if no image
-        let html = `
-            <div class="image-title-box">
-                <div class="title-box-text">${name}</div>
-            </div>
-        `;
+        let html = this.renderScatterSelectedInfo('gpu', gpu, name, currentPrice);
 
         if (imageUrl) {
             html += `
@@ -18216,7 +18668,7 @@ class PartsDatabase {
         this.initializeImageTooltip();
 
         // Scroll to show the selected GPU
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     renderSelectedRamFromScatter(ram) {
@@ -18283,12 +18735,7 @@ class PartsDatabase {
             }
         }
 
-        // Style it exactly like component details panel
-        let html = `
-            <div class="image-title-box ${!isRamCompatible ? 'incompatible-component' : ''}">
-                <div class="title-box-text">${name}</div>
-            </div>
-        `;
+        let html = this.renderScatterSelectedInfo('ram', ram, name, currentPrice, !isRamCompatible ? 'incompatible-component' : '');
 
         if (imageUrl) {
             html += `
@@ -18337,7 +18784,7 @@ class PartsDatabase {
         this.initializeImageTooltip();
 
         // Scroll to show the selected RAM
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     renderSelectedStorageFromScatter(storage) {
@@ -18376,12 +18823,7 @@ class PartsDatabase {
         // Store the selected Storage for comparison
         this.selectedScatterStorage = storage;
 
-        // Style it exactly like component details panel
-        let html = `
-            <div class="image-title-box">
-                <div class="title-box-text">${name}</div>
-            </div>
-        `;
+        let html = this.renderScatterSelectedInfo('storage', storage, name, currentPrice);
 
         if (imageUrl) {
             html += `
@@ -18423,7 +18865,7 @@ class PartsDatabase {
         this.initializeImageTooltip();
 
         // Scroll to show the selected Storage
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async compareToSimilarGPUs() {

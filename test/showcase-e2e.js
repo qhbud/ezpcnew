@@ -56,6 +56,7 @@ function record(results, name, ok, detail = '') {
         });
 
         const page = await browser.newPage();
+        await page.setViewport({ width: 1360, height: 900, deviceScaleFactor: 1 });
         page.on('dialog', async dialog => {
             console.log(`DIALOG ${dialog.type()}: ${dialog.message()}`);
             await dialog.accept();
@@ -64,26 +65,28 @@ function record(results, name, ok, detail = '') {
         await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
         await page.waitForFunction(() => {
             return window.partsDatabase &&
-                window.partsDatabase.showcaseBuildsReadyPromise &&
-                ['ready', 'partial', 'error'].includes(window.partsDatabase.showcaseBuildsStatus);
+                window.partsDatabase.quickStartBuildsReadyPromise &&
+                ['ready', 'partial', 'error'].includes(window.partsDatabase.quickStartBuildsStatus);
         }, { timeout: 60000 });
+
+        await page.click('#quickStartToggleBtn');
 
         const pageState = await page.evaluate((requiredTypes) => {
             const db = window.partsDatabase;
-            const cards = Array.from(document.querySelectorAll('.showcase-build-card[data-showcase-build-id]'))
+            const cards = Array.from(document.querySelectorAll('.quick-start-build-card[data-quick-start-build-id]'))
                 .map(card => ({
-                    id: card.getAttribute('data-showcase-build-id') || '',
-                    theme: card.getAttribute('data-showcase-theme') || '',
+                    id: card.getAttribute('data-quick-start-build-id') || '',
                     shareUrl: card.getAttribute('data-share-url') || '',
                     total: card.getAttribute('data-total') || '',
                     name: card.querySelector('h4')?.textContent?.trim() || '',
-                    text: card.textContent || ''
+                    text: card.textContent || '',
+                    visible: !!(card.offsetWidth || card.offsetHeight || card.getClientRects().length)
                 }));
 
-            const builds = (db.showcaseBuilds || []).map(showcaseBuild => {
+            const builds = (db.quickStartBuilds || []).map(quickStartBuild => {
                 const parts = {};
                 requiredTypes.forEach(type => {
-                    const part = showcaseBuild.build[type];
+                    const part = quickStartBuild.build[type];
                     parts[type] = {
                         id: part?._id || part?.id || '',
                         name: part?.name || part?.title || part?.gpuModel || ''
@@ -91,19 +94,19 @@ function record(results, name, ok, detail = '') {
                 });
 
                 const classified = db.classifyCompatibilityIssues(
-                    showcaseBuild.build,
-                    db.getStarterBuildWattageInfo(showcaseBuild.build)
+                    quickStartBuild.build,
+                    db.getStarterBuildWattageInfo(quickStartBuild.build)
                 );
 
                 return {
-                    id: showcaseBuild.id,
-                    name: showcaseBuild.name,
-                    target: showcaseBuild.target,
-                    total: showcaseBuild.total,
-                    buildData: showcaseBuild.buildData,
+                    id: quickStartBuild.id,
+                    name: quickStartBuild.name,
+                    target: quickStartBuild.target,
+                    total: quickStartBuild.total,
+                    buildData: quickStartBuild.buildData,
                     parts,
-                    shareUrl: typeof db.getShowcaseShareUrl === 'function'
-                        ? db.getShowcaseShareUrl(showcaseBuild.id)
+                    shareUrl: typeof db.getQuickStartShareUrl === 'function'
+                        ? db.getQuickStartShareUrl(quickStartBuild.id)
                         : '',
                     problems: Array.isArray(classified.problems) ? classified.problems.length : 0,
                     warnings: Array.isArray(classified.warnings) ? classified.warnings.length : 0
@@ -111,7 +114,7 @@ function record(results, name, ok, detail = '') {
             });
 
             return {
-                status: db.showcaseBuildsStatus,
+                status: db.quickStartBuildsStatus,
                 currentTab: db.currentTab,
                 cards,
                 builds
@@ -120,6 +123,7 @@ function record(results, name, ok, detail = '') {
 
         const distinctCardIds = new Set(pageState.cards.map(card => card.id).filter(Boolean));
         const cardsHaveNamesAndTotals = pageState.cards.every(card =>
+            card.visible &&
             card.name &&
             card.text.includes('$') &&
             Number.parseFloat(card.total) > 0
@@ -128,58 +132,58 @@ function record(results, name, ok, detail = '') {
             results,
             'S1 gallery renders',
             pageState.status === 'ready' &&
-                pageState.cards.length >= 4 &&
-                distinctCardIds.size >= 4 &&
+                pageState.cards.length === 4 &&
+                distinctCardIds.size === 4 &&
                 cardsHaveNamesAndTotals,
             `status=${pageState.status}, cards=${pageState.cards.length}, distinct=${distinctCardIds.size}`
         );
 
         const missingParts = [];
-        for (const showcaseBuild of pageState.builds) {
+        for (const quickStartBuild of pageState.builds) {
             for (const type of REQUIRED_TYPES) {
-                const part = showcaseBuild.parts[type];
+                const part = quickStartBuild.parts[type];
                 if (!part || !part.id) {
-                    missingParts.push(`${showcaseBuild.id}.${type}=missing`);
+                    missingParts.push(`${quickStartBuild.id}.${type}=missing`);
                 } else if (!liveIds[type].has(part.id)) {
-                    missingParts.push(`${showcaseBuild.id}.${type}=${part.id} not in live ${type}`);
+                    missingParts.push(`${quickStartBuild.id}.${type}=${part.id} not in live ${type}`);
                 }
             }
         }
         record(
             results,
             'S2 complete real-parts builds',
-            pageState.builds.length >= 4 && missingParts.length === 0,
+            pageState.builds.length === 4 && missingParts.length === 0,
             missingParts.join('; ') || `buildCount=${pageState.builds.length}`
         );
 
         const hardProblems = pageState.builds
-            .filter(showcaseBuild => showcaseBuild.problems !== 0)
-            .map(showcaseBuild => `${showcaseBuild.id}=${showcaseBuild.problems}`);
+            .filter(quickStartBuild => quickStartBuild.problems !== 0)
+            .map(quickStartBuild => `${quickStartBuild.id}=${quickStartBuild.problems}`);
         record(
             results,
             'S3 zero hard problems',
-            pageState.builds.length >= 4 && hardProblems.length === 0,
+            pageState.builds.length === 4 && hardProblems.length === 0,
             hardProblems.join('; ') || `buildCount=${pageState.builds.length}`
         );
 
-        const buildKeys = pageState.builds.map(showcaseBuild => buildKey(showcaseBuild.buildData));
+        const buildKeys = pageState.builds.map(quickStartBuild => buildKey(quickStartBuild.buildData));
         record(
             results,
             'S4 themes pairwise distinct',
-            pageState.builds.length >= 4 && new Set(buildKeys).size === pageState.builds.length,
+            pageState.builds.length === 4 && new Set(buildKeys).size === pageState.builds.length,
             buildKeys.join(' | ')
         );
 
         const firstBuild = pageState.builds[0];
         let loadState = null;
         if (firstBuild) {
-            await page.click(`[data-showcase-action="load"][data-showcase-build-id="${firstBuild.id}"]`);
+            await page.click(`[data-quick-start-action="load"][data-quick-start-build-id="${firstBuild.id}"]`);
             await page.waitForFunction((expected) => {
                 const db = window.partsDatabase;
                 return db &&
-                    db.currentBuild.cpu?._id === expected.cpu &&
-                    db.currentBuild.gpu?._id === expected.gpu &&
-                    db.currentBuild.motherboard?._id === expected.motherboard &&
+                    (db.currentBuild.cpu?._id || db.currentBuild.cpu?.id) === expected.cpu &&
+                    (db.currentBuild.gpu?._id || db.currentBuild.gpu?.id) === expected.gpu &&
+                    (db.currentBuild.motherboard?._id || db.currentBuild.motherboard?.id) === expected.motherboard &&
                     db.currentTab === 'builder' &&
                     document.querySelector('#builder-tab')?.classList.contains('active');
             }, { timeout: 60000 }, firstBuild.buildData);
@@ -189,9 +193,9 @@ function record(results, name, ok, detail = '') {
                 return {
                     currentTab: db.currentTab,
                     builderActive: document.querySelector('#builder-tab')?.classList.contains('active') || false,
-                    cpu: db.currentBuild.cpu?._id || '',
-                    gpu: db.currentBuild.gpu?._id || '',
-                    motherboard: db.currentBuild.motherboard?._id || ''
+                    cpu: db.currentBuild.cpu?._id || db.currentBuild.cpu?.id || '',
+                    gpu: db.currentBuild.gpu?._id || db.currentBuild.gpu?.id || '',
+                    motherboard: db.currentBuild.motherboard?._id || db.currentBuild.motherboard?.id || ''
                 };
             });
         }
@@ -204,32 +208,32 @@ function record(results, name, ok, detail = '') {
                 loadState.cpu === firstBuild.buildData.cpu &&
                 loadState.gpu === firstBuild.buildData.gpu &&
                 loadState.motherboard === firstBuild.buildData.motherboard,
-            loadState ? JSON.stringify(loadState) : 'no showcase build'
+            loadState ? JSON.stringify(loadState) : 'no quick-start build'
         );
 
         const shareFailures = [];
-        for (const showcaseBuild of pageState.builds) {
-            const card = pageState.cards.find(candidate => candidate.id === showcaseBuild.id);
+        for (const quickStartBuild of pageState.builds) {
+            const card = pageState.cards.find(candidate => candidate.id === quickStartBuild.id);
             const urls = [
-                ['method', showcaseBuild.shareUrl],
+                ['method', quickStartBuild.shareUrl],
                 ['card', card?.shareUrl || '']
             ];
 
             for (const [source, shareUrl] of urls) {
                 try {
                     const decoded = decodeShareUrl(shareUrl);
-                    if (!shareUrl.startsWith(`${BASE_URL}/?build=`) || !sameBuildMap(decoded, showcaseBuild.buildData)) {
-                        shareFailures.push(`${showcaseBuild.id}.${source}=bad-round-trip`);
+                    if (!shareUrl.startsWith(`${BASE_URL}/?build=`) || !sameBuildMap(decoded, quickStartBuild.buildData)) {
+                        shareFailures.push(`${quickStartBuild.id}.${source}=bad-round-trip`);
                     }
                 } catch (error) {
-                    shareFailures.push(`${showcaseBuild.id}.${source}=${error.message}`);
+                    shareFailures.push(`${quickStartBuild.id}.${source}=${error.message}`);
                 }
             }
         }
         record(
             results,
             'S6 Copy-Link URL round-trips',
-            pageState.builds.length >= 4 && shareFailures.length === 0,
+            pageState.builds.length === 4 && shareFailures.length === 0,
             shareFailures.join('; ') || `checked=${pageState.builds.length}`
         );
     } catch (error) {

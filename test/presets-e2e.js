@@ -42,6 +42,7 @@ function record(results, name, ok, detail = '') {
         });
 
         const page = await browser.newPage();
+        await page.setViewport({ width: 1360, height: 900, deviceScaleFactor: 1 });
         page.on('dialog', async dialog => {
             console.log(`DIALOG ${dialog.type()}: ${dialog.message()}`);
             await dialog.accept();
@@ -50,14 +51,15 @@ function record(results, name, ok, detail = '') {
         await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
         await page.waitForFunction(() => {
             return window.partsDatabase &&
-                ['ready', 'partial', 'error'].includes(window.partsDatabase.starterBuildsStatus);
+                window.partsDatabase.quickStartBuildsReadyPromise &&
+                ['ready', 'partial', 'error'].includes(window.partsDatabase.quickStartBuildsStatus);
         }, { timeout: 60000 });
 
         const pageState = await page.evaluate((requiredTypes) => {
             const db = window.partsDatabase;
-            const cards = Array.from(document.querySelectorAll('[data-starter-build-tier]'))
-                .map(card => card.getAttribute('data-starter-build-tier'));
-            const presets = (db.starterBuildPresets || []).map(preset => {
+            const cards = Array.from(document.querySelectorAll('[data-quick-start-build-id]'))
+                .map(card => card.getAttribute('data-quick-start-build-id'));
+            const presets = (db.quickStartBuilds || []).map(preset => {
                 const parts = {};
                 requiredTypes.forEach(type => {
                     const part = preset.build[type];
@@ -85,18 +87,24 @@ function record(results, name, ok, detail = '') {
             });
 
             return {
-                status: db.starterBuildsStatus,
+                status: db.quickStartBuildsStatus,
                 cards,
-                presets
+                presets,
+                containerCount: document.querySelectorAll('[data-quick-start-builds]').length,
+                collapsed: document.querySelector('[data-quick-start-builds]')?.dataset.collapsed || ''
             };
         }, REQUIRED_TYPES);
 
         const distinctCards = new Set(pageState.cards);
         record(
             results,
-            'P1 tiers render',
-            pageState.status === 'ready' && distinctCards.size >= 3,
-            `status=${pageState.status}, tiers=${Array.from(distinctCards).join(',') || 'none'}`
+            'P1 quick-start renders exactly 4',
+            pageState.status === 'ready' &&
+                pageState.containerCount === 1 &&
+                pageState.presets.length === 4 &&
+                distinctCards.size === 4 &&
+                pageState.collapsed === 'true',
+            `status=${pageState.status}, containers=${pageState.containerCount}, presets=${pageState.presets.length}, collapsed=${pageState.collapsed}`
         );
 
         const missingParts = [];
@@ -113,7 +121,7 @@ function record(results, name, ok, detail = '') {
         record(
             results,
             'P2 complete real-parts builds',
-            pageState.presets.length >= 3 && missingParts.length === 0,
+            pageState.presets.length === 4 && missingParts.length === 0,
             missingParts.join('; ') || `presetCount=${pageState.presets.length}`
         );
 
@@ -123,32 +131,33 @@ function record(results, name, ok, detail = '') {
         record(
             results,
             'P3 zero hard problems',
-            pageState.presets.length >= 3 && hardProblems.length === 0,
+            pageState.presets.length === 4 && hardProblems.length === 0,
             hardProblems.join('; ') || `presetCount=${pageState.presets.length}`
         );
 
-        const entryPreset = pageState.presets.find(preset => preset.id === 'entry') || pageState.presets[0];
+        const firstPreset = pageState.presets[0];
         let loadState = null;
-        if (entryPreset) {
-            await page.click(`[data-starter-build-id="${entryPreset.id}"]`);
+        if (firstPreset) {
+            await page.click('#quickStartToggleBtn');
+            await page.click(`[data-quick-start-action="load"][data-quick-start-build-id="${firstPreset.id}"]`);
             await page.waitForFunction((expected) => {
                 const db = window.partsDatabase;
                 return db &&
-                    db.currentBuild.cpu?._id === expected.cpu &&
-                    db.currentBuild.gpu?._id === expected.gpu &&
-                    db.currentBuild.motherboard?._id === expected.motherboard &&
+                    (db.currentBuild.cpu?._id || db.currentBuild.cpu?.id) === expected.cpu &&
+                    (db.currentBuild.gpu?._id || db.currentBuild.gpu?.id) === expected.gpu &&
+                    (db.currentBuild.motherboard?._id || db.currentBuild.motherboard?.id) === expected.motherboard &&
                     db.currentTab === 'builder' &&
                     document.querySelector('#builder-tab')?.classList.contains('active');
-            }, { timeout: 60000 }, entryPreset.buildData);
+            }, { timeout: 60000 }, firstPreset.buildData);
 
             loadState = await page.evaluate(() => {
                 const db = window.partsDatabase;
                 return {
                     currentTab: db.currentTab,
                     builderActive: document.querySelector('#builder-tab')?.classList.contains('active') || false,
-                    cpu: db.currentBuild.cpu?._id || '',
-                    gpu: db.currentBuild.gpu?._id || '',
-                    motherboard: db.currentBuild.motherboard?._id || ''
+                    cpu: db.currentBuild.cpu?._id || db.currentBuild.cpu?.id || '',
+                    gpu: db.currentBuild.gpu?._id || db.currentBuild.gpu?.id || '',
+                    motherboard: db.currentBuild.motherboard?._id || db.currentBuild.motherboard?.id || ''
                 };
             });
         }
@@ -158,21 +167,24 @@ function record(results, name, ok, detail = '') {
             !!loadState &&
                 loadState.currentTab === 'builder' &&
                 loadState.builderActive &&
-                loadState.cpu === entryPreset.buildData.cpu &&
-                loadState.gpu === entryPreset.buildData.gpu &&
-                loadState.motherboard === entryPreset.buildData.motherboard,
-            loadState ? JSON.stringify(loadState) : 'no entry preset'
+                loadState.cpu === firstPreset.buildData.cpu &&
+                loadState.gpu === firstPreset.buildData.gpu &&
+                loadState.motherboard === firstPreset.buildData.motherboard,
+            loadState ? JSON.stringify(loadState) : 'no quick-start preset'
         );
 
-        const byId = Object.fromEntries(pageState.presets.map(preset => [preset.id, preset]));
-        const differentiated = !!(byId.entry && byId.mainstream && byId.enthusiast) &&
-            byId.entry.total < byId.mainstream.total &&
-            byId.mainstream.total < byId.enthusiast.total &&
-            byId.entry.total < 1100 &&
-            byId.enthusiast.total > 1800;
+        const totals = pageState.presets.map(preset => preset.total);
+        const buildKeys = pageState.presets.map(preset =>
+            REQUIRED_TYPES.map(type => `${type}:${preset.buildData?.[type] || ''}`).join('|')
+        );
+        const differentiated = pageState.presets.length === 4 &&
+            new Set(buildKeys).size === 4 &&
+            Math.min(...totals) < 1300 &&
+            Math.max(...totals) > 1800 &&
+            totals[0] < totals[totals.length - 1];
         record(
             results,
-            'P5 tiers differentiated',
+            'P5 presets differentiated',
             differentiated,
             pageState.presets.map(preset => `${preset.id}=${preset.total.toFixed(2)}`).join(', ')
         );
