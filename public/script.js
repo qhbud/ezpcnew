@@ -15633,8 +15633,10 @@ class PartsDatabase {
 
     // ── Cooler Tab Listings ───────────────────────────────────────
     getCoolerPerformance(cooler) {
-        // Thermal performance score based on TDP rating (primary) and type
-        const tdp = cooler.performance?.tdp || cooler.tdp || 0;
+        // Cooling-capacity score in watts. Prefer a vendor-rated TDP when the
+        // listing actually states one, otherwise the derived estimate from
+        // radiator/tower class (see scripts/backfillCoolerPerformance.js).
+        const tdp = cooler.performance?.tdp || cooler.performance?.estimatedTdp || cooler.tdp || 0;
         if (!tdp) return null;
         // Normalize against 360mm AIO class (≈350W TDP as ceiling)
         const maxTdp = 350;
@@ -15703,8 +15705,11 @@ class PartsDatabase {
         const rawType = cooler.type || cooler.coolingMethod || '';
         const typeLabel = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : '—';
 
-        // TDP rating
-        const tdp = (cooler.performance?.tdp || cooler.tdp) ? `${cooler.performance?.tdp || cooler.tdp}W` : '—';
+        // TDP rating — show a vendor-rated figure when present, otherwise the
+        // derived cooling-capacity estimate, flagged as such.
+        const ratedTdp = cooler.performance?.tdp || cooler.tdp;
+        const estTdp = cooler.performance?.estimatedTdp;
+        const tdp = ratedTdp ? `${ratedTdp}W` : (estTdp ? `~${estTdp}W est.` : '—');
 
         // Fan RPM
         const fanMax = cooler.fan?.speed?.max;
@@ -17394,9 +17399,212 @@ class PartsDatabase {
             const items = this.allStorage || [];
             const best = this._pickBestValueGeneric(items);
             if (best) this._renderStorageProductCard(best);
+            this._renderStorageTabScatterPlot(items);
             this._storageListingsRendered = true;
         } catch (e) {
             console.error('Storage listings error:', e);
+        }
+    }
+
+    // Bucket a storage doc into the three categories the chart colors by.
+    // SSHD and anything else spinning falls under HDD.
+    _storageTypeBucket(s) {
+        const t = (s.type || s.storageType || '').toLowerCase();
+        if (t.includes('m.2') || t.includes('nvme')) return 'M.2 SSD';
+        if (t.includes('sata') || t.includes('ssd')) return 'SATA SSD';
+        return 'HDD';
+    }
+
+    // Capacity (x) vs price (y) scatter for storage, dots colored by drive type
+    // (M.2 SSD / SATA SSD / HDD) with a clickable legend to toggle each type.
+    _renderStorageTabScatterPlot(storages) {
+        const canvas = document.getElementById('storageTabScatterPlot');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const wrap = canvas.parentElement;
+        const width = Math.max(wrap.offsetWidth - 32, 300);
+        const height = 380;
+        canvas.width = width;
+        canvas.height = height;
+
+        const TYPE_COLORS = { 'M.2 SSD': '#3b82f6', 'SATA SSD': '#10b981', 'HDD': '#f59e0b' };
+        const TYPE_ORDER = ['M.2 SSD', 'SATA SSD', 'HDD'];
+
+        const allPts = [];
+        storages.forEach(s => {
+            const capacity = parseFloat(s.capacity || s.capacityGB) || 0;
+            const price = parseFloat(s.salePrice || s.currentPrice || s.basePrice || s.price) || 0;
+            if (capacity > 0 && price > 0) {
+                allPts.push({ storage: s, capacity, price, type: this._storageTypeBucket(s) });
+            }
+        });
+
+        if (!allPts.length) {
+            ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No storage data available', width / 2, height / 2);
+            return;
+        }
+
+        if (!this._storageActiveTypes) this._storageActiveTypes = new Set(TYPE_ORDER);
+        const active = this._storageActiveTypes;
+
+        const pad = { top: 24, right: 30, bottom: 58, left: 80 };
+        const cw = width - pad.left - pad.right;
+        const ch = height - pad.top - pad.bottom;
+
+        const fmtCap = gb => gb >= 1000
+            ? (((gb / 1000) % 1 === 0) ? (gb / 1000) + 'TB' : (gb / 1000).toFixed(1) + 'TB')
+            : Math.round(gb) + 'GB';
+
+        this._drawStorageChart = () => {
+            const visible = allPts.filter(p => active.has(p.type));
+            this._storageChartVisible = visible;
+            ctx.clearRect(0, 0, width, height);
+
+            if (!visible.length) {
+                ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('No drives match the selected types', width / 2, height / 2);
+                return;
+            }
+
+            const xMax = Math.max(...visible.map(p => p.capacity));
+            const yMax = Math.ceil(Math.max(...visible.map(p => p.price)) / 50) * 50 || 50;
+
+            visible.forEach(p => {
+                p.cx = pad.left + (p.capacity / (xMax || 1)) * cw;
+                p.cy = height - pad.bottom - (p.price / (yMax || 1)) * ch;
+            });
+
+            // Y grid + price labels
+            for (let i = 0; i <= 5; i++) {
+                const price = (yMax / 5) * i;
+                const y = height - pad.bottom - (ch / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.fillText('$' + Math.round(price), pad.left - 8, y);
+            }
+
+            // X grid + capacity labels
+            for (let i = 0; i <= 5; i++) {
+                const cap = (xMax / 5) * i;
+                const x = pad.left + (cw / 5) * i;
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
+                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText(fmtCap(cap), x, height - pad.bottom + 6);
+            }
+
+            // Axes
+            ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom);
+            ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText('Capacity', pad.left + cw / 2, height - 4);
+            ctx.save();
+            ctx.translate(14, pad.top + ch / 2);
+            ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
+            ctx.fillText('Price (USD)', 0, 0);
+            ctx.restore();
+
+            // Points (colored by type)
+            const selTitle = this._storageSelected ? (this._storageSelected.title || this._storageSelected.name) : '';
+            visible.forEach(p => {
+                const isSel = selTitle && (p.storage.title || p.storage.name) === selTitle;
+                const color = TYPE_COLORS[p.type] || '#9ca3af';
+                if (isSel) {
+                    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
+                    ctx.fillStyle = color;
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.fillStyle = color + 'b3';
+                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+        };
+
+        this._drawStorageChart();
+
+        // Clickable legend (toggles each type; always keep at least one on)
+        const legend = document.getElementById('storageChartLegend');
+        if (legend) {
+            const counts = {};
+            allPts.forEach(p => { counts[p.type] = (counts[p.type] || 0) + 1; });
+            legend.innerHTML = TYPE_ORDER.map(t =>
+                `<button class="storage-legend-chip${active.has(t) ? '' : ' off'}" data-type="${t}" style="--chip:${TYPE_COLORS[t]}">` +
+                `<span class="slc-dot"></span>${t} <span class="slc-count">${counts[t] || 0}</span></button>`
+            ).join('');
+            legend.querySelectorAll('.storage-legend-chip').forEach(btn => {
+                btn.onclick = () => {
+                    const t = btn.dataset.type;
+                    if (active.has(t)) { if (active.size > 1) active.delete(t); }
+                    else active.add(t);
+                    this._renderStorageTabScatterPlot(storages);
+                };
+            });
+        }
+
+        if (!canvas._storageListenersAttached) {
+            canvas._storageListenersAttached = true;
+            canvas.style.cursor = 'default';
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                const hit = (this._storageChartVisible || []).find(p => Math.hypot(p.cx - mx, p.cy - my) <= 8);
+                canvas.style.cursor = hit ? 'pointer' : 'default';
+                const tip = document.getElementById('storageChartTooltip');
+                if (hit && tip) {
+                    tip.textContent = `${hit.storage.title || hit.storage.name || ''} — ${fmtCap(hit.capacity)}, $${hit.price.toFixed(2)}`;
+                    tip.style.display = 'block';
+                    tip.style.left = (e.offsetX + 12) + 'px';
+                    tip.style.top = (e.offsetY - 8) + 'px';
+                } else if (tip) {
+                    tip.style.display = 'none';
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                const tip = document.getElementById('storageChartTooltip');
+                if (tip) tip.style.display = 'none';
+                canvas.style.cursor = 'default';
+            });
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+                let closest = null, closestDist = Infinity;
+                (this._storageChartVisible || []).forEach(p => {
+                    const d = Math.hypot(p.cx - mx, p.cy - my);
+                    if (d < closestDist) { closestDist = d; closest = p; }
+                });
+                if (closest && closestDist <= 10) {
+                    this._storageSelected = closest.storage;
+                    this._renderStorageProductCard(closest.storage);
+                    this._drawStorageChart();
+                }
+            });
+        }
+
+        if (!document.getElementById('storageChartTooltip')) {
+            const wrap2 = canvas.parentElement;
+            wrap2.style.position = 'relative';
+            const tip = document.createElement('div');
+            tip.id = 'storageChartTooltip';
+            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:260px;';
+            wrap2.appendChild(tip);
         }
     }
 
