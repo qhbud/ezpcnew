@@ -206,8 +206,13 @@ errors** (today there are 3: missing-filter null-guards).
   (all alreadyInLive:true — search terms hit known cards; tune terms / filter
   alreadyInLive:false to surface genuinely new parts). NOTE: local `.env` points to
   a different DB than Atlas — use `.env.atlas` MONGODB_URI to review the queue
-  locally. `gpu-review-update.yml` still has the SAME plain-`npm ci` bug (failed
-  2026-06-14) — apply the same retry-install fix when Quinn confirms.
+  locally. Ingest now SKIPS already-in-live candidates (only queues new parts; 5
+  new/type via `--type=all --limit=5`); `--include-existing` overrides. Test-batch
+  of 3 alreadyInLive GPUs was deleted from pending_components 2026-06-15 (queue=0).
+- `gpu-review-update.yml`: had the plain-`npm ci` Chromium-stall bug (failed
+  2026-06-14). Quinn chose to **disable** it (`gh workflow disable`, state
+  `disabled_manually`, 2026-06-15) rather than fix — do NOT re-enable without
+  Quinn; if re-enabling, apply the price-update retry-install first.
 - Next: review the queued `pending_components` (via `npm run review-pending`), then
   a later slice for promotion-to-live tooling/UI.
 
