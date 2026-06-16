@@ -16291,9 +16291,9 @@ class PartsDatabase {
         ].join('|');
 
         if (!this._moboFilters || this._moboBuildSig !== buildSig) {
-            const f = { socket: new Set(), memory: new Set(), formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
+            const f = { socket: new Set(), memory: null, formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
             if (build.cpu) { const s = norm(build.cpu.socket || build.cpu.socketType); const m = socketArr.find(o => norm(o) === s); if (m) f.socket.add(m); }
-            if (build.ram) { this._moboMemTypes({ memoryType: build.ram.memoryType }).forEach(t => { if (catOpts.memory.has(t)) f.memory.add(t); }); }
+            if (build.ram) { const t = this._moboMemTypes({ memoryType: build.ram.memoryType })[0]; if (t && catOpts.memory.has(t)) f.memory = t; }
             if (build.case) { ffArr.filter(o => this._moboFitsCase(o, build.case.formFactor)).forEach(o => f.formFactor.add(o)); }
             this._moboFilters = f;
             this._moboBuildSig = buildSig;
@@ -16310,26 +16310,30 @@ class PartsDatabase {
             ).join('');
             return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
         };
-        // Single-select "minimum" button group: Any, then N+ for each distinct count.
+        // "Minimum" button group: just N+ for each distinct count (no Any button —
+        // no selection already means any is acceptable). Click the active one to clear.
         const minRow = (label, key, opts) => {
             const minKey = key + 'Min';
             if (!opts.length) return '';
-            const btn = (val, text) =>
-                `<button type="button" class="gc-chip mobo-min-btn${f[minKey] === val ? ' active' : ''}" data-min="${minKey}" data-val="${val}">${text}</button>`;
-            const chips = btn(0, 'Any') + opts.map(n => btn(n, `${n}+`)).join('');
+            const chips = opts.map(n =>
+                `<button type="button" class="gc-chip mobo-min-btn${f[minKey] === n ? ' active' : ''}" data-min="${minKey}" data-val="${n}">${n}+</button>`
+            ).join('');
             return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
         };
-        const wifiLabel = f.wifi === 'yes' ? 'WiFi only' : f.wifi === 'no' ? 'No WiFi' : 'Any';
-        const wifiRow = `<div class="gc-row"><span class="gc-label">WiFi</span>
-            <button type="button" class="gc-chip mobo-wifi-toggle${f.wifi ? ' active' : ''}" data-wifi>
-                <i class="fas fa-wifi"></i> ${wifiLabel} <i class="fas fa-rotate mobo-wifi-cycle"></i></button></div>`;
+        // Tri-state cycle button (used for Memory: Any/DDR4/DDR5 and WiFi: Any/WiFi/No WiFi).
+        const cycleRow = (label, icon, current, text) =>
+            `<div class="gc-row"><span class="gc-label">${label}</span>
+                <button type="button" class="gc-chip mobo-cycle-toggle${current ? ' active' : ''}" data-cycle="${label.toLowerCase()}">
+                    <i class="fas ${icon}"></i> ${text} <i class="fas fa-rotate mobo-wifi-cycle"></i></button></div>`;
+        const memText = f.memory || 'Any';
+        const wifiText = f.wifi === 'yes' ? 'WiFi only' : f.wifi === 'no' ? 'No WiFi' : 'Any';
 
         panel.innerHTML =
             (hasBuildContext ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your selected ${[build.cpu && 'CPU', build.ram && 'RAM', build.case && 'case'].filter(Boolean).join(', ')}. Adjust any filter to broaden.</div>` : '') +
             catRow('Socket', 'socket', socketArr) +
-            catRow('Memory', 'memory', memoryArr) +
+            cycleRow('Memory', 'fa-memory', f.memory, memText) +
             catRow('Size', 'formFactor', ffArr) +
-            wifiRow +
+            cycleRow('WiFi', 'fa-wifi', f.wifi, wifiText) +
             minRow('RAM Slots', 'ramSlots', minArr('ramSlots')) +
             minRow('M.2 Slots', 'm2', minArr('m2')) +
             minRow('PCIe Slots', 'pcie', minArr('pcie'));
@@ -16342,14 +16346,23 @@ class PartsDatabase {
             rerender();
         }));
         panel.querySelectorAll('.mobo-min-btn').forEach(btn => btn.addEventListener('click', () => {
-            f[btn.dataset.min] = parseInt(btn.dataset.val, 10);
-            panel.querySelectorAll(`.mobo-min-btn[data-min="${btn.dataset.min}"]`).forEach(b => b.classList.toggle('active', b === btn));
+            const minKey = btn.dataset.min, val = parseInt(btn.dataset.val, 10);
+            f[minKey] = (f[minKey] === val) ? 0 : val; // click the active one to clear
+            panel.querySelectorAll(`.mobo-min-btn[data-min="${minKey}"]`).forEach(b =>
+                b.classList.toggle('active', f[minKey] === parseInt(b.dataset.val, 10)));
             rerender();
         }));
-        const wifiBtn = panel.querySelector('.mobo-wifi-toggle');
+        // Memory + WiFi tri-state cycles (re-render to refresh the button label).
+        const memBtn = panel.querySelector('.mobo-cycle-toggle[data-cycle="memory"]');
+        if (memBtn) memBtn.addEventListener('click', () => {
+            const cyc = [null, ...memoryArr];
+            f.memory = cyc[(cyc.indexOf(f.memory) + 1) % cyc.length];
+            this._renderMoboFeaturePanel(mobos);
+        });
+        const wifiBtn = panel.querySelector('.mobo-cycle-toggle[data-cycle="wifi"]');
         if (wifiBtn) wifiBtn.addEventListener('click', () => {
             f.wifi = f.wifi === null ? 'yes' : f.wifi === 'yes' ? 'no' : null;
-            this._renderMoboFeaturePanel(mobos); // re-render to update the toggle label
+            this._renderMoboFeaturePanel(mobos);
         });
 
         this._renderMoboFilterResults(mobos);
@@ -16359,7 +16372,7 @@ class PartsDatabase {
         const f = this._moboFilters;
         if (!f) return true;
         if (f.socket.size && !f.socket.has(mb.socket)) return false;
-        if (f.memory.size && !this._moboMemTypes(mb).some(t => f.memory.has(t))) return false;
+        if (f.memory && !this._moboMemTypes(mb).includes(f.memory)) return false;
         if (f.formFactor.size && !f.formFactor.has(mb.formFactor)) return false;
         if (f.wifi === 'yes' && !this._moboHasWifi(mb)) return false;
         if (f.wifi === 'no' && this._moboHasWifi(mb)) return false;
@@ -16376,7 +16389,7 @@ class PartsDatabase {
         const chips = [];
         const add = (clear, text) => chips.push({ clear, text });
         [...f.socket].forEach(v => add('socket:' + v, 'Socket: ' + v));
-        [...f.memory].forEach(v => add('memory:' + v, 'Memory: ' + v));
+        if (f.memory) add('memory', 'Memory: ' + f.memory);
         [...f.formFactor].forEach(v => add('formFactor:' + v, 'Size: ' + v));
         if (f.wifi === 'yes') add('wifi', 'WiFi: Yes');
         if (f.wifi === 'no') add('wifi', 'WiFi: No');
@@ -16390,6 +16403,7 @@ class PartsDatabase {
         const f = this._moboFilters;
         if (!f) return;
         if (clearKey === 'wifi') f.wifi = null;
+        else if (clearKey === 'memory') f.memory = null;
         else if (clearKey.endsWith('Min')) f[clearKey] = 0;
         else { const [k, v] = clearKey.split(/:(.+)/); f[k].delete(v); }
         this._renderMoboFeaturePanel(mobos);
@@ -16418,7 +16432,7 @@ class PartsDatabase {
                 b.addEventListener('click', () => this._moboClearFilter(b.dataset.clear, mobos)));
             const clearAll = results.querySelector('[data-clear-all]');
             if (clearAll) clearAll.addEventListener('click', () => {
-                this._moboFilters = { socket: new Set(), memory: new Set(), formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
+                this._moboFilters = { socket: new Set(), memory: null, formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
                 this._renderMoboFeaturePanel(mobos);
             });
         };

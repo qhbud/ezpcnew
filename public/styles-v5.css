@@ -5600,9 +5600,9 @@ GPU Listings Section ───────────────────�
     border-color: #0ea5e9;
     color: #fff;
 }
-/* WiFi tri-state cycle button. */
-.mobo-wifi-toggle { gap: 7px; }
-.mobo-wifi-toggle.active {
+/* Memory / WiFi tri-state cycle buttons. */
+.mobo-cycle-toggle { gap: 7px; }
+.mobo-cycle-toggle.active {
     background: #2563eb;
     border-color: #2563eb;
     color: #fff;
