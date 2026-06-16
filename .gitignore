@@ -33,3 +33,6 @@ nul
 
 # Architect loop raw working data (only distilled docs/ are committed)
 .architect/
+
+# Availability sweep logs
+logs/

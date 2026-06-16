@@ -19,8 +19,11 @@ function isDesktopOrLaptop(title) {
     return false;
 }
 
-// Function to check if a component has a valid price (not $0 or null)
+// Function to check if a component has a valid price (not $0 or null) and has
+// not been hidden by the nightly availability sweep (scripts/sweepUnavailable
+// Components.js) for being delisted / no longer sold.
 function hasValidPrice(item) {
+    if (item.hidden === true) return false;
     const price = parseFloat(item.price || item.currentPrice || item.basePrice);
     return !isNaN(price) && price > 0;
 }
@@ -606,7 +609,7 @@ async function handleGPURequest(req, res) {
                 const modelName = extractGPUModel(gpu.name || gpu.title);
 
                 // Only consider available GPUs for the cheapest price
-                const isAvailable = gpu.isAvailable !== false && gpu.currentPrice != null;
+                const isAvailable = gpu.hidden !== true && gpu.isAvailable !== false && gpu.currentPrice != null;
                 const price = parseFloat(gpu.currentPrice || gpu.price) || Infinity;
 
                 if (!modelMap.has(modelName)) {
@@ -745,6 +748,11 @@ async function handleCPURequest(req, res) {
 
         // Filter out unavailable CPUs and CPUs with $0 price
         filteredCPUs = filteredCPUs.filter(cpu => {
+            // Hidden by the availability sweep (delisted / no longer sold)
+            if (cpu.hidden === true) {
+                return false;
+            }
+
             // Check availability
             if (cpu.isAvailable === false) {
                 return false;

@@ -146,3 +146,21 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DB_NAME: pcbuilder
         run: node scripts/ciCheckFreshness.js --window-hours=12
+
+      # Hide components that are no longer sold / have no listed price (after two
+      # consecutive misses, so a single flaky scrape doesn't hide a live product)
+      # and record the daily loss/restore tally in the price_update_log collection.
+      - name: Hide unavailable components + log daily losses
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+        run: node scripts/sweepUnavailableComponents.js
+
+      - name: Upload availability log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: availability-log-${{ github.run_number }}
+          path: logs/availability-log.jsonl
+          if-no-files-found: warn
+          retention-days: 30
