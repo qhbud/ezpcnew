@@ -16302,13 +16302,20 @@ class PartsDatabase {
 
         const hasBuildContext = !!(build.cpu || build.ram || build.case);
 
+        // "Required to fit ___" badge shown next to Socket/Memory when the relevant
+        // build part dictates the value.
+        const cpuSocket = build.cpu ? (build.cpu.socket || build.cpu.socketType) : null;
+        const ramMem = build.ram ? this._moboMemTypes({ memoryType: build.ram.memoryType })[0] : null;
+        const reqBadge = (val, who) => val
+            ? `<span class="mobo-req"><i class="fas fa-link"></i> ${who} needs ${val}</span>` : '';
+
         // Inclusive multi-select chip row (click to add a value; none = Any).
-        const catRow = (label, key, opts, fmt = (x => x)) => {
+        const catRow = (label, key, opts, reqNote = '', fmt = (x => x)) => {
             if (!opts.length) return '';
             const chips = opts.map(o =>
                 `<button type="button" class="gc-chip mobo-cat-chip${f[key].has(o) ? ' active' : ''}" data-cat="${key}" data-val="${String(o).replace(/"/g, '&quot;')}">${fmt(o)}</button>`
             ).join('');
-            return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
+            return `<div class="gc-row"><span class="gc-label">${label}</span>${reqNote}<div class="gc-chips">${chips}</div></div>`;
         };
         // "Minimum" button group: just N+ for each distinct count (no Any button —
         // no selection already means any is acceptable). Click the active one to clear.
@@ -16321,8 +16328,8 @@ class PartsDatabase {
             return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
         };
         // Tri-state cycle button (used for Memory: Any/DDR4/DDR5 and WiFi: Any/WiFi/No WiFi).
-        const cycleRow = (label, icon, current, text) =>
-            `<div class="gc-row"><span class="gc-label">${label}</span>
+        const cycleRow = (label, icon, current, text, reqNote = '') =>
+            `<div class="gc-row"><span class="gc-label">${label}</span>${reqNote}
                 <button type="button" class="gc-chip mobo-cycle-toggle${current ? ' active' : ''}" data-cycle="${label.toLowerCase()}">
                     <i class="fas ${icon}"></i> ${text} <i class="fas fa-rotate mobo-wifi-cycle"></i></button></div>`;
         const memText = f.memory || 'Any';
@@ -16330,8 +16337,8 @@ class PartsDatabase {
 
         panel.innerHTML =
             (hasBuildContext ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your selected ${[build.cpu && 'CPU', build.ram && 'RAM', build.case && 'case'].filter(Boolean).join(', ')}. Adjust any filter to broaden.</div>` : '') +
-            catRow('Socket', 'socket', socketArr) +
-            cycleRow('Memory', 'fa-memory', f.memory, memText) +
+            catRow('Socket', 'socket', socketArr, reqBadge(cpuSocket, 'CPU')) +
+            cycleRow('Memory', 'fa-memory', f.memory, memText, reqBadge(ramMem, 'RAM')) +
             catRow('Size', 'formFactor', ffArr) +
             cycleRow('WiFi', 'fa-wifi', f.wifi, wifiText) +
             minRow('RAM Slots', 'ramSlots', minArr('ramSlots')) +
