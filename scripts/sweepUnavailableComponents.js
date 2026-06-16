@@ -103,7 +103,7 @@ async function printReport(db) {
         for (const name of names) {
             const col = db.collection(name);
             const docs = await col.find({}, {
-                projection: { isAvailable: 1, price: 1, currentPrice: 1, priceHistory: 1, hidden: 1, name: 1, title: 1 }
+                projection: { isAvailable: 1, price: 1, currentPrice: 1, priceHistory: 1, hidden: 1, hiddenReason: 1, name: 1, title: 1 }
             }).toArray();
 
             const stats = { scanned: docs.length, newlyHidden: 0, restored: 0, hidden: 0, visible: 0 };
@@ -112,9 +112,15 @@ async function printReport(db) {
             for (const doc of docs) {
                 const gone = isGone(doc, MIN_CONSECUTIVE);
                 const wasHidden = doc.hidden === true;
+                // Only this sweep's own hides (reason no_price) are eligible for
+                // auto-restore; items hidden for other reasons (e.g. 'mislabeled')
+                // stay hidden even if they still have a live price.
+                const ownsHide = !wasHidden || doc.hiddenReason == null || doc.hiddenReason === 'no_price';
                 if (gone) {
                     stats.hidden++;
                     if (!wasHidden) { stats.newlyHidden++; toHide.push(doc._id); }
+                } else if (wasHidden && !ownsHide) {
+                    stats.hidden++; // kept hidden for another reason
                 } else {
                     stats.visible++;
                     if (wasHidden) { stats.restored++; toRestore.push(doc._id); }
