@@ -866,6 +866,22 @@ class PartsDatabase {
         // After all data is loaded, check if there's a build to restore from URL
         this.initializeQuickStartBuilds();
         this.loadBuildFromURL();
+
+        // Background-warm the two listing caches whose render needs a different
+        // shape than the builder prefetch (ungrouped RAM + GPU), so those tabs
+        // also open without a fetch. Fire-and-forget; renders fall back to fetch.
+        this._warmListingCaches();
+    }
+
+    _warmListingCaches() {
+        if (!this._ramRaw) {
+            fetch('/api/parts/rams').then(r => r.ok ? r.json() : null)
+                .then(d => { if (d) this._ramRaw = d; }).catch(() => {});
+        }
+        if (!this._gpuRaw) {
+            fetch('/api/parts/gpus?groupByModel=false').then(r => r.ok ? r.json() : null)
+                .then(d => { if (d) this._gpuRaw = d; }).catch(() => {});
+        }
     }
 
     initializeQuickStartBuilds() {
@@ -14361,9 +14377,13 @@ class PartsDatabase {
     async renderGpuListingsSection() {
         if (this._gpuListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/gpus?groupByModel=false');
-            if (!response.ok) return;
-            const gpus = await response.json();
+            // Reuse the background-warmed cache when available (no fetch on tab switch).
+            let gpus = this._gpuRaw;
+            if (!gpus) {
+                const response = await fetch('/api/parts/gpus?groupByModel=false');
+                if (!response.ok) return;
+                gpus = await response.json();
+            }
 
             // Find best-value GPU (highest perf per dollar, price > $100)
             let bestGpu = null;
@@ -15236,9 +15256,15 @@ class PartsDatabase {
     async renderCpuListingsSection() {
         try {
             if (!this._cpuAll) {
-                const response = await fetch('/api/parts/cpus');
-                if (!response.ok) return;
-                this._cpuAll = await response.json();
+                // Reuse the array already prefetched by loadAllData (same endpoint)
+                // so switching to this tab doesn't pay for a second network round-trip.
+                if (this.allCPUs && this.allCPUs.length) {
+                    this._cpuAll = this.allCPUs;
+                } else {
+                    const response = await fetch('/api/parts/cpus');
+                    if (!response.ok) return;
+                    this._cpuAll = await response.json();
+                }
             }
             const cpus = this._cpuAll;
 
@@ -15687,9 +15713,14 @@ class PartsDatabase {
     async renderCoolerListingsSection() {
         try {
             if (!this._coolerAll) {
-                const response = await fetch('/api/parts/coolers');
-                if (!response.ok) return;
-                this._coolerAll = await response.json();
+                // Reuse loadAllData's prefetch (same endpoint) — no second fetch on tab switch.
+                if (this.allCoolers && this.allCoolers.length) {
+                    this._coolerAll = this.allCoolers;
+                } else {
+                    const response = await fetch('/api/parts/coolers');
+                    if (!response.ok) return;
+                    this._coolerAll = await response.json();
+                }
             }
             const coolers = this._coolerAll;
 
@@ -16194,9 +16225,14 @@ class PartsDatabase {
     async renderMoboListingsSection() {
         try {
             if (!this._moboAll) {
-                const response = await fetch('/api/parts/motherboards');
-                if (!response.ok) return;
-                this._moboAll = await response.json();
+                // Reuse loadAllData's prefetch (same endpoint) — no second fetch on tab switch.
+                if (this.allMotherboards && this.allMotherboards.length) {
+                    this._moboAll = this.allMotherboards;
+                } else {
+                    const response = await fetch('/api/parts/motherboards');
+                    if (!response.ok) return;
+                    this._moboAll = await response.json();
+                }
             }
             const mobos = this._moboAll;
 
@@ -16640,9 +16676,12 @@ class PartsDatabase {
     async renderRamListingsSection() {
         try {
             if (!this._ramConsumer) {
-                const response = await fetch('/api/parts/rams');
-                if (!response.ok) return;
-                const rams = await response.json();
+                let rams = this._ramRaw;
+                if (!rams) {
+                    const response = await fetch('/api/parts/rams');
+                    if (!response.ok) return;
+                    rams = await response.json();
+                }
                 // Filter out server/ECC RAM (type RDIMM/LRDIMM)
                 this._ramConsumer = rams.filter(r => {
                     const t = (r.specifications?.type || '').toUpperCase();
@@ -17078,9 +17117,13 @@ class PartsDatabase {
     async renderPsuListingsSection() {
         if (this._psuListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/psus');
-            if (!response.ok) return;
-            const psus = await response.json();
+            // Reuse loadAllData's prefetch (same endpoint) instead of a second fetch.
+            let psus = (this.allPSUs && this.allPSUs.length) ? this.allPSUs : null;
+            if (!psus) {
+                const response = await fetch('/api/parts/psus');
+                if (!response.ok) return;
+                psus = await response.json();
+            }
 
             // Best value: highest (wattage * efficiencyScore) per dollar
             let bestPsu = null, bestScore = 0;
