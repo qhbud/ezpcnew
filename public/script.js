@@ -15234,32 +15234,39 @@ class PartsDatabase {
 
     // ── CPU Tab Listings ──────────────────────────────────────────
     async renderCpuListingsSection() {
-        if (this._cpuListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/cpus');
-            if (!response.ok) return;
-            const cpus = await response.json();
-
-            // Find best-value CPU (highest single-core perf per dollar, price > $50)
-            let bestCpu = null;
-            let bestScore = 0;
-            cpus.forEach(cpu => {
-                const perf = this.getCpuPerformance(cpu);
-                const price = parseFloat(cpu.salePrice || cpu.currentPrice || cpu.basePrice || cpu.price) || 0;
-                if (perf && price > 50) {
-                    const score = (perf / price) * 1000;
-                    if (score > bestScore) { bestScore = score; bestCpu = cpu; }
-                }
-            });
-            this._cpuBestValue = bestCpu;
-
-            if (bestCpu) {
-                this._renderCpuProductCard(bestCpu);
-                this._renderCpuReviews(bestCpu);
-                this._renderCpuBenchmarkChart(bestCpu);
+            if (!this._cpuAll) {
+                const response = await fetch('/api/parts/cpus');
+                if (!response.ok) return;
+                this._cpuAll = await response.json();
             }
-            this._renderCpuTabScatterPlot(cpus);
-            this._cpuListingsRendered = true;
+            const cpus = this._cpuAll;
+
+            // Re-pick the best-value default each time the build changes so the
+            // featured CPU stays compatible with the selected motherboard.
+            const sig = this._buildSignature();
+            if (this._cpuPickSig !== sig) {
+                // Highest single-core perf per dollar, price > $50, prefer compatible.
+                const candidates = [];
+                cpus.forEach(cpu => {
+                    const perf = this.getCpuPerformance(cpu);
+                    const price = parseFloat(cpu.salePrice || cpu.currentPrice || cpu.basePrice || cpu.price) || 0;
+                    if (perf && price > 50) candidates.push({ item: cpu, score: (perf / price) * 1000 });
+                });
+                const bestCpu = this._pickBestValue(candidates, 'cpu');
+                this._cpuBestValue = bestCpu;
+                if (bestCpu) {
+                    this._renderCpuProductCard(bestCpu);
+                    this._renderCpuReviews(bestCpu);
+                    this._renderCpuBenchmarkChart(bestCpu);
+                }
+                this._cpuPickSig = sig;
+            }
+
+            if (!this._cpuListingsRendered) {
+                this._renderCpuTabScatterPlot(cpus);
+                this._cpuListingsRendered = true;
+            }
         } catch (e) {
             console.error('CPU listings error:', e);
         }
@@ -15678,35 +15685,43 @@ class PartsDatabase {
     }
 
     async renderCoolerListingsSection() {
-        if (this._coolerListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/coolers');
-            if (!response.ok) return;
-            const coolers = await response.json();
+            if (!this._coolerAll) {
+                const response = await fetch('/api/parts/coolers');
+                if (!response.ok) return;
+                this._coolerAll = await response.json();
+            }
+            const coolers = this._coolerAll;
 
-            // Find best-value cooler (highest thermal perf per dollar, price > $20)
-            let bestCooler = null;
-            let bestScore = 0;
-            coolers.forEach(cooler => {
-                const perf = this.getCoolerPerformance(cooler);
-                const price = parseFloat(cooler.salePrice || cooler.currentPrice || cooler.basePrice || cooler.price) || 0;
-                if (perf && price > 20) {
-                    const score = (perf / price) * 1000;
-                    if (score > bestScore) { bestScore = score; bestCooler = cooler; }
+            // Re-pick the best-value default when the build changes so the featured
+            // cooler fits the selected CPU socket.
+            const sig = this._buildSignature();
+            if (this._coolerPickSig !== sig) {
+                // Highest thermal perf per dollar, price > $20, prefer compatible.
+                const candidates = [];
+                coolers.forEach(cooler => {
+                    const perf = this.getCoolerPerformance(cooler);
+                    const price = parseFloat(cooler.salePrice || cooler.currentPrice || cooler.basePrice || cooler.price) || 0;
+                    if (perf && price > 20) candidates.push({ item: cooler, score: (perf / price) * 1000 });
+                });
+                let bestCooler = this._pickBestValue(candidates, 'cooler');
+                if (!bestCooler && coolers.length > 0) bestCooler = coolers[0];
+                this._coolerBestValue = bestCooler;
+                this._coolerTabSelectedCooler = bestCooler;
+
+                if (bestCooler) {
+                    this._renderCoolerProductCard(bestCooler);
+                    this._renderCoolerReviews(bestCooler);
+                    this._renderCoolerThermalChart(bestCooler);
                 }
-            });
-            if (!bestCooler && coolers.length > 0) {
-                bestCooler = coolers[0];
+                if (this._drawCoolerTabChart) this._drawCoolerTabChart(bestCooler);
+                this._coolerPickSig = sig;
             }
-            this._coolerBestValue = bestCooler;
 
-            if (bestCooler) {
-                this._renderCoolerProductCard(bestCooler);
-                this._renderCoolerReviews(bestCooler);
-                this._renderCoolerThermalChart(bestCooler);
+            if (!this._coolerListingsRendered) {
+                this._renderCoolerTabScatterPlot(coolers);
+                this._coolerListingsRendered = true;
             }
-            this._renderCoolerTabScatterPlot(coolers);
-            this._coolerListingsRendered = true;
         } catch (e) {
             console.error('Cooler listings error:', e);
         }
@@ -16185,26 +16200,27 @@ class PartsDatabase {
             }
             const mobos = this._moboAll;
 
-            if (!this._moboListingsRendered) {
-                // Best value: highest feature score per dollar (internal ranking only;
-                // the score is never shown to the user — see feature panel for specs).
-                let bestMobo = null, bestScore = 0;
+            // Re-pick the best-value default when the build changes so the featured
+            // board fits the selected CPU socket / RAM type / case form factor.
+            const sig = this._buildSignature();
+            if (this._moboPickSig !== sig) {
+                // Highest feature score per dollar (internal ranking only; the score
+                // is never shown to the user — see feature panel for specs).
+                const candidates = [];
                 mobos.forEach(mb => {
                     const feat = this._getMotherboardScore(mb);
                     const price = parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0;
-                    if (feat && price > 50) {
-                        const s = (feat / price) * 100;
-                        if (s > bestScore) { bestScore = s; bestMobo = mb; }
-                    }
+                    if (feat && price > 50) candidates.push({ item: mb, score: (feat / price) * 100 });
                 });
+                const bestMobo = this._pickBestValue(candidates, 'motherboard');
                 this._moboBestValue = bestMobo;
-
                 if (bestMobo) {
                     this._renderMoboProductCard(bestMobo);
                     this._renderMoboReviews(bestMobo);
                 }
-                this._moboListingsRendered = true;
+                this._moboPickSig = sig;
             }
+            this._moboListingsRendered = true;
 
             // Re-run every visit so the facets re-derive from the current build.
             this._renderMoboFeaturePanel(mobos);
@@ -16554,36 +16570,44 @@ class PartsDatabase {
     }
 
     async renderRamListingsSection() {
-        if (this._ramListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/rams');
-            if (!response.ok) return;
-            const rams = await response.json();
-
-            // Best value: highest GB per dollar, filtering out server/ECC RAM (type RDIMM)
-            const consumer = rams.filter(r => {
-                const t = (r.specifications?.type || '').toUpperCase();
-                return t !== 'RDIMM' && t !== 'LRDIMM';
-            });
-
-            let bestRam = null, bestScore = 0;
-            consumer.forEach(r => {
-                const gb = r.totalCapacity || 0;
-                const price = parseFloat(r.salePrice || r.currentPrice || r.basePrice || r.price) || 0;
-                if (gb && price > 20) {
-                    const s = (gb / price) * this._getRamPerfScore(r);
-                    if (s > bestScore) { bestScore = s; bestRam = r; }
-                }
-            });
-            this._ramBestValue = bestRam;
-
-            if (bestRam) {
-                this._renderRamProductCard(bestRam);
-                this._renderRamReviews(bestRam);
-                this._renderRamPerfSection(bestRam);
+            if (!this._ramConsumer) {
+                const response = await fetch('/api/parts/rams');
+                if (!response.ok) return;
+                const rams = await response.json();
+                // Filter out server/ECC RAM (type RDIMM/LRDIMM)
+                this._ramConsumer = rams.filter(r => {
+                    const t = (r.specifications?.type || '').toUpperCase();
+                    return t !== 'RDIMM' && t !== 'LRDIMM';
+                });
             }
-            this._renderRamTabScatterPlot(consumer);
-            this._ramListingsRendered = true;
+            const consumer = this._ramConsumer;
+
+            // Re-pick the best-value default when the build changes so the featured
+            // kit matches the selected motherboard's memory type (DDR4/DDR5).
+            const sig = this._buildSignature();
+            if (this._ramPickSig !== sig) {
+                // Highest GB per dollar weighted by perf score, prefer compatible.
+                const candidates = [];
+                consumer.forEach(r => {
+                    const gb = r.totalCapacity || 0;
+                    const price = parseFloat(r.salePrice || r.currentPrice || r.basePrice || r.price) || 0;
+                    if (gb && price > 20) candidates.push({ item: r, score: (gb / price) * this._getRamPerfScore(r) });
+                });
+                const bestRam = this._pickBestValue(candidates, 'ram');
+                this._ramBestValue = bestRam;
+                if (bestRam) {
+                    this._renderRamProductCard(bestRam);
+                    this._renderRamReviews(bestRam);
+                    this._renderRamPerfSection(bestRam);
+                }
+                this._ramPickSig = sig;
+            }
+
+            if (!this._ramListingsRendered) {
+                this._renderRamTabScatterPlot(consumer);
+                this._ramListingsRendered = true;
+            }
         } catch (e) {
             console.error('RAM listings error:', e);
         }
@@ -17411,12 +17435,17 @@ class PartsDatabase {
     }
 
     async renderCaseListingsSection() {
-        if (this._caseListingsRendered) return;
         try {
             if (!this.allCases || this.allCases.length === 0) await this.loadAllCases();
             const items = this.allCases || [];
-            const best = this._pickBestValueGeneric(items);
-            if (best) this._renderCaseProductCard(best);
+            // Re-pick the default when the build changes so the featured case fits
+            // the selected motherboard's form factor.
+            const sig = this._buildSignature();
+            if (this._casePickSig !== sig) {
+                const best = this._pickBestValueGeneric(items, 'case');
+                if (best) this._renderCaseProductCard(best);
+                this._casePickSig = sig;
+            }
             this._caseListingsRendered = true;
         } catch (e) {
             console.error('Case listings error:', e);
@@ -17652,20 +17681,54 @@ class PartsDatabase {
         }
     }
 
-    // Pick the lowest-priced item that has an image and a real price.
+    // Pick the lowest-priced item that has an image and a real price. Prefers an
+    // item compatible with the current build (when componentType is given),
+    // falling back to the cheapest overall if none fit.
     // Used by tabs (case/storage/addon) that don't have a perf-per-dollar score.
-    _pickBestValueGeneric(items) {
-        let best = null;
-        let bestPrice = Infinity;
+    _pickBestValueGeneric(items, componentType) {
+        let best = null, bestPrice = Infinity;
+        let bestCompat = null, bestCompatPrice = Infinity;
         for (const it of items) {
             const price = parseFloat(it.salePrice || it.currentPrice || it.basePrice || it.price) || 0;
             const hasImg = !!(it.imageUrl || it.image);
-            if (price > 0 && hasImg && price < bestPrice) {
-                best = it;
-                bestPrice = price;
+            if (price <= 0 || !hasImg) continue;
+            if (price < bestPrice) { best = it; bestPrice = price; }
+            if ((!componentType || this.isCompatibleWithBuild(componentType, it)) && price < bestCompatPrice) {
+                bestCompat = it; bestCompatPrice = price;
             }
         }
-        return best;
+        return bestCompat || best;
+    }
+
+    // Among scored candidates ([{ item, score }]), prefer the highest-value one
+    // that's compatible with the current build; fall back to the highest-value
+    // overall when none fit (the featured card then shows its own incompat badge).
+    _pickBestValue(candidates, componentType) {
+        let bestOverall = null, bestOverallScore = -Infinity;
+        let bestCompat = null, bestCompatScore = -Infinity;
+        for (const { item, score } of candidates) {
+            if (score > bestOverallScore) { bestOverallScore = score; bestOverall = item; }
+            if (this.isCompatibleWithBuild(componentType, item) && score > bestCompatScore) {
+                bestCompatScore = score; bestCompat = item;
+            }
+        }
+        return bestCompat || bestOverall;
+    }
+
+    // Signature of the build attributes that affect cross-component compatibility
+    // (socket / memory type / form factor). A tab re-picks its default featured
+    // part only when this changes, so manual card selections survive same-build
+    // revisits but a changed build refreshes the compatible default.
+    _buildSignature() {
+        const b = this.currentBuild || {};
+        const ff = x => x ? (Array.isArray(x.formFactor) ? x.formFactor.join('/') : (x.formFactor || '')) : '';
+        const mem = x => x ? (Array.isArray(x.memoryType) ? x.memoryType.join('/') : (x.memoryType || '')) : '';
+        return [
+            b.cpu ? (b.cpu.socket || b.cpu.socketType || '') : '',
+            b.motherboard ? (b.motherboard.socket || b.motherboard.socketType || '') : '',
+            mem(b.motherboard), mem(b.ram),
+            ff(b.motherboard), ff(b.case),
+        ].join('|').toUpperCase();
     }
 
     _renderGenericProductCard(cardId, item, specRows, fallbackIcon) {
