@@ -2,8 +2,9 @@ name: Component Ingest
 
 on:
   schedule:
-    # Weekly at 05:15 UTC. New component discovery is slow and Amazon can rate-limit.
-    - cron: '15 5 * * 0'
+    # Daily at 21:00 UTC — 6 hours before the Daily Price Update (03:00 UTC), so
+    # newly ingested components are in place before the nightly price run.
+    - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       type:
@@ -71,6 +72,14 @@ jobs:
             exit 1
           fi
           node scripts/ingestNewComponents.js --type="${TYPE}" --limit="${LIMIT}" 2>&1 | tee component-ingest.log
+
+      # Hide components that no longer have a current listed price (delisted /
+      # no longer sold), so the catalog stays clean ahead of the price run.
+      - name: Hide components with no listed price
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: pcbuilder
+        run: node scripts/sweepUnavailableComponents.js 2>&1 | tee -a component-ingest.log
 
       - name: Upload component ingest log
         if: always()
