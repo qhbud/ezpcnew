@@ -16251,17 +16251,12 @@ class PartsDatabase {
         const n = parseInt(mb.m2Slots ?? mb.m2SlotCount ?? (mb.specifications || {}).m2Slots) || 0;
         return n >= 4 ? '4+' : (n > 0 ? String(n) : null);
     }
-    _moboFacetValues(facetKey, mb) {
-        switch (facetKey) {
-            case 'socket': return mb.socket ? [mb.socket] : [];
-            case 'memory': return this._moboMemTypes(mb);
-            case 'formFactor': return mb.formFactor ? [mb.formFactor] : [];
-            case 'wifi': return [this._moboHasWifi(mb) ? 'Yes' : 'No'];
-            case 'ramSlots': { const n = mb.ramSlots || mb.memorySlots; return n ? [String(n)] : []; }
-            case 'm2': { const b = this._moboM2Bucket(mb); return b ? [b] : []; }
-            case 'pcie': { const n = mb.pcieSlots || mb.pcieSlotCount; return n ? [String(n)] : []; }
-            default: return [];
-        }
+    // Numeric slot count for the "minimum" filters.
+    _moboSlotCount(mb, key) {
+        if (key === 'ramSlots') return parseInt(mb.ramSlots || mb.memorySlots) || 0;
+        if (key === 'm2') return parseInt(mb.m2Slots ?? mb.m2SlotCount ?? (mb.specifications || {}).m2Slots) || 0;
+        if (key === 'pcie') return parseInt(mb.pcieSlots || mb.pcieSlotCount) || 0;
+        return 0;
     }
 
     _renderMoboFeaturePanel(mobos) {
@@ -16269,101 +16264,135 @@ class PartsDatabase {
         const results = document.getElementById('moboFilterResults');
         if (!panel || !results) return;
 
-        const facetDefs = [
-            { key: 'socket', label: 'Socket', compat: true },
-            { key: 'memory', label: 'Memory', compat: true, order: ['DDR4', 'DDR5'] },
-            { key: 'formFactor', label: 'Size', compat: true, order: ['Mini-ITX', 'Micro-ATX', 'ATX', 'E-ATX'] },
-            { key: 'wifi', label: 'WiFi', order: ['Yes', 'No'] },
-            { key: 'ramSlots', label: 'RAM Slots', numeric: true },
-            { key: 'm2', label: 'M.2 Slots', order: ['1', '2', '3', '4+'] },
-            { key: 'pcie', label: 'PCIe Slots', numeric: true },
-        ];
-
-        // Available options per facet (union across catalog), ordered.
-        const options = {};
-        facetDefs.forEach(def => {
-            const set = new Set();
-            mobos.forEach(mb => this._moboFacetValues(def.key, mb).forEach(v => set.add(v)));
-            let arr = [...set];
-            if (def.order) arr.sort((a, b) => def.order.indexOf(a) - def.order.indexOf(b));
-            else if (def.numeric) arr.sort((a, b) => parseFloat(a) - parseFloat(b));
-            else arr.sort();
-            options[def.key] = arr;
-        });
-
-        // Compatibility-derived defaults from the current build.
-        const build = this.currentBuild || {};
         const norm = s => (s == null ? '' : s.toString().trim().toUpperCase());
-        const defaultFor = (def) => {
-            if (def.compat) {
-                if (def.key === 'socket' && build.cpu) {
-                    const sock = norm(build.cpu.socket || build.cpu.socketType);
-                    const match = options.socket.filter(o => norm(o) === sock);
-                    if (match.length) return new Set(match);
-                }
-                if (def.key === 'memory' && build.ram) {
-                    const types = this._moboMemTypes({ memoryType: build.ram.memoryType });
-                    if (types.length) return new Set(options.memory.filter(o => types.includes(o)));
-                }
-                if (def.key === 'formFactor' && build.case) {
-                    const fit = options.formFactor.filter(o => this._moboFitsCase(o, build.case.formFactor));
-                    if (fit.length) return new Set(fit);
-                }
-            }
-            return new Set(options[def.key]); // all on = no-op filter
-        };
 
-        // Re-derive selection only when the build changed (preserve manual edits otherwise).
+        // Categorical options (inclusive: empty selection = Any).
+        const catOpts = { socket: new Set(), memory: new Set(), formFactor: new Set() };
+        // Distinct counts for the "minimum" sliders-as-buttons.
+        const minOpts = { ramSlots: new Set(), m2: new Set(), pcie: new Set() };
+        mobos.forEach(mb => {
+            if (mb.socket) catOpts.socket.add(mb.socket);
+            this._moboMemTypes(mb).forEach(t => catOpts.memory.add(t));
+            if (mb.formFactor) catOpts.formFactor.add(mb.formFactor);
+            ['ramSlots', 'm2', 'pcie'].forEach(k => { const n = this._moboSlotCount(mb, k); if (n > 0) minOpts[k].add(n); });
+        });
+        const FF_ORDER = ['Mini-ITX', 'Micro-ATX', 'ATX', 'E-ATX'];
+        const socketArr = [...catOpts.socket].sort();
+        const memoryArr = [...catOpts.memory].sort((a, b) => a.localeCompare(b));
+        const ffArr = [...catOpts.formFactor].sort((a, b) => FF_ORDER.indexOf(a) - FF_ORDER.indexOf(b));
+        const minArr = k => [...minOpts[k]].sort((a, b) => a - b);
+
+        // Build-derived defaults (inclusive). Re-derived only when the build changes.
+        const build = this.currentBuild || {};
         const buildSig = [
             norm(build.cpu && (build.cpu.socket || build.cpu.socketType)),
             (build.ram ? this._moboMemTypes({ memoryType: build.ram.memoryType }).join(',') : ''),
             norm(build.case && (Array.isArray(build.case.formFactor) ? build.case.formFactor.join('/') : build.case.formFactor)),
         ].join('|');
 
-        if (!this._moboFacetState || this._moboBuildSig !== buildSig) {
-            this._moboFacetState = {};
-            facetDefs.forEach(def => { this._moboFacetState[def.key] = defaultFor(def); });
+        if (!this._moboFilters || this._moboBuildSig !== buildSig) {
+            const f = { socket: new Set(), memory: new Set(), formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
+            if (build.cpu) { const s = norm(build.cpu.socket || build.cpu.socketType); const m = socketArr.find(o => norm(o) === s); if (m) f.socket.add(m); }
+            if (build.ram) { this._moboMemTypes({ memoryType: build.ram.memoryType }).forEach(t => { if (catOpts.memory.has(t)) f.memory.add(t); }); }
+            if (build.case) { ffArr.filter(o => this._moboFitsCase(o, build.case.formFactor)).forEach(o => f.formFactor.add(o)); }
+            this._moboFilters = f;
             this._moboBuildSig = buildSig;
         }
-        const state = this._moboFacetState;
+        const f = this._moboFilters;
 
         const hasBuildContext = !!(build.cpu || build.ram || build.case);
 
-        // Render facet chip rows.
-        panel.innerHTML =
-            (hasBuildContext ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your selected ${[build.cpu && 'CPU', build.ram && 'RAM', build.case && 'case'].filter(Boolean).join(', ')}. Adjust any chip to broaden.</div>` : '') +
-            facetDefs.map(def => {
-                if (!options[def.key].length) return '';
-                const chips = options[def.key].map(o => {
-                    const active = state[def.key].has(o);
-                    const label = (def.key === 'wifi') ? (o === 'Yes' ? 'WiFi' : 'No WiFi')
-                        : (def.numeric ? `${o}×` : o);
-                    return `<button type="button" class="gc-chip mobo-facet-chip${active ? ' active' : ''}" data-facet="${def.key}" data-val="${String(o).replace(/"/g, '&quot;')}">${label}</button>`;
-                }).join('');
-                return `<div class="gc-row"><span class="gc-label">${def.label}</span><div class="gc-chips">${chips}</div></div>`;
-            }).join('');
+        // Inclusive multi-select chip row (click to add a value; none = Any).
+        const catRow = (label, key, opts, fmt = (x => x)) => {
+            if (!opts.length) return '';
+            const chips = opts.map(o =>
+                `<button type="button" class="gc-chip mobo-cat-chip${f[key].has(o) ? ' active' : ''}" data-cat="${key}" data-val="${String(o).replace(/"/g, '&quot;')}">${fmt(o)}</button>`
+            ).join('');
+            return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
+        };
+        // Single-select "minimum" button group: Any, then N+ for each distinct count.
+        const minRow = (label, key, opts) => {
+            const minKey = key + 'Min';
+            if (!opts.length) return '';
+            const btn = (val, text) =>
+                `<button type="button" class="gc-chip mobo-min-btn${f[minKey] === val ? ' active' : ''}" data-min="${minKey}" data-val="${val}">${text}</button>`;
+            const chips = btn(0, 'Any') + opts.map(n => btn(n, `${n}+`)).join('');
+            return `<div class="gc-row"><span class="gc-label">${label}</span><div class="gc-chips">${chips}</div></div>`;
+        };
+        const wifiLabel = f.wifi === 'yes' ? 'WiFi only' : f.wifi === 'no' ? 'No WiFi' : 'Any';
+        const wifiRow = `<div class="gc-row"><span class="gc-label">WiFi</span>
+            <button type="button" class="gc-chip mobo-wifi-toggle${f.wifi ? ' active' : ''}" data-wifi>
+                <i class="fas fa-wifi"></i> ${wifiLabel} <i class="fas fa-rotate mobo-wifi-cycle"></i></button></div>`;
 
-        panel.querySelectorAll('.mobo-facet-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const fk = chip.dataset.facet, v = chip.dataset.val;
-                const sel = state[fk];
-                if (sel.has(v)) { if (sel.size > 1) sel.delete(v); }
-                else sel.add(v);
-                chip.classList.toggle('active', sel.has(v));
-                this._renderMoboFilterResults(mobos);
-            });
+        panel.innerHTML =
+            (hasBuildContext ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your selected ${[build.cpu && 'CPU', build.ram && 'RAM', build.case && 'case'].filter(Boolean).join(', ')}. Adjust any filter to broaden.</div>` : '') +
+            catRow('Socket', 'socket', socketArr) +
+            catRow('Memory', 'memory', memoryArr) +
+            catRow('Size', 'formFactor', ffArr) +
+            wifiRow +
+            minRow('RAM Slots', 'ramSlots', minArr('ramSlots')) +
+            minRow('M.2 Slots', 'm2', minArr('m2')) +
+            minRow('PCIe Slots', 'pcie', minArr('pcie'));
+
+        const rerender = () => this._renderMoboFilterResults(mobos);
+        panel.querySelectorAll('.mobo-cat-chip').forEach(chip => chip.addEventListener('click', () => {
+            const k = chip.dataset.cat, v = chip.dataset.val;
+            if (f[k].has(v)) f[k].delete(v); else f[k].add(v);
+            chip.classList.toggle('active', f[k].has(v));
+            rerender();
+        }));
+        panel.querySelectorAll('.mobo-min-btn').forEach(btn => btn.addEventListener('click', () => {
+            f[btn.dataset.min] = parseInt(btn.dataset.val, 10);
+            panel.querySelectorAll(`.mobo-min-btn[data-min="${btn.dataset.min}"]`).forEach(b => b.classList.toggle('active', b === btn));
+            rerender();
+        }));
+        const wifiBtn = panel.querySelector('.mobo-wifi-toggle');
+        if (wifiBtn) wifiBtn.addEventListener('click', () => {
+            f.wifi = f.wifi === null ? 'yes' : f.wifi === 'yes' ? 'no' : null;
+            this._renderMoboFeaturePanel(mobos); // re-render to update the toggle label
         });
 
         this._renderMoboFilterResults(mobos);
     }
 
-    _moboMatchesFacets(mb) {
-        const state = this._moboFacetState || {};
-        return Object.keys(state).every(fk => {
-            const vals = this._moboFacetValues(fk, mb);
-            if (!vals.length) return true; // unknown spec -> don't exclude
-            return vals.some(v => state[fk].has(v));
-        });
+    _moboMatchesFilters(mb) {
+        const f = this._moboFilters;
+        if (!f) return true;
+        if (f.socket.size && !f.socket.has(mb.socket)) return false;
+        if (f.memory.size && !this._moboMemTypes(mb).some(t => f.memory.has(t))) return false;
+        if (f.formFactor.size && !f.formFactor.has(mb.formFactor)) return false;
+        if (f.wifi === 'yes' && !this._moboHasWifi(mb)) return false;
+        if (f.wifi === 'no' && this._moboHasWifi(mb)) return false;
+        for (const [key, minKey] of [['ramSlots', 'ramSlotsMin'], ['m2', 'm2Min'], ['pcie', 'pcieMin']]) {
+            if (f[minKey] > 0 && this._moboSlotCount(mb, key) < f[minKey]) return false;
+        }
+        return true;
+    }
+
+    // Chips describing every active filter, each clearable, shown under the count.
+    _moboActiveFilterChips() {
+        const f = this._moboFilters;
+        if (!f) return [];
+        const chips = [];
+        const add = (clear, text) => chips.push({ clear, text });
+        [...f.socket].forEach(v => add('socket:' + v, 'Socket: ' + v));
+        [...f.memory].forEach(v => add('memory:' + v, 'Memory: ' + v));
+        [...f.formFactor].forEach(v => add('formFactor:' + v, 'Size: ' + v));
+        if (f.wifi === 'yes') add('wifi', 'WiFi: Yes');
+        if (f.wifi === 'no') add('wifi', 'WiFi: No');
+        if (f.ramSlotsMin) add('ramSlotsMin', `RAM slots: ${f.ramSlotsMin}+`);
+        if (f.m2Min) add('m2Min', `M.2: ${f.m2Min}+`);
+        if (f.pcieMin) add('pcieMin', `PCIe: ${f.pcieMin}+`);
+        return chips;
+    }
+
+    _moboClearFilter(clearKey, mobos) {
+        const f = this._moboFilters;
+        if (!f) return;
+        if (clearKey === 'wifi') f.wifi = null;
+        else if (clearKey.endsWith('Min')) f[clearKey] = 0;
+        else { const [k, v] = clearKey.split(/:(.+)/); f[k].delete(v); }
+        this._renderMoboFeaturePanel(mobos);
     }
 
     _renderMoboFilterResults(mobos) {
@@ -16371,15 +16400,32 @@ class PartsDatabase {
         if (!results) return;
 
         const matches = mobos
-            .filter(mb => this._moboMatchesFacets(mb))
+            .filter(mb => this._moboMatchesFilters(mb))
             .map(mb => ({ mb, price: parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0 }))
             .sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
 
         const total = mobos.length;
-        const header = `<div class="mobo-results-head"><span><strong>${matches.length}</strong> of ${total} boards match</span></div>`;
+        const activeChips = this._moboActiveFilterChips();
+        const summary = activeChips.length
+            ? `<div class="mobo-active-filters">` +
+                activeChips.map(c => `<button type="button" class="mobo-active-chip" data-clear="${c.clear.replace(/"/g, '&quot;')}">${c.text} <i class="fas fa-times"></i></button>`).join('') +
+                `<button type="button" class="mobo-clear-all" data-clear-all>Clear all</button></div>`
+            : `<div class="mobo-active-filters mobo-no-filters">No filters — showing all boards</div>`;
+        const header = `<div class="mobo-results-head"><span><strong>${matches.length}</strong> of ${total} boards match</span></div>${summary}`;
+
+        const wireFilterChips = () => {
+            results.querySelectorAll('.mobo-active-chip').forEach(b =>
+                b.addEventListener('click', () => this._moboClearFilter(b.dataset.clear, mobos)));
+            const clearAll = results.querySelector('[data-clear-all]');
+            if (clearAll) clearAll.addEventListener('click', () => {
+                this._moboFilters = { socket: new Set(), memory: new Set(), formFactor: new Set(), wifi: null, ramSlotsMin: 0, m2Min: 0, pcieMin: 0 };
+                this._renderMoboFeaturePanel(mobos);
+            });
+        };
 
         if (!matches.length) {
-            results.innerHTML = header + `<div class="mobo-results-empty">No motherboards match these filters. Toggle a chip above to broaden.</div>`;
+            results.innerHTML = header + `<div class="mobo-results-empty">No motherboards match these filters. Remove a filter to broaden.</div>`;
+            wireFilterChips();
             return;
         }
 
@@ -16410,6 +16456,7 @@ class PartsDatabase {
         }).join('');
 
         results.innerHTML = header + `<div class="mobo-results-list">${rows}</div>`;
+        wireFilterChips();
 
         results.querySelectorAll('.mobo-row').forEach(row => {
             row.addEventListener('click', () => {
