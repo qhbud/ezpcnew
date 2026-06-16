@@ -16177,34 +16177,236 @@ class PartsDatabase {
     }
 
     async renderMoboListingsSection() {
-        if (this._moboListingsRendered) return;
         try {
-            const response = await fetch('/api/parts/motherboards');
-            if (!response.ok) return;
-            const mobos = await response.json();
-
-            // Best value: highest feature score per dollar
-            let bestMobo = null, bestScore = 0;
-            mobos.forEach(mb => {
-                const feat = this._getMotherboardScore(mb);
-                const price = parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0;
-                if (feat && price > 50) {
-                    const s = (feat / price) * 100;
-                    if (s > bestScore) { bestScore = s; bestMobo = mb; }
-                }
-            });
-            this._moboBestValue = bestMobo;
-
-            if (bestMobo) {
-                this._renderMoboProductCard(bestMobo);
-                this._renderMoboReviews(bestMobo);
-                this._renderMoboCompatSection(bestMobo);
+            if (!this._moboAll) {
+                const response = await fetch('/api/parts/motherboards');
+                if (!response.ok) return;
+                this._moboAll = await response.json();
             }
-            this._renderMoboTabScatterPlot(mobos);
-            this._moboListingsRendered = true;
+            const mobos = this._moboAll;
+
+            if (!this._moboListingsRendered) {
+                // Best value: highest feature score per dollar (internal ranking only;
+                // the score is never shown to the user — see feature panel for specs).
+                let bestMobo = null, bestScore = 0;
+                mobos.forEach(mb => {
+                    const feat = this._getMotherboardScore(mb);
+                    const price = parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0;
+                    if (feat && price > 50) {
+                        const s = (feat / price) * 100;
+                        if (s > bestScore) { bestScore = s; bestMobo = mb; }
+                    }
+                });
+                this._moboBestValue = bestMobo;
+
+                if (bestMobo) {
+                    this._renderMoboProductCard(bestMobo);
+                    this._renderMoboReviews(bestMobo);
+                }
+                this._moboListingsRendered = true;
+            }
+
+            // Re-run every visit so the facets re-derive from the current build.
+            this._renderMoboFeaturePanel(mobos);
         } catch (e) {
             console.error('Motherboard listings error:', e);
         }
+    }
+
+    // ── Motherboard feature filter panel (replaces the feature-score graph) ──
+    // Facet chip groups for the concrete specs that matter on a board. The
+    // compatibility-driven facets (socket / memory / size) are pre-selected from
+    // the current build but remain adjustable; deviating just surfaces an
+    // "incompatible" badge on the affected boards.
+    _moboMemTypes(mb) {
+        const specs = mb.specifications || {};
+        const raw = mb.memoryType || specs.memoryType || specs.ramType || [];
+        const arr = Array.isArray(raw) ? raw : [raw];
+        const out = new Set();
+        arr.filter(Boolean).forEach(v => {
+            const s = String(v).toUpperCase();
+            if (s.includes('DDR5')) out.add('DDR5');
+            if (s.includes('DDR4')) out.add('DDR4');
+        });
+        return [...out];
+    }
+    _moboHasWifi(mb) { return !!((mb.networking || {}).wifi || (mb.specifications || {}).wifi); }
+    _moboM2Bucket(mb) {
+        const n = parseInt(mb.m2Slots ?? mb.m2SlotCount ?? (mb.specifications || {}).m2Slots) || 0;
+        return n >= 4 ? '4+' : (n > 0 ? String(n) : null);
+    }
+    _moboFacetValues(facetKey, mb) {
+        switch (facetKey) {
+            case 'socket': return mb.socket ? [mb.socket] : [];
+            case 'memory': return this._moboMemTypes(mb);
+            case 'formFactor': return mb.formFactor ? [mb.formFactor] : [];
+            case 'wifi': return [this._moboHasWifi(mb) ? 'Yes' : 'No'];
+            case 'ramSlots': { const n = mb.ramSlots || mb.memorySlots; return n ? [String(n)] : []; }
+            case 'm2': { const b = this._moboM2Bucket(mb); return b ? [b] : []; }
+            case 'pcie': { const n = mb.pcieSlots || mb.pcieSlotCount; return n ? [String(n)] : []; }
+            default: return [];
+        }
+    }
+
+    _renderMoboFeaturePanel(mobos) {
+        const panel = document.getElementById('moboFeatureFilters');
+        const results = document.getElementById('moboFilterResults');
+        if (!panel || !results) return;
+
+        const facetDefs = [
+            { key: 'socket', label: 'Socket', compat: true },
+            { key: 'memory', label: 'Memory', compat: true, order: ['DDR4', 'DDR5'] },
+            { key: 'formFactor', label: 'Size', compat: true, order: ['Mini-ITX', 'Micro-ATX', 'ATX', 'E-ATX'] },
+            { key: 'wifi', label: 'WiFi', order: ['Yes', 'No'] },
+            { key: 'ramSlots', label: 'RAM Slots', numeric: true },
+            { key: 'm2', label: 'M.2 Slots', order: ['1', '2', '3', '4+'] },
+            { key: 'pcie', label: 'PCIe Slots', numeric: true },
+        ];
+
+        // Available options per facet (union across catalog), ordered.
+        const options = {};
+        facetDefs.forEach(def => {
+            const set = new Set();
+            mobos.forEach(mb => this._moboFacetValues(def.key, mb).forEach(v => set.add(v)));
+            let arr = [...set];
+            if (def.order) arr.sort((a, b) => def.order.indexOf(a) - def.order.indexOf(b));
+            else if (def.numeric) arr.sort((a, b) => parseFloat(a) - parseFloat(b));
+            else arr.sort();
+            options[def.key] = arr;
+        });
+
+        // Compatibility-derived defaults from the current build.
+        const build = this.currentBuild || {};
+        const norm = s => (s == null ? '' : s.toString().trim().toUpperCase());
+        const defaultFor = (def) => {
+            if (def.compat) {
+                if (def.key === 'socket' && build.cpu) {
+                    const sock = norm(build.cpu.socket || build.cpu.socketType);
+                    const match = options.socket.filter(o => norm(o) === sock);
+                    if (match.length) return new Set(match);
+                }
+                if (def.key === 'memory' && build.ram) {
+                    const types = this._moboMemTypes({ memoryType: build.ram.memoryType });
+                    if (types.length) return new Set(options.memory.filter(o => types.includes(o)));
+                }
+                if (def.key === 'formFactor' && build.case) {
+                    const fit = options.formFactor.filter(o => this._moboFitsCase(o, build.case.formFactor));
+                    if (fit.length) return new Set(fit);
+                }
+            }
+            return new Set(options[def.key]); // all on = no-op filter
+        };
+
+        // Re-derive selection only when the build changed (preserve manual edits otherwise).
+        const buildSig = [
+            norm(build.cpu && (build.cpu.socket || build.cpu.socketType)),
+            (build.ram ? this._moboMemTypes({ memoryType: build.ram.memoryType }).join(',') : ''),
+            norm(build.case && (Array.isArray(build.case.formFactor) ? build.case.formFactor.join('/') : build.case.formFactor)),
+        ].join('|');
+
+        if (!this._moboFacetState || this._moboBuildSig !== buildSig) {
+            this._moboFacetState = {};
+            facetDefs.forEach(def => { this._moboFacetState[def.key] = defaultFor(def); });
+            this._moboBuildSig = buildSig;
+        }
+        const state = this._moboFacetState;
+
+        const hasBuildContext = !!(build.cpu || build.ram || build.case);
+
+        // Render facet chip rows.
+        panel.innerHTML =
+            (hasBuildContext ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your selected ${[build.cpu && 'CPU', build.ram && 'RAM', build.case && 'case'].filter(Boolean).join(', ')}. Adjust any chip to broaden.</div>` : '') +
+            facetDefs.map(def => {
+                if (!options[def.key].length) return '';
+                const chips = options[def.key].map(o => {
+                    const active = state[def.key].has(o);
+                    const label = (def.key === 'wifi') ? (o === 'Yes' ? 'WiFi' : 'No WiFi')
+                        : (def.numeric ? `${o}×` : o);
+                    return `<button type="button" class="gc-chip mobo-facet-chip${active ? ' active' : ''}" data-facet="${def.key}" data-val="${String(o).replace(/"/g, '&quot;')}">${label}</button>`;
+                }).join('');
+                return `<div class="gc-row"><span class="gc-label">${def.label}</span><div class="gc-chips">${chips}</div></div>`;
+            }).join('');
+
+        panel.querySelectorAll('.mobo-facet-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const fk = chip.dataset.facet, v = chip.dataset.val;
+                const sel = state[fk];
+                if (sel.has(v)) { if (sel.size > 1) sel.delete(v); }
+                else sel.add(v);
+                chip.classList.toggle('active', sel.has(v));
+                this._renderMoboFilterResults(mobos);
+            });
+        });
+
+        this._renderMoboFilterResults(mobos);
+    }
+
+    _moboMatchesFacets(mb) {
+        const state = this._moboFacetState || {};
+        return Object.keys(state).every(fk => {
+            const vals = this._moboFacetValues(fk, mb);
+            if (!vals.length) return true; // unknown spec -> don't exclude
+            return vals.some(v => state[fk].has(v));
+        });
+    }
+
+    _renderMoboFilterResults(mobos) {
+        const results = document.getElementById('moboFilterResults');
+        if (!results) return;
+
+        const matches = mobos
+            .filter(mb => this._moboMatchesFacets(mb))
+            .map(mb => ({ mb, price: parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0 }))
+            .sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+
+        const total = mobos.length;
+        const header = `<div class="mobo-results-head"><span><strong>${matches.length}</strong> of ${total} boards match</span></div>`;
+
+        if (!matches.length) {
+            results.innerHTML = header + `<div class="mobo-results-empty">No motherboards match these filters. Toggle a chip above to broaden.</div>`;
+            return;
+        }
+
+        const rows = matches.map(({ mb, price }) => {
+            const title = mb.name || mb.title || 'Motherboard';
+            const incompat = !this.isCompatibleWithBuild('motherboard', mb);
+            const mem = this._moboMemTypes(mb).join('/') || '—';
+            const wifi = this._moboHasWifi(mb) ? 'WiFi' : 'No WiFi';
+            const m2 = this._moboM2Bucket(mb);
+            const ff = mb.formFactor || '—';
+            const img = mb.imageUrl || mb.image || '';
+            const imgHTML = img
+                ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
+                : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-memory"></i></div>`;
+            const tags = [
+                mb.socket, ff, mem, wifi,
+                m2 ? `${m2} M.2` : null,
+                (mb.pcieSlots || mb.pcieSlotCount) ? `${mb.pcieSlots || mb.pcieSlotCount} PCIe` : null,
+            ].filter(Boolean).map(t => `<span class="mobo-row-tag">${t}</span>`).join('');
+            return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}" data-id="${this.getPartId(mb)}">
+                ${imgHTML}
+                <div class="mobo-row-main">
+                    <div class="mobo-row-title">${title}${incompat ? ' <span class="mobo-row-warn"><i class="fas fa-exclamation-triangle"></i> won\'t fit build</span>' : ''}</div>
+                    <div class="mobo-row-tags">${tags}</div>
+                </div>
+                <div class="mobo-row-price">${price > 0 ? '$' + price.toFixed(2) : '—'}</div>
+            </div>`;
+        }).join('');
+
+        results.innerHTML = header + `<div class="mobo-results-list">${rows}</div>`;
+
+        results.querySelectorAll('.mobo-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const id = row.dataset.id;
+                const mb = matches.find(m => this.getPartId(m.mb) === id)?.mb;
+                if (!mb) return;
+                this._moboTabSelectedMb = mb;
+                this._renderMoboProductCard(mb);
+                this._renderMoboReviews(mb);
+                results.querySelectorAll('.mobo-row').forEach(r => r.classList.toggle('mobo-row-sel', r === row));
+                document.getElementById('moboProductCard')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
     }
 
     _renderMoboProductCard(mb) {
@@ -16229,9 +16431,17 @@ class PartsDatabase {
         const socket = mb.socket || '—';
         const formFactor = mb.formFactor || '—';
         const chipset = mb.chipset || '—';
-        const ramSlots = (mb.memorySlots || mb.ramSlots) ? `${mb.memorySlots || mb.ramSlots} slots (${specs.memoryType || specs.ramType || (Array.isArray(mb.memoryType) ? mb.memoryType[0] : mb.memoryType) || '—'})` : '—';
+        const memType = this._moboMemTypes(mb).join(' / ') || specs.memoryType || specs.ramType || '—';
+        const ramSlotCount = mb.ramSlots || mb.memorySlots;
+        const ramSlots = ramSlotCount ? `${ramSlotCount} slots (${memType})` : '—';
         const maxRam = specs.maxMemory || '—';
-        const pcieSlots = mb.pcieSlotCount ? `${mb.pcieSlotCount} slots (${specs.pcieVersion || '—'})` : '—';
+        const pcieCount = mb.pcieSlots || mb.pcieSlotCount;
+        const pcieSlots = pcieCount ? `${pcieCount} slots${specs.pcieVersion ? ' (' + specs.pcieVersion + ')' : ''}` : '—';
+        const m2Count = mb.m2Slots ?? mb.m2SlotCount ?? specs.m2Slots;
+        const m2Slots = (m2Count != null && m2Count !== '') ? `${m2Count} slots` : '—';
+        const hasWifi = this._moboHasWifi(mb);
+        const wifiVer = (mb.networking || {}).wifiVersion || specs.wifiVersion || '';
+        const wifi = hasWifi ? (wifiVer ? `Yes (${wifiVer})` : 'Yes') : 'No';
 
         const imgHTML = imageUrl
             ? `<img src="${imageUrl}" alt="${title}" class="gpu-card-img" />`
@@ -16253,9 +16463,12 @@ class PartsDatabase {
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Socket</span><span class="gpu-spec-val">${socket}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Form Factor</span><span class="gpu-spec-val">${formFactor}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Chipset</span><span class="gpu-spec-val">${chipset}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">Memory</span><span class="gpu-spec-val">${memType}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">RAM Slots</span><span class="gpu-spec-val">${ramSlots}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">Max RAM</span><span class="gpu-spec-val">${maxRam}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">M.2 Slots</span><span class="gpu-spec-val">${m2Slots}</span></div>
                 <div class="gpu-card-spec-row"><span class="gpu-spec-label">PCIe Slots</span><span class="gpu-spec-val">${pcieSlots}</span></div>
+                <div class="gpu-card-spec-row"><span class="gpu-spec-label">WiFi</span><span class="gpu-spec-val">${wifi}</span></div>
             </div>
             <div class="gpu-card-select-wrap">
                 <button class="gpu-card-select-btn" onclick="pcBuilder.selectComponentFromTab()">
@@ -16329,245 +16542,6 @@ class PartsDatabase {
             <div class="gpu-review-bar-wrap">${bars}</div>`;
     }
 
-    _renderMoboCompatSection(mb) {
-        const section = document.getElementById('moboCompatSection');
-        if (!section) return;
-
-        const specs = mb.specifications || {};
-        const net = mb.networking || {};
-        const chipset = (mb.chipset || '').toUpperCase();
-
-        // Overclocking: Z/X chipsets support full OC, B = limited, H/A = no
-        let ocLevel, ocLabel, ocColor;
-        if (/^Z[0-9]|^X[0-9]|^TRX/.test(chipset)) {
-            ocLevel = 100; ocLabel = 'Full Support'; ocColor = 'var(--primary-color, #4f8ef7)';
-        } else if (/^B[0-9]/.test(chipset)) {
-            ocLevel = 50; ocLabel = 'Limited (RAM only)'; ocColor = '#f5a623';
-        } else {
-            ocLevel = 0; ocLabel = 'Not Supported'; ocColor = '#e74c3c';
-        }
-
-        const m2Count = mb.m2SlotCount || 0;
-        const m2Bar = Math.min((m2Count / 6) * 100, 100);
-
-        // Estimate USB port count from chipset/tier
-        const tier = (mb.performanceTier || '').toLowerCase();
-        let usbCount;
-        if (tier.includes('high')) usbCount = 10;
-        else if (tier.includes('performance')) usbCount = 8;
-        else usbCount = 6;
-        const usbBar = Math.min((usbCount / 12) * 100, 100);
-
-        const hasWifi = net.wifi || specs.wifi || false;
-        const wifiVer = net.wifiVersion || specs.wifiVersion || '';
-        const hasBT = specs.bluetooth || false;
-        const connLabel = hasWifi && hasBT ? `WiFi ${wifiVer ? '(' + wifiVer + ')' : ''} + Bluetooth`
-            : hasWifi ? `WiFi ${wifiVer ? '(' + wifiVer + ')' : ''}` : hasBT ? 'Bluetooth only' : 'No wireless';
-        const connColor = hasWifi ? 'var(--primary-color, #4f8ef7)' : hasBT ? '#f5a623' : '#9ca3af';
-        const connBar = hasWifi && hasBT ? 100 : hasWifi ? 75 : hasBT ? 35 : 0;
-
-        const row = (icon, label, barPct, barColor, valueLabel) => `
-            <div class="mobo-compat-row">
-                <div class="mobo-compat-label-wrap">
-                    <i class="${icon} mobo-compat-icon"></i>
-                    <span class="mobo-compat-label">${label}</span>
-                </div>
-                <div class="gpu-bench-bar-track mobo-compat-track">
-                    <div class="gpu-bench-bar-fill" style="width:${barPct.toFixed(0)}%;background:${barColor}"></div>
-                </div>
-                <span class="mobo-compat-value">${valueLabel}</span>
-            </div>`;
-
-        section.innerHTML = `
-            <div class="gpu-bench-title"><i class="fas fa-check-circle"></i> Compatibility Highlights</div>
-            <p class="gpu-bench-note">Key features of the selected motherboard at a glance.</p>
-            ${row('fas fa-bolt', 'Overclocking', ocLevel, ocColor, ocLabel)}
-            ${row('fas fa-hdd', 'M.2 Slots', m2Bar, 'var(--primary-color, #4f8ef7)', m2Count + ' slots')}
-            ${row('fas fa-usb', 'USB Ports', usbBar, 'var(--primary-color, #4f8ef7)', '~' + usbCount + ' ports')}
-            ${row('fas fa-wifi', 'Wireless', connBar, connColor, connLabel)}`;
-    }
-
-    _renderMoboTabScatterPlot(mobos) {
-        const canvas = document.getElementById('moboTabScatterPlot');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        const wrap = canvas.parentElement;
-        const width = Math.max(wrap.offsetWidth - 32, 300);
-        const height = 380;
-        canvas.width = width;
-        canvas.height = height;
-
-        const pts = [];
-        mobos.forEach(mb => {
-            const feat = this._getMotherboardScore(mb);
-            const price = parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0;
-            if (feat && price > 0) pts.push({ mb, performance: feat, price });
-        });
-
-        if (!pts.length) {
-            ctx.fillStyle = '#888'; ctx.font = '14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('No motherboard data available', width / 2, height / 2);
-            return;
-        }
-
-        const pad = { top: 24, right: 30, bottom: 58, left: 80 };
-        const cw = width - pad.left - pad.right;
-        const ch = height - pad.top - pad.bottom;
-
-        const maxPerf = Math.max(...pts.map(p => p.performance));
-        const minPerf = Math.min(...pts.map(p => p.performance));
-        const maxP = Math.max(...pts.map(p => p.price));
-        const minP = Math.min(...pts.map(p => p.price));
-        const step = Math.ceil((maxP - minP) / 5 / 50) * 50 || 50;
-        const rMin = Math.floor(minP / 50) * 50;
-        const rMax = rMin + step * 5;
-
-        const scores = pts.map(p => p.performance / p.price);
-        const sMax = Math.max(...scores), sMin = Math.min(...scores);
-
-        pts.forEach((p, i) => {
-            p.cx = pad.left + ((p.performance - minPerf) / (maxPerf - minPerf || 1)) * cw;
-            p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
-            p.valueScore = scores[i];
-        });
-        this._moboTabChartPts = pts;
-        this._moboTabChartMeta = { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step };
-
-        this._drawMoboTabChart = (selectedMb) => {
-            const { pad, cw, ch, width, height, rMin, rMax, minPerf, maxPerf, sMin, sMax, step } = this._moboTabChartMeta;
-
-            ctx.clearRect(0, 0, width, height);
-
-            for (let i = 0; i <= 5; i++) {
-                const price = rMin + step * i;
-                const y = height - pad.bottom - (ch / 5) * i;
-                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
-                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
-                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-                ctx.fillText('$' + price, pad.left - 8, y);
-            }
-
-            for (let i = 0; i <= 5; i++) {
-                const feat = minPerf + ((maxPerf - minPerf) / 5) * i;
-                const x = pad.left + (cw / 5) * i;
-                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
-                ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
-                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-                ctx.fillText(feat.toFixed(1), x, height - pad.bottom + 6);
-            }
-
-            ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom);
-            ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
-
-            ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-            ctx.fillText('Feature Score', pad.left + cw / 2, height - 4);
-            ctx.save();
-            ctx.translate(14, pad.top + ch / 2);
-            ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
-            ctx.fillText('Price (USD)', 0, 0);
-            ctx.restore();
-
-            const selectedName = selectedMb ? (selectedMb.name || selectedMb.title || '') : '';
-
-            const [unselected, selected] = this._moboTabChartPts.reduce(
-                ([u, s], p) => (p.mb.name === selectedName || p.mb.title === selectedName) ? [u, [...s, p]] : [[...u, p], s],
-                [[], []]
-            );
-
-            [...unselected, ...selected].forEach(p => {
-                const isSelected = p.mb.name === selectedName || p.mb.title === selectedName;
-                const t = (p.valueScore - sMin) / (sMax - sMin || 1);
-                const r = Math.round(220 * (1 - t));
-                const g = Math.round(40 + 160 * t);
-                const incompatible = this._pointIncompatible(p);
-
-                if (isSelected) {
-                    ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 9, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.9)' : `rgba(${r},${g},60,1)`;
-                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 7, 0, Math.PI * 2); ctx.fill();
-                } else {
-                    ctx.fillStyle = incompatible ? 'rgba(170,170,170,0.28)' : `rgba(${r},${g},60,0.65)`;
-                    ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.fill();
-                }
-            });
-
-        };
-
-        this._drawMoboTabChart(this._moboTabSelectedMb || null);
-
-        if (!canvas._moboListenersAttached) {
-            canvas._moboListenersAttached = true;
-            canvas.style.cursor = 'default';
-
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
-                const hit = this._moboTabChartPts?.find(p => Math.hypot(p.cx - mx, p.cy - my) <= 8);
-                canvas.style.cursor = hit ? 'pointer' : 'default';
-
-                const tip = document.getElementById('moboChartTooltip');
-                if (hit && tip) {
-                    tip.textContent = (hit.mb.name || hit.mb.title || '');
-                    tip.style.display = 'block';
-                    tip.style.left = (e.offsetX + 12) + 'px';
-                    tip.style.top = (e.offsetY - 8) + 'px';
-                } else if (tip) {
-                    tip.style.display = 'none';
-                }
-            });
-
-            canvas.addEventListener('mouseleave', () => {
-                const tip = document.getElementById('moboChartTooltip');
-                if (tip) tip.style.display = 'none';
-                canvas.style.cursor = 'default';
-            });
-
-            canvas.addEventListener('click', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-                const my = (e.clientY - rect.top) * (canvas.height / rect.height);
-                let closest = null, closestDist = Infinity;
-                this._moboTabChartPts?.forEach(p => {
-                    const d = Math.hypot(p.cx - mx, p.cy - my);
-                    if (d < closestDist) { closestDist = d; closest = p; }
-                });
-                if (closest && closestDist <= 10) {
-                    this._moboTabSelectedMb = closest.mb;
-                    this._renderMoboProductCard(closest.mb);
-                    this._renderMoboReviews(closest.mb);
-                    this._renderMoboCompatSection(closest.mb);
-                    this._drawMoboTabChart(closest.mb);
-                }
-            });
-        }
-
-        if (!document.getElementById('moboChartTooltip')) {
-            const wrap2 = canvas.parentElement;
-            wrap2.style.position = 'relative';
-            const tip = document.createElement('div');
-            tip.id = 'moboChartTooltip';
-            tip.style.cssText = 'display:none;position:absolute;background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;max-width:220px;';
-            wrap2.appendChild(tip);
-        }
-
-        this._graphState = this._graphState || {};
-        this._graphState.mobo = {
-            canvasId: 'moboTabScatterPlot', ptsProp: '_moboTabChartPts', allPts: pts,
-            getBrand: (p) => this._detectBrand(p.mb, 'mobo'), brandColors: false,
-            legendHigh: 'Best value', legendLow: 'Poor value',
-            draw: () => this._drawMoboTabChart(this._moboTabSelectedMb || null),
-        };
-        this._setupGraphControls('mobo');
-    }
 
     // ── RAM Tab Listings ───────────────────────────────────────────
     // Performance score: higher speed + lower CAS latency = better

@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=storage-chart-1">
+    <link rel="stylesheet" href="styles-v5.css?v=mobo-filters-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -530,13 +530,11 @@
                         <div class="gpu-reviews" id="moboReviews"></div>
                     </div>
 
-                    <!-- Right: Value vs Price scatter plot + Compatibility highlights -->
+                    <!-- Right: Feature filters (pre-set to your build) + matching boards -->
                     <div class="gpu-listing-right">
-                        <div class="gpu-chart-header"><i class="fas fa-chart-line"></i> Value Score vs Price</div>
-                        <div class="gpu-chart-wrap">
-                            <canvas id="moboTabScatterPlot"></canvas>
-                        </div>
-                        <div id="moboCompatSection" class="gpu-benchmark-section"></div>
+                        <div class="gpu-chart-header"><i class="fas fa-sliders-h"></i> Find a Compatible Motherboard</div>
+                        <div id="moboFeatureFilters" class="graph-controls mobo-feature-filters"></div>
+                        <div id="moboFilterResults" class="mobo-filter-results"></div>
                     </div>
 
                 </div>
@@ -2159,7 +2157,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=25"></script>
+    <script src="script.js?v=26"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;
