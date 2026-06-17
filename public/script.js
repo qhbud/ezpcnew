@@ -14384,6 +14384,7 @@ class PartsDatabase {
                 if (!response.ok) return;
                 gpus = await response.json();
             }
+            this._gpuRaw = gpus;
 
             // Find best-value GPU (highest perf per dollar, price > $100)
             let bestGpu = null;
@@ -14404,6 +14405,7 @@ class PartsDatabase {
                 this._renderGpuBenchmarkChart(bestGpu);
             }
             this._renderGpuTabScatterPlot(gpus);
+            this._renderGpuFilterResults(gpus);
             this._gpuListingsRendered = true;
         } catch (e) {
             console.error('GPU listings error:', e);
@@ -14723,33 +14725,323 @@ class PartsDatabase {
                 </div>`;
         }
 
-        const priceCanvasId = 'gpuBenchPriceChart';
         section.innerHTML = `
             <div class="gpu-bench-title"><i class="fas fa-tachometer-alt"></i> FPS Estimates <span class="gpu-bench-disclaimer-badge">Calculated</span></div>
             <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> These are <strong>calculated estimates</strong> scaled from benchmark scores, not measured results. Actual FPS will vary based on drivers, settings, and system configuration.</p>
-            ${gamesHTML}
-            <div class="gpu-bench-pricehistory">
-                <div class="gpu-bench-title"><i class="fas fa-chart-line"></i> Price History</div>
-                <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Recorded daily prices for the selected card.</p>
-                <div class="gpu-bench-price-canvas-wrap">
-                    <canvas id="${priceCanvasId}" width="560" height="240"></canvas>
-                </div>
-            </div>`;
+            ${gamesHTML}`;
 
-        // Load + draw real price history for the selected GPU under the FPS estimates.
-        // A render token guards against a stale async draw landing in a newer canvas
-        // when the user clicks through cards quickly.
+        // Price history now renders in its own section (above the FPS estimates,
+        // below the GPU list) as selectable SVG rather than a canvas image.
+        this._renderGpuPriceHistory(gpu);
+    }
+
+    // Price history for the selected GPU — rendered as inline SVG so the axis
+    // labels are real, selectable text (not a flat canvas image). A render token
+    // guards against a stale async draw landing when clicking through cards fast.
+    _renderGpuPriceHistory(gpu) {
+        const section = document.getElementById('gpuPriceHistorySection');
+        if (!section || !gpu) return;
         const basePrice = parseFloat(gpu.basePrice || gpu.price || gpu.currentPrice) || 0;
         const salePrice = parseFloat(gpu.salePrice || gpu.currentPrice || gpu.basePrice || gpu.price) || 0;
+
+        section.innerHTML = `
+            <div class="gpu-bench-title"><i class="fas fa-chart-line"></i> Price History</div>
+            <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Recorded daily prices for the selected card. Hover a point for its date and price.</p>
+            <div class="gpu-price-history-chart"><div class="gpu-price-loading">Loading price history…</div></div>`;
+
         const renderToken = (gpu._id || gpu.title || gpu.name || '') + ':' + Date.now();
-        this._gpuBenchPriceToken = renderToken;
+        this._gpuPriceHistToken = renderToken;
         setTimeout(async () => {
-            if (this._gpuBenchPriceToken !== renderToken) return;
+            if (this._gpuPriceHistToken !== renderToken) return;
             const saved = await this.ensurePriceHistory(gpu, 'gpu');
-            if (this._gpuBenchPriceToken !== renderToken) return;
-            if (!document.getElementById(priceCanvasId)) return;
+            if (this._gpuPriceHistToken !== renderToken) return;
+            const host = section.querySelector('.gpu-price-history-chart');
+            if (!host) return;
             const history = this.generatePriceHistory(basePrice, salePrice, saved);
-            this.drawPriceChart(priceCanvasId, history, basePrice, salePrice);
+            // Fill the column width like the other components (scatter plot / list).
+            const width = Math.max(Math.round(host.clientWidth) || 560, 320);
+            host.innerHTML = this._buildPriceHistorySvg(history, basePrice, salePrice, width);
+            this._wirePriceHistoryHover(host);
+        }, 50);
+    }
+
+    // Hover tooltip for the price-history points: shows price + date at that point.
+    _wirePriceHistoryHover(host) {
+        const tip = host.querySelector('.gpu-price-tip');
+        if (!tip) return;
+        host.querySelectorAll('.gpu-price-hit').forEach(hit => {
+            const show = () => {
+                tip.textContent = `$${parseFloat(hit.dataset.price).toFixed(2)} • ${hit.dataset.date}`;
+                tip.style.display = 'block'; // show first so offsetWidth is measurable
+                const hr = host.getBoundingClientRect(), cr = hit.getBoundingClientRect();
+                const half = tip.offsetWidth / 2;
+                let cx = cr.left - hr.left + cr.width / 2;
+                cx = Math.max(half + 2, Math.min(cx, hr.width - half - 2)); // keep inside the chart
+                tip.style.left = cx + 'px';
+                tip.style.top = (cr.top - hr.top) + 'px';
+            };
+            hit.addEventListener('mouseenter', show);
+            hit.addEventListener('mousemove', show);
+            hit.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+        });
+    }
+
+    // Build the price-history chart as an SVG string (selectable text labels).
+    // Width is the rendered pixel width so the viewBox is 1:1 (crisp text); a few
+    // evenly-spaced date labels are shown across the bottom.
+    _buildPriceHistorySvg(priceHistory, basePrice, salePrice, width = 560) {
+        const W = width, H = 300;
+        const pad = { top: 26, right: 24, bottom: 42, left: 62 };
+        const cw = W - pad.left - pad.right;
+        const ch = H - pad.top - pad.bottom;
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+        if (!priceHistory || priceHistory.length === 0) {
+            const msg = (!salePrice && !basePrice) ? 'Product currently unavailable' : 'No price history available yet';
+            return `<div class="gpu-price-tip" style="display:none"></div>
+                <svg class="gpu-price-svg" viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" role="img">
+                <text x="${W / 2}" y="${H / 2}" text-anchor="middle" class="gpu-price-empty">${esc(msg)}</text></svg>`;
+        }
+
+        const prices = priceHistory.map(d => d.price);
+        const minPrice = Math.min(...prices) * 0.95;
+        const maxPrice = Math.max(...prices) * 1.05;
+        const priceRange = maxPrice - minPrice || 1;
+        const dates = priceHistory.map(d => d.date.getTime());
+        let minDate = Math.min(...dates), maxDate = Math.max(...dates);
+        let dateRange = maxDate - minDate, effMin = minDate, effMax = maxDate;
+        if (dateRange < 86400000) { const d3 = 3 * 86400000; effMin = minDate - d3; effMax = maxDate + d3; dateRange = effMax - effMin; }
+
+        const xScale = (t) => pad.left + ((t - effMin) / dateRange) * cw;
+        const yScale = (p) => pad.top + ch - ((p - minPrice) / priceRange) * ch;
+        const fmtDate = (t) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        // Y grid + labels
+        let grid = '', yLabels = '';
+        for (let i = 0; i <= 5; i++) {
+            const price = minPrice + (priceRange * i / 5);
+            const y = yScale(price);
+            grid += `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${pad.left + cw}" y2="${y.toFixed(1)}" class="gpu-price-grid"/>`;
+            yLabels += `<text x="${pad.left - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end" class="gpu-price-axis">$${price.toFixed(0)}</text>`;
+        }
+        // X labels — more on a wider chart (evenly spaced across the date range).
+        const xCount = W > 620 ? 6 : 4;
+        let xLabels = '';
+        for (let i = 0; i <= xCount; i++) {
+            const t = effMin + (dateRange * i / xCount);
+            xLabels += `<text x="${xScale(t).toFixed(1)}" y="${pad.top + ch + 20}" text-anchor="middle" class="gpu-price-axis">${fmtDate(t)}</text>`;
+        }
+
+        const pts = priceHistory.map(d => ({ x: xScale(d.date.getTime()), y: yScale(d.price), price: d.price, date: d.date }));
+        const linePath = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+        const areaPath = `M${pts[0].x.toFixed(1)},${(pad.top + ch).toFixed(1)} ` +
+            pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
+            ` L${pts[pts.length - 1].x.toFixed(1)},${(pad.top + ch).toFixed(1)} Z`;
+        const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" class="gpu-price-dot"/>`).join('');
+        // Invisible, larger hover targets carrying the data for the tooltip.
+        const hits = pts.map(p =>
+            `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" class="gpu-price-hit" data-price="${p.price}" data-date="${esc(fmtDate(p.date.getTime()))}"/>`).join('');
+        const curX = pts[pts.length - 1].x, curY = yScale(salePrice);
+        const origY = yScale(basePrice);
+
+        return `
+            <div class="gpu-price-tip" style="display:none"></div>
+            <div class="gpu-price-legend">
+                <span class="gpu-price-leg"><span class="gpu-price-leg-dot"></span>Sale: $${salePrice.toFixed(2)}</span>
+                <span class="gpu-price-leg"><span class="gpu-price-leg-dash"></span>Original: $${basePrice.toFixed(2)}</span>
+            </div>
+            <svg class="gpu-price-svg" viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" role="img">
+                ${grid}
+                <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + ch}" class="gpu-price-axisline"/>
+                <line x1="${pad.left}" y1="${pad.top + ch}" x2="${pad.left + cw}" y2="${pad.top + ch}" class="gpu-price-axisline"/>
+                ${yLabels}${xLabels}
+                <path d="${areaPath}" class="gpu-price-area"/>
+                <path d="${linePath}" class="gpu-price-line"/>
+                <line x1="${pad.left}" y1="${origY.toFixed(1)}" x2="${pad.left + cw}" y2="${origY.toFixed(1)}" class="gpu-price-orig"/>
+                ${dots}
+                <circle cx="${curX.toFixed(1)}" cy="${curY.toFixed(1)}" r="4.5" class="gpu-price-current"/>
+                <circle cx="${curX.toFixed(1)}" cy="${curY.toFixed(1)}" r="11" class="gpu-price-hit" data-price="${salePrice}" data-date="${esc(fmtDate(pts[pts.length - 1].date.getTime()))}"/>
+                ${hits}
+            </svg>`;
+    }
+
+    // ── Generic per-tab component list + price history ───────────────
+    // Drives CPU / RAM / PSU / Cooler tabs with the same UX the GPU tab has:
+    // a sortable component list (price + a per-tab metric) synced to the scatter
+    // plot, plus an SVG price-history graph. Per-tab specifics live in this config.
+    _tabCfg(kind) {
+        const C = {
+            cpu: {
+                itemKey: 'cpu', ptsProp: '_cpuTabChartPts', selProp: '_cpuTabSelectedCpu', drawFn: '_drawCpuTabChart',
+                card: '_renderCpuProductCard', reviews: '_renderCpuReviews', extra: '_renderCpuBenchmarkChart',
+                metricLabel: 'Performance',
+                metric: c => this.getCpuPerformance(c) || 0,
+                badge: c => { const v = this.getCpuPerformance(c); return v != null ? `${Math.round(v * 100)}% perf` : null; },
+                tags: c => [c.manufacturer, c.socket, c.cores ? `${c.cores} cores` : null, c.speed ? `${c.speed} GHz` : null]
+            },
+            cooler: {
+                itemKey: 'cooler', ptsProp: '_coolerTabChartPts', selProp: '_coolerTabSelectedCooler', drawFn: '_drawCoolerTabChart',
+                card: '_renderCoolerProductCard', reviews: '_renderCoolerReviews', extra: '_renderCoolerThermalChart',
+                metricLabel: 'Cooling',
+                metric: c => this.getCoolerPerformance(c) || 0,
+                badge: c => { const w = c.performance?.tdp || c.performance?.estimatedTdp || c.tdp; return w ? `${w}W cooling` : null; },
+                tags: c => [c.manufacturer, (c.coolerType || c.type || c.coolingMethod), c.fanCount ? `${c.fanCount} fan` : null, c.heatpipes ? `${c.heatpipes} heatpipes` : null]
+            },
+            ram: {
+                itemKey: 'ram', ptsProp: '_ramTabChartPts', selProp: '_ramTabSelectedRam', drawFn: '_drawRamTabChart',
+                card: '_renderRamProductCard', reviews: '_renderRamReviews', extra: '_renderRamPerfSection',
+                metricLabel: 'Speed',
+                metric: r => r.speed || r.speedMHz || 0,
+                badge: r => { const s = r.speed || r.speedMHz; return s ? `${s} MHz` : null; },
+                tags: r => [r.manufacturer, r.memoryType, r.totalCapacity ? `${r.totalCapacity}GB` : null, r.casLatency ? `CL${r.casLatency}` : null]
+            },
+            psu: {
+                itemKey: 'psu', ptsProp: '_psuTabChartPts', selProp: '_psuTabSelectedPsu', drawFn: '_drawPsuTabChart',
+                card: '_renderPsuProductCard', reviews: '_renderPsuReviews', extra: '_renderPsuEfficiencySection',
+                metricLabel: 'Wattage',
+                metric: p => p.wattage || 0,
+                badge: p => p.wattage ? `${p.wattage}W` : null,
+                tags: p => [p.manufacturer, p.efficiency, p.wattage ? `${p.wattage}W` : null, p.modular]
+            }
+        };
+        return C[kind];
+    }
+
+    // Select a part from the list or scatter: updates card/reviews/section, the
+    // scatter highlight, the price history, and the list row highlight together.
+    _tabSelect(kind, item) {
+        const cfg = this._tabCfg(kind);
+        if (!cfg || !item) return;
+        this[cfg.selProp] = item;
+        if (this[cfg.card]) this[cfg.card](item);
+        if (cfg.reviews && this[cfg.reviews]) this[cfg.reviews](item);
+        if (cfg.extra && this[cfg.extra]) this[cfg.extra](item);
+        if (this[cfg.drawFn]) this[cfg.drawFn](item);
+        this._renderTabPriceHistory(kind, item);
+        this._syncTabListSelection(kind);
+    }
+
+    // Render the sortable component list for a tab. Source is the scatter's
+    // currently-visible points so the list always matches the chart's filters.
+    _renderTabList(kind, items) {
+        const cfg = this._tabCfg(kind);
+        if (!cfg) return;
+        const results = document.getElementById(`${kind}FilterResults`);
+        if (!results) return;
+        this._tabItems = this._tabItems || {};
+        if (items) this._tabItems[kind] = items;
+
+        const pts = this[cfg.ptsProp] || [];
+        this._tabListSort = this._tabListSort || {};
+        const sort = this._tabListSort[kind] || (this._tabListSort[kind] = 'price-asc');
+
+        const rows = pts.map(p => ({ item: p[cfg.itemKey], price: p.price, metric: cfg.metric(p[cfg.itemKey]) }))
+            .filter(r => r.item && r.price > 0);
+        if (sort === 'price-desc') rows.sort((a, b) => b.price - a.price);
+        else if (sort === 'metric-asc') rows.sort((a, b) => (a.metric || 0) - (b.metric || 0) || a.price - b.price);
+        else if (sort === 'metric-desc') rows.sort((a, b) => (b.metric || 0) - (a.metric || 0) || a.price - b.price);
+        else rows.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+
+        const isPrice = sort.startsWith('price');
+        const isMetric = sort.startsWith('metric');
+        const priceLabel = isPrice ? `Price ${sort === 'price-asc' ? '&uarr;' : '&darr;'}` : 'Price';
+        const metricLabel = isMetric ? `${cfg.metricLabel} ${sort === 'metric-asc' ? '&uarr;' : '&darr;'}` : cfg.metricLabel;
+        const header = `<div class="mobo-results-head">
+            <span><strong>${rows.length}</strong> ${kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind + 's'}</span>
+            <div class="gpu-sort-controls"><span class="gpu-sort-label">Sort:</span>
+                <button type="button" class="gc-chip gpu-sort-btn${isPrice ? ' active' : ''}" data-sort-key="price">${priceLabel}</button>
+                <button type="button" class="gc-chip gpu-sort-btn${isMetric ? ' active' : ''}" data-sort-key="metric">${metricLabel}</button>
+            </div>
+        </div>`;
+
+        const wireSort = () => results.querySelectorAll('.gpu-sort-btn').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const cur = this._tabListSort[kind];
+                this._tabListSort[kind] = btn.dataset.sortKey === 'price'
+                    ? (cur === 'price-asc' ? 'price-desc' : 'price-asc')
+                    : (cur === 'metric-desc' ? 'metric-asc' : 'metric-desc');
+                this._renderTabList(kind);
+            }));
+
+        if (!rows.length) {
+            results.innerHTML = header + `<div class="mobo-results-empty">No matches. Adjust the filters above to broaden.</div>`;
+            wireSort();
+            return;
+        }
+
+        const html = rows.map(({ item, price }) => {
+            const title = item.title || item.name || '';
+            const incompat = !this.isCompatibleWithBuild(kind, item);
+            const badge = cfg.badge(item);
+            const tags = cfg.tags(item).filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(String(t))}</span>`).join('');
+            const img = item.imageUrl || item.image || '';
+            const imgHTML = img
+                ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
+                : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-microchip"></i></div>`;
+            return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}" data-id="${this.getPartId(item)}">
+                ${imgHTML}
+                <div class="mobo-row-main">
+                    <div class="mobo-row-title">${this._escapeHtml(title)}${incompat ? ' <span class="mobo-row-warn"><i class="fas fa-exclamation-triangle"></i> may not fit build</span>' : ''}</div>
+                    <div class="mobo-row-tags">${tags}</div>
+                </div>
+                <div class="mobo-row-price">${price > 0 ? '$' + price.toFixed(2) : '—'}${badge ? `<span class="gpu-row-perf">${this._escapeHtml(badge)}</span>` : ''}</div>
+            </div>`;
+        }).join('');
+
+        results.innerHTML = header + `<div class="mobo-results-list">${html}</div>`;
+        wireSort();
+        results.querySelectorAll('.mobo-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const item = rows.find(r => this.getPartId(r.item) === row.dataset.id)?.item;
+                if (!item) return;
+                this._tabSelect(kind, item);
+                document.getElementById(`${kind}ProductCard`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+        this._syncTabListSelection(kind);
+    }
+
+    _syncTabListSelection(kind) {
+        const cfg = this._tabCfg(kind);
+        if (!cfg) return;
+        const results = document.getElementById(`${kind}FilterResults`);
+        if (!results) return;
+        const sel = this[cfg.selProp];
+        const selId = sel ? this.getPartId(sel) : null;
+        const list = results.querySelector('.mobo-results-list');
+        results.querySelectorAll('.mobo-row').forEach(row => {
+            const on = !!selId && row.dataset.id === selId;
+            row.classList.toggle('mobo-row-sel', on);
+            if (on && list) {
+                const lr = list.getBoundingClientRect(), rr = row.getBoundingClientRect();
+                if (rr.top < lr.top || rr.bottom > lr.bottom) list.scrollTop += (rr.top - lr.top) - 8;
+            }
+        });
+    }
+
+    // SVG price history for any tab (reuses the GPU builder + hover wiring).
+    _renderTabPriceHistory(kind, item) {
+        const section = document.getElementById(`${kind}PriceHistorySection`);
+        if (!section || !item) return;
+        const basePrice = parseFloat(item.basePrice || item.price || item.currentPrice) || 0;
+        const salePrice = parseFloat(item.salePrice || item.currentPrice || item.basePrice || item.price) || 0;
+        section.innerHTML = `
+            <div class="gpu-bench-title"><i class="fas fa-chart-line"></i> Price History</div>
+            <p class="gpu-bench-note"><i class="fas fa-info-circle"></i> Recorded daily prices for the selected part. Hover a point for its date and price.</p>
+            <div class="gpu-price-history-chart"><div class="gpu-price-loading">Loading price history…</div></div>`;
+        const token = (item._id || item.title || item.name || '') + ':' + Date.now();
+        this._tabPriceToken = this._tabPriceToken || {};
+        this._tabPriceToken[kind] = token;
+        setTimeout(async () => {
+            if (this._tabPriceToken[kind] !== token) return;
+            const saved = await this.ensurePriceHistory(item, kind);
+            if (this._tabPriceToken[kind] !== token) return;
+            const host = section.querySelector('.gpu-price-history-chart');
+            if (!host) return;
+            const history = this.generatePriceHistory(basePrice, salePrice, saved);
+            const width = Math.max(Math.round(host.clientWidth) || 560, 320);
+            host.innerHTML = this._buildPriceHistorySvg(history, basePrice, salePrice, width);
+            this._wirePriceHistoryHover(host);
         }, 50);
     }
 
@@ -15043,6 +15335,9 @@ class PartsDatabase {
             p.price >= f.minPrice && p.price <= f.maxPrice);
         this[st.ptsProp] = visible;
         st.draw();
+        // Keep the results list in sync with the chart's brand/price filters.
+        if (kind === 'gpu') this._renderGpuFilterResults(this._gpuRaw || []);
+        else if (this._tabCfg(kind)) this._renderTabList(kind);
     }
 
     _renderGpuTabScatterPlot(gpus) {
@@ -15229,6 +15524,7 @@ class PartsDatabase {
                     this._renderGpuReviews(closest.gpu);
                     this._renderGpuBenchmarkChart(closest.gpu);
                     this._drawGpuTabChart(closest.gpu);
+                    this._syncGpuListSelection(); // reflect the selection in the list
                 }
             });
         }
@@ -15250,6 +15546,136 @@ class PartsDatabase {
             draw: () => this._drawGpuTabChart(this._gpuTabSelectedGpu || null),
         };
         this._setupGraphControls('gpu');
+    }
+
+    // GPU results list — mirrors the motherboard results list. Sits below the
+    // graph controls ("Sort by: Manufacturer") and above the FPS estimates.
+    // Respects the chart's active brand/price filters; price-sorted; a click
+    // loads that GPU into the product card + FPS estimates.
+    _renderGpuFilterResults(gpus) {
+        const results = document.getElementById('gpuFilterResults');
+        if (!results || !Array.isArray(gpus)) return;
+
+        const f = (this._graphFilters && this._graphFilters.gpu) || null;
+        const byManufacturer = (this._gpuColorMode || 'manufacturer') === 'manufacturer';
+        const sort = this._gpuListSort || (this._gpuListSort = 'price-asc');
+
+        const priceOf = (g) => parseFloat(g.salePrice || g.currentPrice || g.basePrice || g.price) || 0;
+        const matches = gpus
+            .filter(g => {
+                const price = priceOf(g);
+                if (!(price > 0)) return false;
+                if (!f) return true;
+                if (byManufacturer && f.brands && f.brands.size && !f.brands.has(this._detectBrand(g, 'gpu'))) return false;
+                if (f.minPrice != null && price < f.minPrice) return false;
+                if (f.maxPrice != null && price > f.maxPrice) return false;
+                return true;
+            })
+            .map(g => ({ g, price: priceOf(g), perf: this.getGpuPerformance(g) }));
+
+        // Sort by price or performance, each direction-toggleable. Ties on a
+        // performance sort fall back to cheapest first; GPUs without a benchmark
+        // sort to the bottom on performance.
+        if (sort === 'price-desc') matches.sort((a, b) => b.price - a.price);
+        else if (sort === 'price-asc') matches.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+        else if (sort === 'perf-asc') matches.sort((a, b) => (a.perf || 0) - (b.perf || 0) || a.price - b.price);
+        else matches.sort((a, b) => (b.perf || 0) - (a.perf || 0) || a.price - b.price); // perf-desc
+
+        const total = gpus.filter(g => priceOf(g) > 0).length;
+        // One toggle button per metric; clicking the active metric flips its
+        // direction, clicking the other switches metric at its default direction
+        // (price → low-to-high, performance → high-to-low).
+        const isPrice = sort.startsWith('price');
+        const isPerf = sort.startsWith('perf');
+        const priceLabel = isPrice ? `Price ${sort === 'price-asc' ? '&uarr;' : '&darr;'}` : 'Price';
+        const perfLabel = isPerf ? `Performance ${sort === 'perf-asc' ? '&uarr;' : '&darr;'}` : 'Performance';
+        const header = `<div class="mobo-results-head">
+            <span><strong>${matches.length}</strong> of ${total} GPUs</span>
+            <div class="gpu-sort-controls"><span class="gpu-sort-label">Sort:</span>
+                <button type="button" class="gc-chip gpu-sort-btn${isPrice ? ' active' : ''}" data-sort-key="price" title="Sort by price (click to flip direction)">${priceLabel}</button>
+                <button type="button" class="gc-chip gpu-sort-btn${isPerf ? ' active' : ''}" data-sort-key="perf" title="Sort by performance (click to flip direction)">${perfLabel}</button>
+            </div>
+        </div>`;
+
+        const wireSort = () => results.querySelectorAll('.gpu-sort-btn').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const cur = this._gpuListSort;
+                this._gpuListSort = btn.dataset.sortKey === 'price'
+                    ? (cur === 'price-asc' ? 'price-desc' : 'price-asc')
+                    : (cur === 'perf-desc' ? 'perf-asc' : 'perf-desc');
+                this._renderGpuFilterResults(gpus);
+            }));
+
+        if (!matches.length) {
+            results.innerHTML = header + `<div class="mobo-results-empty">No GPUs match these filters. Adjust the filters above to broaden.</div>`;
+            wireSort();
+            return;
+        }
+
+        const selTitle = this._gpuTabSelectedGpu ? (this._gpuTabSelectedGpu.title || this._gpuTabSelectedGpu.name) : null;
+        const rows = matches.map(({ g, price, perf }) => {
+            const title = g.title || g.name || 'Graphics Card';
+            const incompat = !this.isCompatibleWithBuild('gpu', g);
+            const perfPct = perf != null ? Math.round(perf * 100) : null;
+            const vram = g.memory && g.memory.size ? `${g.memory.size}GB ${g.memory.type || 'GDDR6'}` : null;
+            const tags = [
+                g.manufacturer,
+                g.gpuModel,
+                vram,
+                g.tdp ? `${g.tdp}W` : null,
+                g.renewed ? 'Renewed' : null
+            ].filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(t)}</span>`).join('');
+            const img = g.imageUrl || g.image || '';
+            const imgHTML = img
+                ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
+                : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-desktop"></i></div>`;
+            const sel = selTitle && (g.title === selTitle || g.name === selTitle) ? ' mobo-row-sel' : '';
+            return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}${sel}" data-id="${this.getPartId(g)}">
+                ${imgHTML}
+                <div class="mobo-row-main">
+                    <div class="mobo-row-title">${this._escapeHtml(title)}${incompat ? ' <span class="mobo-row-warn"><i class="fas fa-exclamation-triangle"></i> may not fit build</span>' : ''}</div>
+                    <div class="mobo-row-tags">${tags}</div>
+                </div>
+                <div class="mobo-row-price">${price > 0 ? '$' + price.toFixed(2) : '—'}${perfPct != null ? `<span class="gpu-row-perf">${perfPct}% perf</span>` : ''}</div>
+            </div>`;
+        }).join('');
+
+        results.innerHTML = header + `<div class="mobo-results-list">${rows}</div>`;
+        wireSort();
+
+        results.querySelectorAll('.mobo-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const gpu = matches.find(m => this.getPartId(m.g) === row.dataset.id)?.g;
+                if (!gpu) return;
+                this._gpuTabSelectedGpu = gpu;
+                this._renderGpuProductCard(gpu);
+                this._renderGpuReviews(gpu);
+                this._renderGpuBenchmarkChart(gpu);
+                if (this._drawGpuTabChart) this._drawGpuTabChart(gpu); // highlight on scatter plot
+                this._syncGpuListSelection();
+                document.getElementById('gpuProductCard')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+
+        this._syncGpuListSelection(); // keep highlight in sync after a re-render
+    }
+
+    // Highlight the list row matching the currently selected GPU (the one shown
+    // selected on the scatter plot), scrolling it into view within the list.
+    // Keeps the chart and list selection states mirrored in both directions.
+    _syncGpuListSelection() {
+        const results = document.getElementById('gpuFilterResults');
+        if (!results) return;
+        const selId = this._gpuTabSelectedGpu ? this.getPartId(this._gpuTabSelectedGpu) : null;
+        const list = results.querySelector('.mobo-results-list');
+        results.querySelectorAll('.mobo-row').forEach(row => {
+            const on = !!selId && row.dataset.id === selId;
+            row.classList.toggle('mobo-row-sel', on);
+            if (on && list) {
+                const lr = list.getBoundingClientRect(), rr = row.getBoundingClientRect();
+                if (rr.top < lr.top || rr.bottom > lr.bottom) list.scrollTop += (rr.top - lr.top) - 8;
+            }
+        });
     }
 
     // ── CPU Tab Listings ──────────────────────────────────────────
@@ -15285,12 +15711,14 @@ class PartsDatabase {
                     this._renderCpuProductCard(bestCpu);
                     this._renderCpuReviews(bestCpu);
                     this._renderCpuBenchmarkChart(bestCpu);
+                    this._renderTabPriceHistory('cpu', bestCpu);
                 }
                 this._cpuPickSig = sig;
             }
 
             if (!this._cpuListingsRendered) {
                 this._renderCpuTabScatterPlot(cpus);
+                this._renderTabList('cpu', cpus);
                 this._cpuListingsRendered = true;
             }
         } catch (e) {
@@ -15666,11 +16094,7 @@ class PartsDatabase {
                     if (d < closestDist) { closestDist = d; closest = p; }
                 });
                 if (closest && closestDist <= 10) {
-                    this._cpuTabSelectedCpu = closest.cpu;
-                    this._renderCpuProductCard(closest.cpu);
-                    this._renderCpuReviews(closest.cpu);
-                    this._renderCpuBenchmarkChart(closest.cpu);
-                    this._drawCpuTabChart(closest.cpu);
+                    this._tabSelect('cpu', closest.cpu);
                 }
             });
         }
@@ -15744,6 +16168,7 @@ class PartsDatabase {
                     this._renderCoolerProductCard(bestCooler);
                     this._renderCoolerReviews(bestCooler);
                     this._renderCoolerThermalChart(bestCooler);
+                    this._renderTabPriceHistory('cooler', bestCooler);
                 }
                 if (this._drawCoolerTabChart) this._drawCoolerTabChart(bestCooler);
                 this._coolerPickSig = sig;
@@ -15751,6 +16176,7 @@ class PartsDatabase {
 
             if (!this._coolerListingsRendered) {
                 this._renderCoolerTabScatterPlot(coolers);
+                this._renderTabList('cooler', coolers);
                 this._coolerListingsRendered = true;
             }
         } catch (e) {
@@ -16147,11 +16573,7 @@ class PartsDatabase {
                     if (d < closestDist) { closestDist = d; closest = p; }
                 });
                 if (closest && closestDist <= 10) {
-                    this._coolerTabSelectedCooler = closest.cooler;
-                    this._renderCoolerProductCard(closest.cooler);
-                    this._renderCoolerReviews(closest.cooler);
-                    this._renderCoolerThermalChart(closest.cooler);
-                    this._drawCoolerTabChart(closest.cooler);
+                    this._tabSelect('cooler', closest.cooler);
                 }
             });
         }
@@ -16253,6 +16675,7 @@ class PartsDatabase {
                 if (bestMobo) {
                     this._renderMoboProductCard(bestMobo);
                     this._renderMoboReviews(bestMobo);
+                    this._renderTabPriceHistory('motherboard', bestMobo);
                 }
                 this._moboPickSig = sig;
             }
@@ -16523,6 +16946,7 @@ class PartsDatabase {
                 this._moboTabSelectedMb = mb;
                 this._renderMoboProductCard(mb);
                 this._renderMoboReviews(mb);
+                this._renderTabPriceHistory('motherboard', mb);
                 results.querySelectorAll('.mobo-row').forEach(r => r.classList.toggle('mobo-row-sel', r === row));
                 document.getElementById('moboProductCard')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             });
@@ -16707,12 +17131,14 @@ class PartsDatabase {
                     this._renderRamProductCard(bestRam);
                     this._renderRamReviews(bestRam);
                     this._renderRamPerfSection(bestRam);
+                    this._renderTabPriceHistory('ram', bestRam);
                 }
                 this._ramPickSig = sig;
             }
 
             if (!this._ramListingsRendered) {
                 this._renderRamTabScatterPlot(consumer);
+                this._renderTabList('ram', consumer);
                 this._ramListingsRendered = true;
             }
         } catch (e) {
@@ -17057,11 +17483,7 @@ class PartsDatabase {
                     if (d < closestDist) { closestDist = d; closest = p; }
                 });
                 if (closest && closestDist <= 10) {
-                    this._ramTabSelectedRam = closest.ram;
-                    this._renderRamProductCard(closest.ram);
-                    this._renderRamReviews(closest.ram);
-                    this._renderRamPerfSection(closest.ram);
-                    this._drawRamTabChart(closest.ram);
+                    this._tabSelect('ram', closest.ram);
                 }
             });
         }
@@ -17142,8 +17564,10 @@ class PartsDatabase {
                 this._renderPsuProductCard(bestPsu);
                 this._renderPsuReviews(bestPsu);
                 this._renderPsuEfficiencySection(bestPsu);
+                this._renderTabPriceHistory('psu', bestPsu);
             }
             this._renderPsuTabScatterPlot(psus);
+            this._renderTabList('psu', psus);
             this._psuListingsRendered = true;
         } catch (e) {
             console.error('PSU listings error:', e);
@@ -17502,11 +17926,7 @@ class PartsDatabase {
                     if (d < closestDist) { closestDist = d; closest = p; }
                 });
                 if (closest && closestDist <= 10) {
-                    this._psuTabSelectedPsu = closest.psu;
-                    this._renderPsuProductCard(closest.psu);
-                    this._renderPsuReviews(closest.psu);
-                    this._renderPsuEfficiencySection(closest.psu);
-                    this._drawPsuTabChart(closest.psu);
+                    this._tabSelect('psu', closest.psu);
                 }
             });
         }

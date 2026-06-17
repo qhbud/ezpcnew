@@ -5680,6 +5680,52 @@ GPU Listings Section ───────────────────�
     margin-bottom: 8px;
 }
 .mobo-results-head strong { color: #0f172a; }
+/* GPU results list: sort controls + per-card performance percent */
+.gpu-sort-controls { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.gpu-sort-label { font-size: 11px; color: #94a3b8; margin-right: 2px; }
+.gpu-sort-btn { padding: 3px 8px; font-size: 11px; line-height: 1.2; }
+.gpu-row-perf {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary-color, #4f8ef7);
+    margin-top: 2px;
+    text-align: right;
+    white-space: nowrap;
+}
+/* Price history (SVG, selectable text) */
+.gpu-price-history-section { margin-top: 16px; }
+.gpu-price-history-chart { margin-top: 6px; position: relative; }
+.gpu-price-loading { color: #94a3b8; font-size: 13px; padding: 18px; text-align: center; }
+.gpu-price-svg { display: block; width: 100%; height: auto; }
+.gpu-price-hit { fill: transparent; cursor: pointer; }
+.gpu-price-tip {
+    position: absolute;
+    transform: translate(-50%, -115%);
+    background: #1e293b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 4px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+}
+.gpu-price-grid { stroke: #f0f0f0; stroke-width: 1; }
+.gpu-price-axisline { stroke: #ccc; stroke-width: 1; }
+.gpu-price-axis { font-size: 10px; fill: #666; }
+.gpu-price-empty { font-size: 12px; fill: #666; }
+.gpu-price-area { fill: rgba(37, 99, 235, 0.1); }
+.gpu-price-line { fill: none; stroke: #2563eb; stroke-width: 2; }
+.gpu-price-orig { stroke: #999; stroke-width: 1; stroke-dasharray: 5 5; }
+.gpu-price-dot { fill: #2563eb; }
+.gpu-price-current { fill: #e74c3c; }
+.gpu-price-legend { display: flex; gap: 16px; font-size: 11px; color: #333; margin-bottom: 4px; }
+.gpu-price-leg { display: inline-flex; align-items: center; gap: 5px; }
+.gpu-price-leg-dot { width: 10px; height: 10px; background: #e74c3c; border-radius: 2px; display: inline-block; }
+.gpu-price-leg-dash { width: 14px; border-top: 2px dashed #999; display: inline-block; }
 .mobo-results-list {
     display: flex;
     flex-direction: column;

@@ -143,6 +143,12 @@
                         <div class="gpu-chart-wrap">
                             <canvas id="gpuTabScatterPlot"></canvas>
                         </div>
+                        <!-- GPU results list (mirrors the motherboard results list);
+                             populated by _renderGpuFilterResults, sits below the graph
+                             controls (Sort by: Manufacturer) and above FPS estimates. -->
+                        <div id="gpuFilterResults" class="gpu-filter-results mobo-filter-results"></div>
+                        <!-- Price history (SVG, selectable text) — below the list, above FPS estimates -->
+                        <div id="gpuPriceHistorySection" class="gpu-price-history-section"></div>
                         <div id="gpuBenchmarkSection" class="gpu-benchmark-section"></div>
                     </div>
 
@@ -344,6 +350,8 @@
                         <div class="gpu-chart-wrap">
                             <canvas id="cpuTabScatterPlot"></canvas>
                         </div>
+                        <div id="cpuFilterResults" class="mobo-filter-results"></div>
+                        <div id="cpuPriceHistorySection" class="gpu-price-history-section"></div>
                         <div id="cpuBenchmarkSection" class="gpu-benchmark-section"></div>
                     </div>
 
@@ -535,6 +543,7 @@
                         <div class="gpu-chart-header"><i class="fas fa-sliders-h"></i> Find a Compatible Motherboard</div>
                         <div id="moboFeatureFilters" class="graph-controls mobo-feature-filters"></div>
                         <div id="moboFilterResults" class="mobo-filter-results"></div>
+                        <div id="motherboardPriceHistorySection" class="gpu-price-history-section"></div>
                     </div>
 
                 </div>
@@ -732,6 +741,8 @@
                         <div class="gpu-chart-wrap">
                             <canvas id="ramTabScatterPlot"></canvas>
                         </div>
+                        <div id="ramFilterResults" class="mobo-filter-results"></div>
+                        <div id="ramPriceHistorySection" class="gpu-price-history-section"></div>
                         <div id="ramPerfSection" class="gpu-benchmark-section"></div>
                     </div>
 
@@ -922,6 +933,8 @@
                         <div class="gpu-chart-wrap">
                             <canvas id="psuTabScatterPlot"></canvas>
                         </div>
+                        <div id="psuFilterResults" class="mobo-filter-results"></div>
+                        <div id="psuPriceHistorySection" class="gpu-price-history-section"></div>
                         <div id="psuEfficiencySection" class="gpu-benchmark-section"></div>
                     </div>
 
@@ -1139,6 +1152,8 @@
                         <div class="gpu-chart-wrap">
                             <canvas id="coolerTabScatterPlot"></canvas>
                         </div>
+                        <div id="coolerFilterResults" class="mobo-filter-results"></div>
+                        <div id="coolerPriceHistorySection" class="gpu-price-history-section"></div>
                         <div id="coolerThermalSection" class="gpu-benchmark-section"></div>
                     </div>
 
