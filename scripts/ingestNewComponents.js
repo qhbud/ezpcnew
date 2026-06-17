@@ -308,22 +308,25 @@ function parseMemoryTypes(text) {
   return found;
 }
 
+const KNOWN_LGA = new Set(['1851', '1700', '1200', '1151', '1150', '1155', '1156', '2011', '2066']);
+
 function parseSocketList(text) {
   const sockets = new Set();
-  const patterns = [
-    /\bLGA\s?1851\b/ig,
-    /\bLGA\s?1700\b/ig,
-    /\bLGA\s?1200\b/ig,
-    /\bLGA\s?1151\b/ig,
-    /\bAM5\b/ig,
-    /\bAM4\b/ig,
-    /\bsTRX5\b/ig,
-    /\bTR4\b/ig
-  ];
 
-  for (const pattern of patterns) {
+  // Intel LGA — handle slash/comma lists where "LGA" prefixes only the first
+  // number, e.g. "LGA 1700/1151/1200/1851". Grab the whole LGA span then pull
+  // out each known socket number (the old per-socket patterns missed all but
+  // the first because the rest had no "LGA" prefix).
+  for (const span of text.matchAll(/\bLGA\s?\d{3,4}(?:\s*[\/,]\s*\d{3,4})*/ig)) {
+    for (const num of span[0].matchAll(/\d{3,4}/g)) {
+      if (KNOWN_LGA.has(num[0])) sockets.add(`LGA${num[0]}`);
+    }
+  }
+
+  // AMD sockets.
+  for (const pattern of [/\bAM5\b/ig, /\bAM4\b/ig, /\bsTRX5\b/ig, /\bsTR5\b/ig, /\bTR4\b/ig]) {
     for (const match of text.matchAll(pattern)) {
-      sockets.add(match[0].replace(/\s+/g, '').toUpperCase().replace('STRX', 'sTRX'));
+      sockets.add(match[0].toUpperCase().replace('STRX', 'sTRX').replace('STR5', 'sTR5'));
     }
   }
 
@@ -409,13 +412,50 @@ function parseExplicitWatts(text, labels) {
   ]);
 }
 
+// Canonical reference specs per GPU chipset (keyed uppercase to match the output
+// of parseChipset). Used to backfill bus width / memory / PCIe gen when a partner
+// card's listing title omits them — these are fixed by the GPU die, not the AIB.
+const GPU_REF = {
+  'RTX 5090': { type: 'GDDR7', size: 32, busWidth: 512, pcie: 'PCIe 5.0' },
+  'RTX 5080': { type: 'GDDR7', size: 16, busWidth: 256, pcie: 'PCIe 5.0' },
+  'RTX 5070 TI': { type: 'GDDR7', size: 16, busWidth: 256, pcie: 'PCIe 5.0' },
+  'RTX 5070': { type: 'GDDR7', size: 12, busWidth: 192, pcie: 'PCIe 5.0' },
+  'RTX 4090': { type: 'GDDR6X', size: 24, busWidth: 384, pcie: 'PCIe 4.0' },
+  'RTX 4080 SUPER': { type: 'GDDR6X', size: 16, busWidth: 256, pcie: 'PCIe 4.0' },
+  'RTX 4080': { type: 'GDDR6X', size: 16, busWidth: 256, pcie: 'PCIe 4.0' },
+  'RTX 4070 TI SUPER': { type: 'GDDR6X', size: 16, busWidth: 256, pcie: 'PCIe 4.0' },
+  'RTX 4070 TI': { type: 'GDDR6X', size: 12, busWidth: 192, pcie: 'PCIe 4.0' },
+  'RTX 4070 SUPER': { type: 'GDDR6X', size: 12, busWidth: 192, pcie: 'PCIe 4.0' },
+  'RTX 4070': { type: 'GDDR6X', size: 12, busWidth: 192, pcie: 'PCIe 4.0' },
+  'RTX 4060 TI': { type: 'GDDR6', size: 8, busWidth: 128, pcie: 'PCIe 4.0' },
+  'RTX 4060': { type: 'GDDR6', size: 8, busWidth: 128, pcie: 'PCIe 4.0' },
+  'RX 7900 XTX': { type: 'GDDR6', size: 24, busWidth: 384, pcie: 'PCIe 4.0' },
+  'RX 7900 XT': { type: 'GDDR6', size: 20, busWidth: 320, pcie: 'PCIe 4.0' },
+  'RX 7800 XT': { type: 'GDDR6', size: 16, busWidth: 256, pcie: 'PCIe 4.0' },
+  'RX 7700 XT': { type: 'GDDR6', size: 12, busWidth: 192, pcie: 'PCIe 4.0' },
+  'RX 7600 XT': { type: 'GDDR6', size: 16, busWidth: 128, pcie: 'PCIe 4.0' },
+  'RX 7600': { type: 'GDDR6', size: 8, busWidth: 128, pcie: 'PCIe 4.0' },
+  'ARC A770': { type: 'GDDR6', size: 16, busWidth: 256, pcie: 'PCIe 4.0' },
+  'ARC A750': { type: 'GDDR6', size: 8, busWidth: 256, pcie: 'PCIe 4.0' },
+  'ARC B580': { type: 'GDDR6', size: 12, busWidth: 192, pcie: 'PCIe 4.0' }
+};
+
 function parseGpuFields(text) {
   const chipset = parseChipset(text);
+  const ref = chipset ? GPU_REF[chipset.toUpperCase()] : null;
+  const memory = parseGpuMemory(text);
+  if (ref) {
+    if (memory.size === null) memory.size = ref.size;
+    if (memory.type === null) memory.type = ref.type;
+    if (memory.busWidth === null) memory.busWidth = ref.busWidth;
+  }
+  const pcieVersion = matchFirst(text, [/\bPCIe\s?([345]\.0)\b/i], (match) => `PCIe ${match[1]}`)
+    || (ref ? ref.pcie : null);
   return {
     manufacturer: findManufacturer(text, ['NVIDIA', 'AMD', 'Intel']),
     partner: findManufacturer(text, ['ASUS', 'MSI', 'Gigabyte', 'GIGABYTE', 'PNY', 'ZOTAC', 'Sapphire', 'PowerColor', 'XFX', 'ASRock', 'EVGA']),
     chipset,
-    memory: parseGpuMemory(text),
+    memory,
     core: {
       baseClock: parseInteger(text, [/(?:base clock|base)\D{0,12}(\d{3,5})\s*mhz/i]),
       boostClock: parseInteger(text, [/(?:boost clock|boost)\D{0,12}(\d{3,5})\s*mhz/i])
@@ -425,7 +465,7 @@ function parseGpuFields(text) {
       recommendedPsu: parseExplicitWatts(text, ['recommended psu', 'power supply'])
     },
     specifications: {
-      pcieVersion: matchFirst(text, [/\bPCIe\s?([345]\.0)\b/i], (match) => `PCIe ${match[1]}`)
+      pcieVersion
     }
   };
 }
@@ -448,8 +488,15 @@ function parseCpuFields(text) {
 }
 
 function parseIntegratedGraphics(text) {
+  // Intel "F" / "KF" SKUs (e.g. i9-14900KF, i5-13400F) ship with the iGPU fused
+  // off. Check the model suffix before the generic "graphics" mention so a board
+  // listing "supports integrated graphics" can't override it.
+  if (/\b\d{4,5}\s*kf\b/i.test(text) || /\bi[3579][\s-]?\d{3,5}\s*f\b/i.test(text) || /\bultra\s*[3579][\s-]?\d{3}\s*f\b/i.test(text)) return false;
   if (/\b(no|without)\s+(integrated\s+)?graphics\b/i.test(text)) return false;
-  if (/\b(integrated graphics|radeon graphics|uhd graphics)\b/i.test(text)) return true;
+  if (/\b(integrated graphics|radeon graphics|uhd graphics|intel\s+uhd|vega\s+graphics)\b/i.test(text)) return true;
+  // Non-F Intel Core desktop SKUs (incl. K/KS/T) and Ryzen "G" APUs have an iGPU.
+  if (/\bi[3579][\s-]?\d{4,5}\s*(ks|k|t)?\b(?![\s-]*f)/i.test(text)) return true;
+  if (/\bryzen\s*[3579]\s*\d{4}g\b/i.test(text)) return true;
   return null;
 }
 
@@ -508,11 +555,39 @@ function parseBooleanMention(text, positive, negative) {
   return null;
 }
 
+function parsePsuSeries(text) {
+  // Corsair model numbers embed the series suffix (RM1000x, RM850e, HX1200i),
+  // which the plain token list missed — derive the series from the model.
+  const corsair = text.match(/\b(RM|HX|AX|CX)(\d{3,4})(x|e|i)?\b/i);
+  if (corsair) {
+    const base = corsair[1].toUpperCase();
+    const suffix = (corsair[3] || '').toLowerCase();
+    return base === 'RM' ? `RM${suffix}` : `${base}${suffix}`;
+  }
+  return matchFirst(text, [/\b(RMx|RMe|RMi|HXi|SuperNOVA|Focus|Toughpower|Pure Power|Straight Power|MAG A?GL|ROG Thor|Prime|Vertex|Leadex|GF3|GA)\b/i], (m) => m[1]);
+}
+
+function parsePsuWattage(text) {
+  // Prefer an explicit "1000W" / "1000 Watt", or the "Wattage 1000" spec attribute.
+  const explicit = parseInteger(text, [/(\d{3,4})\s*w(?:atts?)?\b/i, /\bwattage\D{0,8}(\d{3,4})\b/i]);
+  if (explicit && explicit >= 200 && explicit <= 2000) return explicit;
+  // Otherwise derive from the model name (e.g. "RM1000x", "HX1200i",
+  // "SuperNOVA 850 GT", "Toughpower GF3 1000"). Constrained to plausible,
+  // round PSU wattages so a year ("2025") or revision number can't slip in.
+  // Note: no trailing \b — many models append a suffix letter directly to the
+  // wattage ("RM1000x", "RM850e"), so anchor on "not another digit" instead.
+  const model = parseInteger(text, [
+    /\b(?:RM|HX|AX|CX|GX|TX|GF|GA|GM|MWE|MAG|MPG|MEG|GP|SF|SFX|SuperNOVA|Prime|Focus|Toughpower|Pure Power|Straight Power|Leadex|Vertex|Loki)[a-z\s-]{0,6}?0?(\d{3,4})(?!\d)/i
+  ]);
+  if (model && model >= 200 && model <= 2000 && model % 50 === 0) return model;
+  return null;
+}
+
 function parsePsuFields(text) {
   return {
     manufacturer: findManufacturer(text, ['Corsair', 'EVGA', 'Seasonic', 'be quiet!', 'Thermaltake', 'Cooler Master', 'MSI', 'ASUS']),
-    brand: matchFirst(text, [/\b(RMx|SuperNOVA|Focus|Toughpower|Pure Power|Straight Power|MAG A?GL|ROG Thor)\b/i], (match) => match[1]),
-    wattage: parseInteger(text, [/(\d{3,4})\s*w\b/i]),
+    brand: parsePsuSeries(text),
+    wattage: parsePsuWattage(text),
     efficiency: parseEfficiency(text),
     formFactor: matchFirst(text, [/\b(ATX|SFX|SFX-L|TFX)\b/i], (match) => match[1].toUpperCase()),
     modularity: parseModularity(text),
@@ -541,13 +616,17 @@ function parseStorageFields(text) {
   const type = parseStorageType(text);
   return {
     manufacturer: findManufacturer(text, ['Samsung', 'Western Digital', 'WD', 'Crucial', 'Seagate', 'Kingston', 'SanDisk', 'Sabrent', 'SK hynix']),
-    brand: matchFirst(text, [/\b(990 Pro|980 Pro|970 EVO|SN850X|SN770|P5 Plus|P3 Plus|FireCuda|Barracuda|Blue|Black)\b/i], (match) => match[1]),
+    // Order matters: most specific model first so "9100 Pro" / "990 EVO Plus"
+    // win over the shorter "990 Pro"/"990 EVO". Bare colour words (Blue/Black)
+    // were removed — they misfired on any drive whose page copy mentioned a
+    // colour (e.g. a Samsung drive grabbing WD's "Black").
+    brand: matchFirst(text, [/\b(9100 Pro|990 EVO Plus|990 EVO|990 Pro|980 Pro|980|970 EVO Plus|970 EVO|SN850X|SN850|SN770|SN570|T500|T700|P5 Plus|P5|P3 Plus|P3|FireCuda|BarraCuda|IronWolf|WD Blue|WD Black|MX500|BX500)\b/i], (match) => match[1]),
     type,
     formFactor: parseStorageFormFactor(text, type),
     capacity: parseCapacityGb(text),
     interface: parseStorageInterface(text),
-    readSpeed: parseInteger(text, [/read\D{0,20}([\d,]{3,7})\s*mb\/s/i, /up to\D{0,12}([\d,]{3,7})\s*mb\/s/i]),
-    writeSpeed: parseInteger(text, [/write\D{0,20}([\d,]{3,7})\s*mb\/s/i]),
+    readSpeed: parseInteger(text, [/read\D{0,20}([\d,]{3,7})\s*(?:mb\/s|megabytes)/i, /up to\D{0,12}([\d,]{3,7})\s*(?:mb\/s|megabytes)/i]),
+    writeSpeed: parseInteger(text, [/write\D{0,20}([\d,]{3,7})\s*(?:mb\/s|megabytes)/i]),
     specifications: {
       rpm: parseInteger(text, [/(\d{4,5})\s*rpm/i])
     }
@@ -573,8 +652,15 @@ function parseStorageFormFactor(text, type) {
 }
 
 function parseStorageInterface(text) {
-  if (/\bPCIe\s?5(?:\.0)?\b/i.test(text)) return 'PCIe 5.0';
-  if (/\bPCIe\s?4(?:\.0)?\b/i.test(text)) return 'PCIe 4.0';
+  // Some drives list dual-mode lanes, e.g. "PCIe Gen 4x4, Gen 5x2". The native
+  // full-bandwidth interface is the generation running x4 lanes, so prefer that
+  // over a higher generation that only runs in a reduced x2 mode (the 990 EVO
+  // Plus is a Gen4 x4 drive, not Gen5, despite advertising "Gen 5x2").
+  const x4 = text.match(/\bPCIe\s*(?:Gen\s*)?([345])(?:\.0)?\s*x\s*4\b/i);
+  if (x4) return `PCIe ${x4[1]}.0`;
+  if (/\bPCIe\s*(?:Gen\s*)?5(?:\.0)?\b/i.test(text)) return 'PCIe 5.0';
+  if (/\bPCIe\s*(?:Gen\s*)?4(?:\.0)?\b/i.test(text)) return 'PCIe 4.0';
+  if (/\bPCIe\s*(?:Gen\s*)?3(?:\.0)?\b/i.test(text)) return 'PCIe 3.0';
   if (/\bNVMe\b/i.test(text)) return 'NVMe';
   if (/\bSATA\s?III\b/i.test(text)) return 'SATA III';
   if (/\bSATA\b/i.test(text)) return 'SATA';
@@ -589,7 +675,7 @@ function parseMotherboardFields(text) {
     chipset: parseMotherboardChipset(text),
     socket: parseSingleSocket(text),
     formFactor: formFactors[0] || null,
-    memorySlots: parseInteger(text, [/(\d)\s*(?:x\s*)?(?:DIMM|memory slots?)/i]),
+    memorySlots: parseMemorySlots(text, formFactors),
     maxMemory: parseInteger(text, [/max(?:imum)?\s*memory\D{0,12}(\d{2,4})\s*gb/i]),
     memoryType: memoryType.length ? memoryType : null,
     sataPorts: parseInteger(text, [/(\d)\s*(?:x\s*)?SATA/i]),
@@ -603,25 +689,60 @@ function parseMotherboardFields(text) {
   };
 }
 
+function parseMemorySlots(text, formFactors) {
+  // Prefer an explicit count ("4 x DIMM", "4x DDR5", "4 memory slots") or the
+  // Amazon spec attribute "Number of Memory Slots 4" (label-then-value order).
+  const explicit = parseInteger(text, [
+    /(?:number of memory slots|memory slots?|dimm slots?)\D{0,8}(\d)\b/i,
+    /(\d)\s*x\s*(?:DDR[45]|DIMM)/i,
+    /(\d)\s*(?:DIMM|memory slots?)\b/i
+  ]);
+  if (explicit && explicit >= 1 && explicit <= 8) return explicit;
+  // Titles almost never print the DIMM count, so infer from form factor:
+  // Mini-ITX = 2 slots; ATX / E-ATX / Micro-ATX = 4 (true for the vast majority).
+  const ff = formFactors[0];
+  if (ff === 'Mini-ITX') return 2;
+  if (ff) return 4;
+  return null;
+}
+
+// Count M.2 sockets, handling "5xM.2", "4xPCIe 4.0 M.2 slots" (PCIe wording
+// between the count and "M.2"), and "M.2 x5". Takes the largest plausible match
+// since the headline total ("5xM.2") can be followed by a subset ("1xPCIe 5.0 M.2").
+function parseM2Count(text) {
+  const counts = [];
+  let m;
+  const before = /(\d+)\s*x?\s*(?:PCIe[\s\d.x]*)?M\.?2/ig;
+  while ((m = before.exec(text))) { const n = Number.parseInt(m[1], 10); if (n >= 1 && n <= 8) counts.push(n); }
+  const after = /M\.?2[\s:]*x\s*(\d+)/ig;
+  while ((m = after.exec(text))) { const n = Number.parseInt(m[1], 10); if (n >= 1 && n <= 8) counts.push(n); }
+  return counts.length ? Math.max(...counts) : 0;
+}
+
 function parsePcieSlots(text) {
-  const count = parseInteger(text, [/(\d)\s*(?:x\s*)?PCIe/i]);
-  if (!count) return [];
-  return Array.from({ length: count }, () => ({
-    type: null,
-    version: matchFirst(text, [/\bPCIe\s?([345]\.0)\b/i], (match) => `PCIe ${match[1]}`),
-    lanes: null,
-    physicalSize: null
-  }));
+  // Only count clearly-stated expansion slots — a PCIe generation with an
+  // x16/x8/x4/x1 lane width. This avoids the old bug of counting "4x PCIe 4.0
+  // M.2 slots" (M.2 sockets) as expansion slots.
+  const slots = [];
+  const re = /PCIe\s*([345])\.0\s*x\s*(16|8|4|1)\b/ig;
+  let m;
+  while ((m = re.exec(text))) {
+    slots.push({ type: null, version: `PCIe ${m[1]}.0`, lanes: Number.parseInt(m[2], 10), physicalSize: `x${m[2]}` });
+  }
+  return slots;
 }
 
 function parseM2Slots(text) {
-  const count = parseInteger(text, [/(\d)\s*(?:x\s*)?M\.?2/i, /M\.?2\D{0,12}(\d)\s*slots?/i]);
+  const count = parseM2Count(text);
   if (!count) return [];
+  const pcieVersion = matchFirst(text, [/\bPCIe\s?([345]\.0)\b/i], (match) => `PCIe ${match[1]}`);
+  // M.2 sockets on modern desktop boards are NVMe; per-slot SATA support can't be
+  // reliably read from a title, so leave it null rather than guessing.
   return Array.from({ length: count }, () => ({
     type: 'M.2',
-    pcieVersion: matchFirst(text, [/\bPCIe\s?([345]\.0)\b/i], (match) => `PCIe ${match[1]}`),
-    sata: /\bsata\b/i.test(text) ? true : null,
-    nvme: /\bnvme\b/i.test(text) ? true : null
+    pcieVersion,
+    sata: null,
+    nvme: true
   }));
 }
 
@@ -692,13 +813,23 @@ function estimateCoolingCapacity(text, { type, radiatorSize, heatpipes }) {
 
 function parseCoolerFields(text) {
   const radiatorSize = parseRadiatorSize(text);
-  const isLiquid = /\bliquid\b|\baio\b|\bradiator\b|\bwater cool/i.test(text);
-  // In a cooler listing, anything that isn't liquid is an air cooler. Match
-  // common air phrasings ("dual tower", "heatsink", "heatpipe", fan) so a tower
-  // cooler like the NH-D15 resolves to Air instead of leaving the type null.
-  const isAir = !isLiquid && /\bair cooler\b|\bcpu cooler\b|\bcooler\b|\btower\b|\bheatsink\b|\bheat ?pipe\b|\bfans?\b/i.test(text);
-  const type = isLiquid ? 'Liquid' : (isAir ? 'Air' : null);
   const heatpipes = parseInteger(text, [/(\d+)\s*heat\s?pipes?/i]);
+  // Air vs liquid: heatpipe counts and tower/heatsink phrasing are decisive air
+  // signals (AIOs never advertise heatpipes). Only treat as liquid on strong,
+  // unambiguous wording — a bare "radiator"/"fan" mention bleeding in from a page
+  // comparison or cross-sell block used to flip air coolers (e.g. the Peerless
+  // Assassin) to Liquid by mistake.
+  const strongLiquid = /\b(aio|all[-\s]?in[-\s]?one|liquid\s*(?:cpu\s*)?cool|water\s*cool|water[-\s]?block)\b/i.test(text)
+    || /\b(120|140|240|280|360|420)\s*mm\s*radiator\b/i.test(text);
+  const strongAir = (heatpipes !== null && heatpipes > 0)
+    || /\b(air\s*cooler|tower\s*cooler|dual[-\s]?tower|single[-\s]?tower|heat\s?sink|heat\s?pipes?)\b/i.test(text);
+  let type;
+  if (strongAir && !strongLiquid) type = 'Air';
+  else if (strongLiquid && !strongAir) type = 'Liquid';
+  else if (strongAir && strongLiquid) type = (heatpipes !== null && heatpipes > 0) ? 'Air' : 'Liquid';
+  else type = /\bcooler\b|\bcpu cooler\b|\bfans?\b/i.test(text) ? 'Air' : null;
+  const isLiquid = type === 'Liquid';
+  const isAir = type === 'Air';
   const noise = parseNumber(text, [/(\d+(?:\.\d+)?)\s*db\(?a\)?\b/i]);
   const airflow = parseNumber(text, [/(\d+(?:\.\d+)?)\s*cfm\b/i]);
   const fanSpeed = parseFanSpeed(text);
@@ -712,7 +843,7 @@ function parseCoolerFields(text) {
     socket: parseSocketList(text),
     heatpipes: type === 'Air' ? heatpipes : null,
     fan: {
-      count: parseInteger(text, [/(\d)\s*(?:x\s*)?(?:fans?|fan)\b/i]),
+      count: parseFanCount(text),
       size: parseFanSizes(text),
       rgb: /\bargb\b|\brgb\b/i.test(text) ? true : null,
       speed: fanSpeed,
@@ -742,6 +873,17 @@ function parseFanSizes(text) {
   return Array.from(sizes);
 }
 
+// Fan count — a leading digit ("3x 120mm fans") or a count word near "fan(s)"
+// ("Dual 120mm PWM Fans" → 2). The word match requires "fan" close by so a
+// "Dual Tower" heatsink description doesn't get read as two fans.
+function parseFanCount(text) {
+  const num = parseInteger(text, [/(\d)\s*(?:x\s*)?fans?\b/i]);
+  if (num) return num;
+  const word = text.match(/\b(single|dual|twin|triple|quad)\b[^.]{0,24}?fans?\b/i);
+  if (word) return { single: 1, dual: 2, twin: 2, triple: 3, quad: 4 }[word[1].toLowerCase()];
+  return null;
+}
+
 // Fan speed in RPM. Prefers a stated range ("500-1800 RPM"), falling back to a
 // single max figure.
 function parseFanSpeed(text) {
@@ -762,8 +904,8 @@ function parseAddonFields(text) {
     fanSpecs: {
       size: parseInteger(text, [/\b(80|92|120|140|200)\s*mm\b/i]),
       rpm: {
-        min: parseInteger(text, [/(\d{3,4})\s*-\s*\d{3,4}\s*rpm/i]),
-        max: parseInteger(text, [/\d{3,4}\s*-\s*(\d{3,4})\s*rpm/i, /(\d{3,4})\s*rpm/i])
+        min: parseInteger(text, [/(\d{3,4})\s*[-–—]\s*\d{3,4}\s*rpm/i]),
+        max: parseInteger(text, [/\d{3,4}\s*[-–—]\s*(\d{3,4})\s*rpm/i, /(\d{3,4})\s*rpm/i])
       },
       pwm: /\bpwm\b/i.test(text) ? true : null,
       ledType: /\bargb\b/i.test(text) ? 'ARGB' : (/\brgb\b/i.test(text) ? 'RGB' : null)
@@ -859,11 +1001,19 @@ function buildPendingComponent(type, rawProduct = {}) {
     dedupKey: buildDedupKey(asin, name),
     scrapedAt: normalizeScrapedAt(rawProduct.scrapedAt),
     status: 'pending',
+    renewed: isRenewedListing(name, rawTitle),
     reviewNotes: firstString(rawProduct.reviewNotes),
     fields: buildFields(componentType, rawProduct),
     rawTitle,
     alreadyInLive: Boolean(rawProduct.alreadyInLive)
   };
+}
+
+// Flags refurbished / used / open-box listings so they can be badged (or filtered)
+// downstream. Amazon labels these in the title, e.g. "(Renewed)".
+const RENEWED_RE = /\b(renewed|refurbished|refurb|pre-?owned|open[\s-]?box)\b/i;
+function isRenewedListing(...texts) {
+  return texts.some((t) => RENEWED_RE.test(String(t || '')));
 }
 
 function isComboProduct(productName) {
@@ -1077,24 +1227,50 @@ async function scrapeAmazonCandidate(browser, candidate, componentType, affiliat
 
 async function extractAmazonPageDetails(page) {
   return page.evaluate(() => {
+    const clean = (s) => (s || '')
+      .replace(/[‎‏‪-‮]/g, '') // strip Amazon's bidi marks
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s:]+|[\s:]+$/g, '')
+      .trim();
+    const specs = {};
+    const addSpec = (label, value) => {
+      const k = clean(label);
+      const v = clean(value);
+      if (k && v && !(k in specs)) specs[k] = v;
+    };
+
     const titleElement = document.querySelector('#productTitle');
     const mainImage = document.querySelector('#landingImage, #imgBlkFront');
     const featureList = document.querySelectorAll('#feature-bullets ul li');
-    const specs = {};
-    const rows = document.querySelectorAll('#productDetails_techSpec_section_1 tr, .prodDetTable tr, #productDetails_detailBullets_sections1 tr');
 
-    rows.forEach((row) => {
-      const th = row.querySelector('th');
-      const td = row.querySelector('td');
-      if (th && td) {
-        specs[th.textContent.trim()] = td.textContent.trim();
-      }
+    // 1) Technical-detail / product-detail tables (th/td pairs).
+    document.querySelectorAll([
+      '#productDetails_techSpec_section_1 tr',
+      '#productDetails_techSpec_section_2 tr',
+      '.prodDetTable tr',
+      '#productDetails_detailBullets_sections1 tr',
+      'table.a-keyvalue tr'
+    ].join(', ')).forEach((row) => {
+      addSpec(row.querySelector('th')?.textContent, row.querySelector('td')?.textContent);
+    });
+
+    // 2) "Product overview" glance box at the top of the page — a clean two-column
+    //    attribute table (Brand, Graphics Coprocessor, RAM size, Wattage, ...).
+    document.querySelectorAll('#productOverview_feature_div tr').forEach((row) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 2) addSpec(cells[0].textContent, cells[1].textContent);
+    });
+
+    // 3) "Product information" detail bullets list (label : value per <li>).
+    document.querySelectorAll('#detailBullets_feature_div li').forEach((li) => {
+      const parts = li.querySelectorAll('span.a-list-item > span');
+      if (parts.length >= 2) addSpec(parts[0].textContent, parts[1].textContent);
     });
 
     return {
-      title: titleElement ? titleElement.textContent.trim() : '',
+      title: titleElement ? clean(titleElement.textContent) : '',
       imageUrl: mainImage ? mainImage.src : '',
-      features: Array.from(featureList).map((li) => li.textContent.trim()).filter(Boolean),
+      features: Array.from(featureList).map((li) => clean(li.textContent)).filter(Boolean),
       specs
     };
   });
