@@ -1,6 +1,12 @@
-async function scrapePrice(page, url) {
+async function scrapePrice(page, url, options = {}) {
+  // Accept a component-aware plausible price window. The old hardcoded floor of
+  // $100 was wrong for cheap parts (fans, paste, budget RAM): their real price
+  // was rejected, so the scraper fell through to grab an unrelated higher number
+  // elsewhere on the page (e.g. a $13 fan came back as $163, a case as $2317).
+  const minPrice = Number.isFinite(options.minPrice) ? options.minPrice : 10;
+  const maxPrice = Number.isFinite(options.maxPrice) ? options.maxPrice : 5000;
   try {
-    console.log(`🔍 Scraping: ${url}`);
+    console.log(`🔍 Scraping: ${url} (price window $${minPrice}-$${maxPrice})`);
 
     await page.goto(url, {
       waitUntil: 'domcontentloaded',
@@ -10,7 +16,7 @@ async function scrapePrice(page, url) {
     // Wait for dynamic content
     await page.waitForTimeout(3000);
 
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate((minPrice, maxPrice) => {
       console.log('🎯 PERFECT PRICE DETECTION - Based on comprehensive analysis');
 
       let finalPrice = null;
@@ -31,7 +37,7 @@ async function scrapePrice(page, url) {
           const element = document.querySelector(selector);
           if (element && element.value) {
             const price = parseFloat(element.value);
-            if (price >= 100 && price <= 5000) {
+            if (price >= minPrice && price <= maxPrice) {
               finalPrice = price;
               priceSource = `Hidden Input: ${selector}`;
               console.log(`🎯 FOUND via hidden input: $${price} (${selector})`);
@@ -76,7 +82,7 @@ async function scrapePrice(page, url) {
                 };
 
                 const price = extractPrice(jsonData);
-                if (price && price >= 100 && price <= 5000) {
+                if (price && price >= minPrice && price <= maxPrice) {
                   finalPrice = price;
                   priceSource = `JSON Data: ${selector}`;
                   console.log(`🎯 FOUND via JSON: $${price} (priceAmount: ${price})`);
@@ -118,7 +124,7 @@ async function scrapePrice(page, url) {
             const text = element.textContent.trim();
             const price = parseFloat(text.replace(/[^0-9.]/g, ''));
 
-            if (price >= 100 && price <= 5000) {
+            if (price >= minPrice && price <= maxPrice) {
               // Additional validation: check it's not in shipping/tax context
               const parentText = (element.parentElement?.textContent || '').toLowerCase();
               const badKeywords = ['shipping', 'tax', 'import', 'handling', 'fee'];
@@ -155,7 +161,7 @@ async function scrapePrice(page, url) {
             const text = element.textContent.trim();
             const price = parseFloat(text.replace(/[^0-9.]/g, ''));
 
-            if (price >= 100 && price <= 5000) {
+            if (price >= minPrice && price <= maxPrice) {
               // Additional validation: check it's not in shipping/tax context
               const parentText = (element.parentElement?.textContent || '').toLowerCase();
               const badKeywords = ['shipping', 'tax', 'import', 'handling', 'fee', 'list price', 'was'];
@@ -182,7 +188,7 @@ async function scrapePrice(page, url) {
           for (const attr of element.attributes) {
             if (attr.name.startsWith('data-') && attr.value) {
               const price = parseFloat(attr.value.replace(/[^0-9.]/g, ''));
-              if (price >= 100 && price <= 5000) {
+              if (price >= minPrice && price <= maxPrice) {
                 finalPrice = price;
                 priceSource = `Data Attribute: ${attr.name}="${attr.value}"`;
                 console.log(`🎯 FOUND via data attribute: $${price} (${attr.name})`);
@@ -214,7 +220,7 @@ async function scrapePrice(page, url) {
               const matches = [...content.matchAll(pattern)];
               for (const match of matches) {
                 const price = parseFloat(match[1]);
-                if (price >= 100 && price <= 5000) {
+                if (price >= minPrice && price <= maxPrice) {
                   finalPrice = price;
                   priceSource = `Script Variable: ${match[0]}`;
                   console.log(`🎯 FOUND via script: $${price} from ${match[0]}`);
@@ -239,7 +245,7 @@ async function scrapePrice(page, url) {
           const text = element.textContent.trim();
           const price = parseFloat(text.replace(/[^0-9.]/g, ''));
 
-          if (price >= 100 && price <= 5000) {
+          if (price >= minPrice && price <= maxPrice) {
             let score = 1;
 
             // Context analysis
@@ -295,7 +301,7 @@ async function scrapePrice(page, url) {
           for (const element of elements) {
             const priceText = element.textContent.trim();
             const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-            if (price > finalPrice && price >= 100 && price <= 5000) {
+            if (price > finalPrice && price >= minPrice && price <= maxPrice) {
               salePrice = finalPrice;
               basePrice = price;
               isOnSale = true;
@@ -337,7 +343,7 @@ async function scrapePrice(page, url) {
         priceSource: priceSource,
         detectionMethod: 'Perfect Detection v1.0'
       };
-    });
+    }, minPrice, maxPrice);
 
     console.log(`🎯 Perfect scraping result: $${result.currentPrice} from ${result.priceSource}`);
     return result;
