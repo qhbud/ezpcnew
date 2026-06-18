@@ -1433,21 +1433,22 @@ function shouldRejectCandidate(componentType, productName) {
 }
 
 async function searchAmazon(browser, searchTerm) {
-  const page = await browser.newPage();
-  await blockHeavyResources(page);
-
   try {
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(searchTerm)}&i=electronics`;
+    return await withScrapeRetry(`Search "${searchTerm}"`, async () => {
+      const page = await preparePage(browser);
+      try {
+        const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(searchTerm)}&i=electronics`;
 
-    await page.goto(searchUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
+        await page.goto(searchUrl, {
+          waitUntil: 'networkidle2',
+          timeout: 45000
+        });
 
-    await page.waitForTimeout(3000);
+        await page.waitForTimeout(jitter(2000, 4500));
 
-    return page.evaluate(() => {
+        if (await isBotBlocked(page)) throw new Error('bot wall (CAPTCHA / robot check)');
+
+        const items = await page.evaluate(() => {
       const items = [];
       let productDivs = document.querySelectorAll('[data-component-type="s-search-result"]');
 
@@ -1498,13 +1499,21 @@ async function searchAmazon(browser, searchTerm) {
         }
       }
 
-      return items;
+          return items;
+        });
+
+        // Zero results on a search that should have plenty usually means a soft
+        // block (empty results shell served to a suspected bot) rather than a
+        // genuinely empty catalog — retry on a fresh IP before giving up.
+        if (!items.length) throw new Error('zero results (likely soft block)');
+        return items;
+      } finally {
+        await page.close().catch(() => {});
+      }
     });
   } catch (error) {
     console.error(`Amazon search failed for "${searchTerm}": ${error.message}`);
     return [];
-  } finally {
-    await page.close();
   }
 }
 
@@ -1525,32 +1534,43 @@ const PRICE_WINDOWS = {
 
 async function scrapeAmazonCandidate(browser, candidate, componentType, affiliateTag) {
   const { scrapePrice } = require('./scrapers/amazonScraper');
-  const page = await browser.newPage();
-  await blockHeavyResources(page);
   const asin = normalizeAsin(candidate.asin) || extractAsin(candidate.sourceUrl);
   const productUrl = normalizeAmazonProductUrl(candidate.sourceUrl, asin, affiliateTag);
 
   try {
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    const priceResult = await scrapePrice(page, productUrl, PRICE_WINDOWS[componentType] || {});
-    const pageDetails = await extractAmazonPageDetails(page);
+    return await withScrapeRetry(`Product ${asin || productUrl}`, async () => {
+      const page = await preparePage(browser);
+      try {
+        const priceResult = await scrapePrice(page, productUrl, PRICE_WINDOWS[componentType] || {});
+        if (await isBotBlocked(page)) throw new Error('bot wall on product page');
+        const pageDetails = await extractAmazonPageDetails(page);
 
-    return {
-      asin,
-      name: pageDetails.title || candidate.name,
-      title: pageDetails.title || candidate.name,
-      rawTitle: pageDetails.title || candidate.name,
-      price: normalizePrice(priceResult.currentPrice ?? priceResult.basePrice ?? candidate.price),
-      basePrice: normalizePrice(priceResult.basePrice ?? candidate.price),
-      imageUrl: firstString(priceResult.imageUrl, pageDetails.imageUrl, candidate.imageUrl),
-      productUrl,
-      sourceUrl: productUrl,
-      source: 'amazon',
-      features: pageDetails.features,
-      specs: pageDetails.specs,
-      componentType
-    };
+        return {
+          asin,
+          name: pageDetails.title || candidate.name,
+          title: pageDetails.title || candidate.name,
+          rawTitle: pageDetails.title || candidate.name,
+          price: normalizePrice(priceResult.currentPrice ?? priceResult.basePrice ?? candidate.price),
+          basePrice: normalizePrice(priceResult.basePrice ?? candidate.price),
+          imageUrl: firstString(priceResult.imageUrl, pageDetails.imageUrl, candidate.imageUrl),
+          productUrl,
+          sourceUrl: productUrl,
+          source: 'amazon',
+          features: pageDetails.features,
+          specs: pageDetails.specs,
+          componentType
+        };
+      } finally {
+        await page.close().catch(() => {});
+      }
+    });
   } catch (error) {
+    // A dead browser session must bubble up so the caller relaunches it; other
+    // failures (block/timeout after all retries) fall back to the search-result
+    // data, which still carries a name + price for this candidate.
+    if (/session closed|target closed|protocol error|connection closed|browser has disconnected|most likely the page has been closed/i.test(error.message)) {
+      throw error;
+    }
     console.error(`Product scrape failed for ${productUrl}: ${error.message}`);
     return {
       asin,
@@ -1567,8 +1587,6 @@ async function scrapeAmazonCandidate(browser, candidate, componentType, affiliat
       specs: {},
       componentType
     };
-  } finally {
-    await page.close();
   }
 }
 
@@ -1729,25 +1747,135 @@ async function connectForIngest(dryRun) {
   }
 }
 
+// --- Anti-bot scraping infrastructure --------------------------------------
+// Amazon hard-blocks datacenter IPs (GitHub Actions) at the search stage — a
+// cloud run found candidates for only 1 of 9 types while the same code on a
+// local residential IP got all 9. Defence in depth: a stealth plugin to hide
+// the headless fingerprint, an optional residential proxy (rotating per page via
+// a {session} token in the username), rotated user agents, jittered delays, and
+// CAPTCHA detection that retries on a fresh page/IP. Proxy config is env-driven,
+// so local runs without a proxy keep working (stealth only).
+
+const SCRAPE_USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
+];
+
+const SCRAPE_ATTEMPTS = Math.max(1, Number.parseInt(process.env.INGEST_SCRAPE_ATTEMPTS || '3', 10) || 3);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const jitter = (min, max) => Math.floor(min + Math.random() * (max - min));
+const randomUserAgent = () => SCRAPE_USER_AGENTS[Math.floor(Math.random() * SCRAPE_USER_AGENTS.length)];
+
+// Optional residential proxy, read from env so it stays a deploy secret, never
+// code. INGEST_PROXY_SERVER = host:port (or scheme://host:port). The username may
+// contain a literal "{session}" placeholder; we swap a fresh random token per
+// page so each page (and each retry) egresses from a different residential IP.
+function getProxyConfig() {
+  const raw = process.env.INGEST_PROXY_SERVER || process.env.SCRAPER_PROXY_SERVER;
+  if (!raw) return null;
+  return {
+    server: /:\/\//.test(raw) ? raw : `http://${raw}`,
+    username: process.env.INGEST_PROXY_USERNAME || process.env.SCRAPER_PROXY_USERNAME || '',
+    password: process.env.INGEST_PROXY_PASSWORD || process.env.SCRAPER_PROXY_PASSWORD || ''
+  };
+}
+
+function buildLaunchArgs() {
+  const args = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    // Stability flags: Amazon product pages are heavy and, over many
+    // navigations, the renderer used to exhaust memory and the browser session
+    // died ("Target.createTarget: Session with given id not found"), taking down
+    // the rest of the run. These trim memory/GPU usage.
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--no-zygote'
+  ];
+  const proxy = getProxyConfig();
+  if (proxy) args.push(`--proxy-server=${proxy.server}`);
+  return args;
+}
+
 async function launchBrowser() {
-  const puppeteer = require('puppeteer');
-  return puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      // Stability flags: Amazon product pages are heavy and, over many
-      // navigations, the renderer used to exhaust memory and the browser
-      // session died ("Target.createTarget: Session with given id not found"),
-      // taking down the rest of the run (worst on the cooler type, which scrapes
-      // the most pages). These trim memory/GPU usage.
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--no-zygote'
-    ]
-  });
+  const proxy = getProxyConfig();
+  if (proxy) console.log(`Browser launching via proxy ${proxy.server}`);
+  // puppeteer-extra wraps the installed puppeteer; the stealth plugin masks the
+  // headless fingerprint (navigator.webdriver, plugins, WebGL, languages, ...).
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer-extra');
+    const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+    puppeteer.use(StealthPlugin());
+  } catch (err) {
+    console.warn(`puppeteer-extra/stealth unavailable (${err.message}); using plain puppeteer.`);
+    puppeteer = require('puppeteer');
+  }
+  return puppeteer.launch({ headless: 'new', args: buildLaunchArgs() });
+}
+
+// Prepare a page: fresh proxy session (rotates the residential IP), a rotated
+// user agent, realistic headers/viewport, and image/media/font blocking.
+async function preparePage(browser) {
+  const page = await browser.newPage();
+  await blockHeavyResources(page);
+  const proxy = getProxyConfig();
+  if (proxy && (proxy.username || proxy.password)) {
+    const username = proxy.username.includes('{session}')
+      ? proxy.username.replace(/\{session\}/g, Math.random().toString(36).slice(2, 10))
+      : proxy.username;
+    await page.authenticate({ username, password: proxy.password });
+  }
+  await page.setUserAgent(randomUserAgent());
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+  await page.setViewport({ width: 1366, height: 768 });
+  return page;
+}
+
+// Detect Amazon's bot wall (CAPTCHA / "Robot Check" / dog page) so we retry on a
+// fresh IP instead of silently returning zero results.
+async function isBotBlocked(page) {
+  try {
+    if (/\/errors\/validateCaptcha/i.test(page.url())) return true;
+    return await page.evaluate(() => {
+      const title = (document.title || '').toLowerCase();
+      const body = (document.body && document.body.innerText ? document.body.innerText : '').toLowerCase();
+      const hay = `${title}\n${body.slice(0, 4000)}`;
+      return [
+        'robot check',
+        'enter the characters you see',
+        'type the characters you see',
+        "we just need to make sure you're not a robot",
+        'to discuss automated access',
+        'api-services-support@amazon.com'
+      ].some((needle) => hay.includes(needle));
+    });
+  } catch {
+    return false;
+  }
+}
+
+// Run a page operation with retries; each attempt gets a fresh page (new proxy
+// IP + UA) plus a jittered backoff, so a transient block or empty result doesn't
+// kill the whole component type.
+async function withScrapeRetry(label, fn) {
+  let lastError;
+  for (let attempt = 1; attempt <= SCRAPE_ATTEMPTS; attempt += 1) {
+    try {
+      return await fn(attempt);
+    } catch (err) {
+      lastError = err;
+      console.warn(`${label}: attempt ${attempt}/${SCRAPE_ATTEMPTS} failed — ${err.message}`);
+      if (attempt < SCRAPE_ATTEMPTS) await sleep(jitter(2500, 6000));
+    }
+  }
+  throw lastError;
 }
 
 // Abort image/media/font requests before navigation. Price/spec detection only

@@ -66,7 +66,18 @@ jobs:
           DB_NAME: pcbuilder
           TYPE: ${{ github.event.inputs.type || 'all' }}
           LIMIT: ${{ github.event.inputs.limit || '5' }}
+          # Residential proxy so Amazon doesn't bot-block the datacenter runner IP.
+          # Add these under Settings -> Secrets and variables -> Actions. The
+          # username may include a literal {session} token to rotate IP per page.
+          # If unset, the scraper still runs (stealth only) but Amazon will block
+          # most categories from the cloud — the proxy is what makes it reliable.
+          INGEST_PROXY_SERVER: ${{ secrets.INGEST_PROXY_SERVER }}
+          INGEST_PROXY_USERNAME: ${{ secrets.INGEST_PROXY_USERNAME }}
+          INGEST_PROXY_PASSWORD: ${{ secrets.INGEST_PROXY_PASSWORD }}
         run: |
+          if [ -z "${INGEST_PROXY_SERVER}" ]; then
+            echo "::warning::INGEST_PROXY_SERVER is empty — running stealth-only. Amazon will likely block most categories from the cloud runner. Add the proxy secrets for reliable ingestion."
+          fi
           if [ -z "${MONGODB_URI}" ]; then
             echo "::error::MONGODB_URI secret is empty. Add it under Settings -> Secrets and variables -> Actions."
             exit 1
