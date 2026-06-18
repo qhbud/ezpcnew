@@ -110,6 +110,82 @@ addCheck('F4 stable dedup key', () => {
   }
 });
 
+// Regression cases for the 2026-06-17 ingest-audit fixes. Each title is taken
+// (verbatim or close) from a doc that parsed wrong in pending_components.
+function build(type, title) {
+  return buildPendingComponent(type, {
+    asin: 'B0REG' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+    name: title,
+    title,
+    imageUrl: 'https://m.media-amazon.com/images/I/x.jpg',
+    sourceUrl: 'https://www.amazon.com/dp/B0REGTEST1',
+    price: 99.99,
+    source: 'amazon',
+    scrapedAt: SAMPLE_SCRAPED_AT,
+    affiliateTag: AFFILIATE_TAG
+  }).fields;
+}
+
+addCheck('F5 storage read/write not swapped by comma', () => {
+  // Was: readSpeed=6900 (grabbed the write number after the "Read" label).
+  const f = build('storage', 'Samsung 990 PRO NVMe M.2 SSD, 2 TB, PCIe 4.0, 7,450 MB/s Read, 6,900 MB/s Write');
+  assert.strictEqual(f.readSpeed, 7450, `readSpeed ${f.readSpeed}`);
+  assert.strictEqual(f.writeSpeed, 6900, `writeSpeed ${f.writeSpeed}`);
+  // "Up to" form still works.
+  const g = build('storage', 'Samsung 9100 PRO 4TB, PCIe 5.0x4 M.2 2280, Seq. Read Speeds Up to 14,800MB/s');
+  assert.strictEqual(g.readSpeed, 14800, `up-to readSpeed ${g.readSpeed}`);
+});
+
+addCheck('F6 addon fan rpm survives thousands comma', () => {
+  // Was: rpm.max=100 (the tail of "2,100" after the comma).
+  const f = build('addon', 'CORSAIR RS120 120mm PWM Fan up to 2,100 RPM Single Pack Black');
+  assert.strictEqual(f.fanSpecs.rpm.max, 2100, `rpm.max ${f.fanSpecs.rpm.max}`);
+  const g = build('addon', 'Thermalright TL-C12C 120mm 4pin PWM Silent Fan up to 1550RPM');
+  assert.strictEqual(g.fanSpecs.rpm.max, 1550, `rpm.max ${g.fanSpecs.rpm.max}`);
+  assert.strictEqual(g.manufacturer, 'Thermalright', `manufacturer ${g.manufacturer}`);
+});
+
+addCheck('F7 micro-ATX case does not claim ATX support', () => {
+  // Was: motherboardSupport included "ATX" (the ATX inside "M-ATX").
+  const f = build('case', 'Redragon GC218M Gaming Back-Mounted PC Case, M-ATX Computer Chassis');
+  assert.ok(f.motherboardSupport.includes('Micro-ATX'), 'should support Micro-ATX');
+  assert.ok(!f.motherboardSupport.includes('ATX'), `should NOT list full ATX: ${JSON.stringify(f.motherboardSupport)}`);
+  assert.strictEqual(f.manufacturer, 'Redragon', `manufacturer ${f.manufacturer}`);
+  // A genuine ATX case still parses ATX.
+  const g = build('case', 'GAMDIAS ATX Mid Tower Gaming Computer Case Tempered Glass');
+  assert.ok(g.motherboardSupport.includes('ATX'), 'real ATX case should list ATX');
+  assert.strictEqual(g.manufacturer, 'GAMDIAS', `manufacturer ${g.manufacturer}`);
+});
+
+addCheck('F8 motherboard wifi true when version present', () => {
+  // Was: wifi=null while wifiVersion="WiFi 6E" (\bwifi\b missed "WIFI6E").
+  const f = build('motherboard', 'GIGABYTE Z790 Eagle AX LGA 1700 ATX, DDR5, PCIe 5.0, WIFI6E, 2.5GbE');
+  assert.strictEqual(f.networking.wifi, true, `wifi ${f.networking.wifi}`);
+  assert.strictEqual(f.networking.wifiVersion, 'WiFi 6E', `wifiVersion ${f.networking.wifiVersion}`);
+  const g = build('motherboard', 'ASUS ROG STRIX B860-I LGA 1851 Mini-ITX, DDR5, WiFi7, M.2');
+  assert.strictEqual(g.networking.wifi, true, 'WiFi7 board wifi true');
+  assert.strictEqual(g.networking.wifiVersion, 'WiFi 7', `wifiVersion ${g.networking.wifiVersion}`);
+});
+
+addCheck('F9 GPU 30-series chipset resolves', () => {
+  // Was: chipset=null, busWidth=null for an RTX 3090.
+  const f = build('gpu', 'EVGA GeForce RTX 3090 FTW3 Ultra Gaming, 24GB GDDR6X, PCIe 4, ARGB');
+  assert.strictEqual(f.chipset, 'RTX 3090', `chipset ${f.chipset}`);
+  assert.strictEqual(f.partner, 'EVGA', `partner ${f.partner}`);
+  assert.strictEqual(f.memory.busWidth, 384, `busWidth ${f.memory.busWidth}`);
+});
+
+addCheck('F10 cooler heatpipe count and fan count', () => {
+  // Was: heatpipes=null with descriptor words between number and "Heat Pipes".
+  const air = build('cooler', 'be quiet! Dark Rock Pro 5 CPU Cooler | 7 high-Performance Copper Heat Pipes | BK036');
+  assert.strictEqual(air.type, 'Air', `type ${air.type}`);
+  assert.strictEqual(air.heatpipes, 7, `heatpipes ${air.heatpipes}`);
+  // Was: fan.count=null for "3X RS120 ARGB Fans Included".
+  const aio = build('cooler', 'CORSAIR Nautilus 360 RS ARGB Liquid CPU Cooler 360mm AIO 3X RS120 ARGB Fans Included Black');
+  assert.strictEqual(aio.type, 'Liquid', `type ${aio.type}`);
+  assert.strictEqual(aio.fan.count, 3, `fan.count ${aio.fan.count}`);
+});
+
 let failed = 0;
 for (const check of checks) {
   try {
