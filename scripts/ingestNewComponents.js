@@ -1780,7 +1780,8 @@ async function runIngest(options) {
     queued: 0,
     upserted: 0,
     skipped: 0,
-    alreadyInLiveSkipped: 0
+    alreadyInLiveSkipped: 0,
+    noPriceSkipped: 0
   };
 
   if (options.dryRun) {
@@ -1872,6 +1873,16 @@ async function runIngest(options) {
           }
 
           const pendingDoc = buildPendingComponent(componentType, rawProduct);
+
+          // Never stage a component without a usable price. A priceless doc is
+          // useless downstream (the API hides anything failing hasValidPrice) and
+          // only clutters the pending queue, so drop it before it is written.
+          if (!(typeof pendingDoc.price === 'number' && pendingDoc.price > 0)) {
+            summary.skipped += 1;
+            summary.noPriceSkipped += 1;
+            console.log(`Skipped (no price): ${pendingDoc.name || rawProduct.name || candidate.name}`);
+            continue;
+          }
 
           if (options.dryRun) {
             console.log(JSON.stringify(pendingDoc, null, 2));
