@@ -19,55 +19,71 @@ class PartsDatabase {
         this.cpuPerformanceMode = 'singleThread'; // 'singleThread' or 'multiThread' for CPU statistics
         this.debugMode = false; // Debug mode to show component popularity scores
 
-        // GPU Performance Benchmarks
+        // GPU relative-performance index — strictly monotonic (a higher value is
+        // always strictly faster). Keep identical to data/gpuBenchmarks.json (the
+        // canonical source the server reads). 1440p raster consensus; RTX 5090 = top.
         this.gpuBenchmarks = {
             'RTX 5090': 197.5,
-            'RTX 5080': 178.5,
-            'RTX 5070 Ti': 169.3,
-            'RTX 5070': 149.1,
-            'RTX 5060 Ti': 120.3,
-            'RTX 5060': 102.7,
-            'RTX 4090': 195.6,
-            'RTX 4080 Super': 177.2,
-            'RTX 4080': 175,
-            'RTX 4070 Ti Super': 161.3,
-            'RTX 4070 Ti': 155.1,
-            'RTX 4070 Super': 147.6,
-            'RTX 4070': 130.7,
-            'RTX 4060 Ti': 103.2,
-            'RTX 4060': 83.9,
-            'RTX 3090 Ti': 131.6,
-            'RTX 3090': 128.1,
-            'RTX 3080 Ti': 126.2,
-            'RTX 3080': 125.8,
-            'RTX 3070 Ti': 98.59404601,
-            'RTX 3070': 99.8,
-            'RTX 3060 Ti': 91.5,
-            'RTX 3060': 70.2,
-            'RTX 3050': 51.4,
-            'RX 7900 XTX': 174.1,
-            'RX 7900 XT': 163.1,
-            'RX 7800 XT': 133.2,
-            'RX 7700 XT': 114.5,
-            'RX 7600 XT': 84.6,
-            'RX 7600': 79.3,
-            'RX 6950 XT': 153,
-            'RX 6900 XT': 145,
-            'RX 6800 XT': 132,
-            'RX 6800': 120,
-            'RX 6750 XT': 110,
-            'RX 6700 XT': 105,
-            'RX 6650 XT': 93,
-            'RX 6600 XT': 80,
-            'RX 6600': 64.1,
-            'RX 6500 XT': 40.76102842,
-            'RX 6400': 31.36481732,
-            'Arc A770': 63.4,
-            'Arc A750': 57.4,
-            'Arc A580': 80,
-            'Arc A380': 37.45250338,
-            'Arc B570': 72.4,
-            'Arc B580': 80.364
+            'RTX 4090': 156.0,
+            'RTX 5080': 144.0,
+            'RX 7900 XTX': 130.0,
+            'RTX 4080 Super': 128.0,
+            'RTX 4080': 125.0,
+            'RTX 5070 Ti': 123.0,
+            'RX 9070 XT': 119.0,
+            'RX 7900 XT': 115.0,
+            'RTX 4070 Ti Super': 113.0,
+            'RX 9070': 107.0,
+            'RTX 4070 Ti': 105.0,
+            'RTX 5070': 102.0,
+            'RX 7900 GRE': 98.0,
+            'RTX 4070 Super': 95.0,
+            'RX 6950 XT': 92.0,
+            'RTX 3090 Ti': 89.5,
+            'RX 6900 XT': 87.5,
+            'RX 7800 XT': 85.5,
+            'RTX 4070': 83.5,
+            'RTX 3090': 81.5,
+            'RX 6800 XT': 79.5,
+            'RTX 3080 Ti': 77.5,
+            'RTX 3080': 75.0,
+            'RX 7700 XT': 73.0,
+            'RX 6800': 71.0,
+            'RTX 3070 Ti': 68.0,
+            'RTX 5060 Ti': 66.0,
+            'RX 9060 XT': 64.0,
+            'RTX 4060 Ti': 62.0,
+            'RTX 3070': 60.0,
+            'RX 6750 XT': 58.0,
+            'RX 6700 XT': 54.0,
+            'RTX 3060 Ti': 52.0,
+            'RTX 5060': 50.0,
+            'RX 9060': 49.0,
+            'RX 6700': 47.0,
+            'RTX 4060': 45.5,
+            'RX 7600 XT': 44.5,
+            'Arc B580': 43.5,
+            'RX 7600': 42.5,
+            'RX 6650 XT': 41.0,
+            'RTX 5050': 39.5,
+            'RX 6600 XT': 38.0,
+            'Arc A770': 35.5,
+            'Arc B570': 34.0,
+            'RTX 3060': 32.5,
+            'RX 6600': 30.5,
+            'Arc A750': 28.5,
+            'Arc A580': 25.0,
+            'RTX 3050': 22.0,
+            'GTX 1660 Ti': 19.0,
+            'GTX 1660 Super': 18.0,
+            'GTX 1660': 16.0,
+            'RX 6500 XT': 14.0,
+            'Arc A380': 13.0,
+            'GTX 1650 Super': 12.0,
+            'RX 6400': 10.0,
+            'GTX 1650': 9.0,
+            'Arc A310': 7.0,
+            'GTX 1630': 5.0
         };
 
         this.allParts = []; // Current active parts (GPUs, CPUs, Motherboards, RAM, PSUs, or Coolers)
@@ -5107,21 +5123,27 @@ class PartsDatabase {
         const rawName = component.name || component.title || component.model || '';
         const name = rawName.replace(/[\u2122\u00AE]/g, '').replace(/\s+/g, ' ');
 
-        // Sort benchmark keys by length (longest first) to match more specific models first
-        // This ensures "RX 7900 XTX" matches before "RX 7900"
-        const sortedModels = Object.entries(this.gpuBenchmarks)
-            .sort((a, b) => b[0].length - a[0].length);
-
-        // Try to match the GPU model name with our benchmark data
-        for (const [model, score] of sortedModels) {
-            if (name.includes(model)) {
-                // Normalize the score (divide by max value of 205.5 - RTX 5090)
-                const maxScore = 197.5;
-                return score / maxScore;
-            }
+        // Build a case-insensitive lookup + max once (memoized).
+        if (!this._benchUpper) {
+            this._benchUpper = {};
+            for (const [k, v] of Object.entries(this.gpuBenchmarks)) this._benchUpper[k.toUpperCase()] = v;
+            this._benchMax = Math.max(...Object.values(this.gpuBenchmarks));
+            // Longest keys first so "RX 7900 XTX" wins over "RX 7900" in the fallback.
+            this._benchKeys = Object.keys(this._benchUpper).sort((a, b) => b.length - a.length);
         }
 
-        return null; // No benchmark found
+        // Prefer the clean gpuModel/model field (exact) — scores 100% of cards.
+        const modelKey = String(component.gpuModel || component.model || '').toUpperCase();
+        let score = modelKey ? this._benchUpper[modelKey] : undefined;
+
+        // Fall back to substring-matching the (already ™/®-stripped) product name.
+        if (score === undefined) {
+            const upperName = name.toUpperCase();
+            const key = this._benchKeys.find(k => upperName.includes(k));
+            if (key) score = this._benchUpper[key];
+        }
+
+        return score === undefined ? null : score / this._benchMax;
     }
 
     getCpuPerformance(component) {
