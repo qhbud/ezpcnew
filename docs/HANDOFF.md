@@ -234,8 +234,26 @@ errors** (today there are 3: missing-filter null-guards).
   GPU length is 96% populated but useless with no case clearance to compare to.
   Wiring those checks would ship no-ops/fabrication. Re-scoped (Quinn: "A then B")
   to the data-backed checks above. TRUE physical-fit deferred to **Track B** below.
-- Status: **DISPATCHED 2026-06-19**, judge next session. Builder writes raw
-  results to `docs/lanes/slice-9-00.md`.
+- Status: **PASS / CONTINUE** (independent cold-session judge, 2026-06-19).
+  Tamper-check clean (`git diff a4ebe53 -- docs/gates/` empty); boundary clean
+  (only script.js +26 / index.html ±1 / test/compat-depth-e2e.js new / lane
+  report). Cold live re-run: G1 parse 0; G2 smoke 0/0; G3 compat-depth-e2e
+  C1–C4 all PASS (drives the LIVE classifier via page.evaluate on real
+  `/api/parts`, fails if advisory leaks into `problems`); G4 — both items
+  push to `warnings` not `problems`, read only gpu.tdp / cpu.socket / cpu name
+  (via existing getName) / motherboard.chipset, null-safe (tdp>=300 gate),
+  BIOS fires AM5+Ryzen-9xxx+{A620,B650,B650E,X670,X670E} and not on 800-series
+  / non-9000, additive (no second rule engine); G5 slider min 500, smoke 0/0.
+  Committed locally to main; **NOT pushed** (push = Railway+Render prod deploy,
+  awaiting Quinn).
+- **S11 FOLLOW-UP (open, my spec gap):** lowering `#budgetSlider` min satisfied
+  the verbatim G5, but the wizard still REJECTS sub-$1000 budgets via two guards
+  left OUT of the frozen boundary — client `public/index.html:~2454`
+  (`budget < 1000` → validation error) and server `server.js:~1515` (HTTP 400
+  `Minimum budget is $1000`). To actually allow sub-$1000 wizard builds, a small
+  follow-up slice (S9b) must lower/remove both to 500. Also confirm the slider
+  and the separate `budgetInput` number field share one value (judge flagged
+  only the slider floor was lowered).
 
 ## Track B (queued, NOT a frontend slice) — physical-fit data acquisition
 True physical-fit (GPU-length-in-case, cooler-height clearance, RAM clearance,

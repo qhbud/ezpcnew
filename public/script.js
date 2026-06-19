@@ -5787,6 +5787,32 @@ class PartsDatabase {
             }
         }
 
+        // Advise on high-power GPU connector requirements when connector data is unavailable.
+        const gpuTdp = gpu?.tdp === null || gpu?.tdp === undefined || gpu?.tdp === ''
+            ? null
+            : Number(gpu.tdp);
+        if (Number.isFinite(gpuTdp) && gpuTdp >= 300) {
+            warnings.push({
+                title: 'Verify high-power GPU connector',
+                detail: `${getName(gpu, 'The selected GPU')} is rated at ${gpuTdp}W. High-power cards may require a 12VHPWR / 12V-2x6 power connector from an ATX 3.0/3.1 PSU or the card's bundled adapter. Confirm the selected PSU supplies the required connection before buying.`
+            });
+        }
+
+        // Advise when a Ryzen 9000 CPU may need a BIOS update on an AM5 600-series board.
+        const cpuName = getName(cpu, '');
+        const motherboardChipset = String(motherboard?.chipset || '').trim().toUpperCase();
+        const am5SixHundredSeriesChipsets = ['A620', 'B650', 'B650E', 'X670', 'X670E'];
+        if (
+            String(cpu?.socket || '').trim().toUpperCase() === 'AM5' &&
+            /\bRyzen\s+\d\s+9\d{3}(?!\d)/i.test(cpuName) &&
+            am5SixHundredSeriesChipsets.includes(motherboardChipset)
+        ) {
+            warnings.push({
+                title: 'Possible AM5 BIOS update',
+                detail: `${getName(motherboard, 'The selected motherboard')} uses the ${motherboardChipset} chipset and may need a BIOS update to POST with ${cpuName}. Verify the board shipped with a recent BIOS or supports BIOS Flashback before assembly.`
+            });
+        }
+
         // Check cooler and CPU compatibility
         if (cooler && cpu) {
             const cpuSocket = cpu.socket || '';
