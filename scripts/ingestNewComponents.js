@@ -446,7 +446,14 @@ function parseMotherboardChipset(text) {
   // alternation is ordered longest-first (B650E before B650) so suffixed variants
   // still win.
   return matchFirst(text, [
-    /\b(Z890|Z790|Z690|H770|H670|H610|B860|B760|B660|Z590|Z490|B560|B460|H570|H510|H470|Z390|Z370|H370|B365|B360|H310|X870E|X870|X670E|X670|B850|B840|B650E|B650|A620|X570|X470|B550|B450|A520)(?!\d)/i
+    // Explicit known chipsets (E-suffixed variants ordered before their base so
+    // "X670E"/"B650E" win over "X670"/"B650"). Intel LGA1851/1700/1200/1151 +
+    // 200/100 series + X299 HEDT; AMD AM5/AM4 + Threadripper TRX/WRX/X399.
+    /\b(Z890|B860|H810|Z790|H770|B760|H610|Z690|H670|B660|Z590|B560|H570|H510|Z490|H470|B460|H410|Z390|Z370|H370|B365|B360|H310|Z270|H270|B250|Z170|H170|B150|H110|X299|X870E|X870|B850|B840|X670E|X670|B650E|B650|A620|X570|B550|A520|X470|B450|X370|B350|A320|TRX50|TRX40|WRX80|X399)(?!\d)/i,
+    // Generic fallback so a chipset we haven't enumerated (or a future one) still
+    // resolves a name instead of null: Intel/AMD letter + 3 digits (+ optional E),
+    // or Threadripper TRX/WRX. Tried only after the explicit list misses.
+    /\b((?:Z|H|B|Q|X|A)[0-9]{3}E?|TRX[0-9]{2}|WRX[0-9]{2})(?!\d)/i
   ], (match) => match[1].toUpperCase());
 }
 
@@ -867,6 +874,7 @@ const MOBO_REF = {
   H570: { m2: 2, pcie: [['4.0', 16], ['3.0', 1]] },
   H510: { m2: 1, pcie: [['4.0', 16], ['3.0', 1]] },
   H470: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  H810: { m2: 1, pcie: [['4.0', 16], ['3.0', 1]] },
   // Intel LGA1151 (8th–9th gen, 300-series) — all DDR4, PCIe 3.0.
   Z390: { m2: 2, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
   Z370: { m2: 2, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
@@ -874,6 +882,17 @@ const MOBO_REF = {
   B365: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
   B360: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
   H310: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  H410: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  // Intel LGA1151 v1 (6th–7th gen, 200/100-series) — DDR4, PCIe 3.0.
+  Z270: { m2: 1, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
+  H270: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  B250: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  Z170: { m2: 1, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
+  H170: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  B150: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  H110: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  // Intel HEDT (LGA2066).
+  X299: { m2: 2, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 16]] },
   // AMD AM5
   X870E: { m2: 4, pcie: [['5.0', 16], ['4.0', 16], ['3.0', 1]] },
   X870: { m2: 3, pcie: [['5.0', 16], ['4.0', 1]] },
@@ -889,7 +908,16 @@ const MOBO_REF = {
   X470: { m2: 2, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
   B550: { m2: 2, pcie: [['4.0', 16], ['3.0', 1]] },
   B450: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
-  A520: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] }
+  A520: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  // AMD AM4 300-series (Ryzen 1000/2000 era) — DDR4, PCIe 3.0.
+  X370: { m2: 1, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 1]] },
+  B350: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  A320: { m2: 1, pcie: [['3.0', 16], ['3.0', 1]] },
+  // AMD HEDT / Threadripper.
+  TRX50: { m2: 4, pcie: [['5.0', 16], ['5.0', 16], ['4.0', 4]] },
+  TRX40: { m2: 3, pcie: [['4.0', 16], ['4.0', 16], ['4.0', 16], ['4.0', 8]] },
+  WRX80: { m2: 3, pcie: [['4.0', 16], ['4.0', 16], ['4.0', 16], ['4.0', 16]] },
+  X399: { m2: 3, pcie: [['3.0', 16], ['3.0', 16], ['3.0', 16], ['3.0', 8]] }
 };
 
 function refM2Slots(count) {
@@ -917,6 +945,11 @@ function parseMotherboardFields(text) {
     // they really have ~3. Only keep the explicit set if it's at least as complete.
     const refPcie = isItx ? [ref.pcie[0]] : ref.pcie;
     if (pcieSlots.length < refPcie.length) pcieSlots = refPcieSlots(refPcie);
+  } else {
+    // Chipset unknown or not in the reference table — still give the board a
+    // sane slot layout inferred from its form factor so no field is left empty.
+    if (!m2Slots.length) m2Slots = refM2Slots(isItx ? 2 : 3);
+    if (!pcieSlots.length) pcieSlots = refPcieSlots(isItx ? [['4.0', 16]] : [['4.0', 16], ['3.0', 1]]);
   }
   return {
     manufacturer: findManufacturer(text, ['ASUS', 'MSI', 'Gigabyte', 'GIGABYTE', 'ASRock', 'EVGA', 'Biostar']),
