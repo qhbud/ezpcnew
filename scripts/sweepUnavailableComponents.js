@@ -91,8 +91,13 @@ async function printReport(db) {
     try {
         if (REPORT_ONLY) { await printReport(db); return; }
 
-        const names = (await db.listCollections().toArray())
+        let names = (await db.listCollections().toArray())
             .map(c => c.name).filter(isComponentCollection).sort();
+        // Prefer the consolidated `gpus`/`cpus` collections: once they exist, skip the
+        // legacy per-model shards (sweeping dormant shards the API no longer reads is
+        // wasted work and would log misleading per-collection losses).
+        if (names.includes('gpus')) names = names.filter(n => !n.startsWith('gpus_'));
+        if (names.includes('cpus')) names = names.filter(n => !n.startsWith('cpus_'));
 
         console.log(`${DRY_RUN ? 'DRY RUN — ' : ''}Sweeping ${names.length} collection(s) on ` +
             `${isAtlas ? 'ATLAS' : 'local'} (hide after ${MIN_CONSECUTIVE} consecutive misses)\n`);

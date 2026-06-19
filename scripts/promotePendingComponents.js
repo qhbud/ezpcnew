@@ -81,10 +81,13 @@ function mapToLive(d, now) {
         memoryType: f.memoryType, pcieVersion: f.pcieVersion } };
 
     case 'gpu': {
+      // GPUs were consolidated into a single `gpus` collection (like cpus). Keep
+      // `gpuModel` as the model key the API/UI group on, and record the legacy
+      // shard name in `modelCollection` for parity with migrated docs.
       const model = f.chipset || 'unknown';
-      const coll = 'gpus_' + String(model).toLowerCase().replace(/\s+/g, '_');
-      return { collection: coll, doc: { ...base, category: 'gpu',
+      return { collection: 'gpus', doc: { ...base, category: 'gpu',
         gpuModel: f.chipset, manufacturer: f.manufacturer, partner: f.partner,
+        modelCollection: 'gpus_' + String(model).toLowerCase().replace(/\s+/g, '_'),
         tier: gpuTier(f.chipset),
         memory: { size: num(f.memory && f.memory.size), type: f.memory && f.memory.type },
         busWidth: num(f.memory && f.memory.busWidth),

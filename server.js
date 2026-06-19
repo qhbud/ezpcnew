@@ -350,13 +350,13 @@ async function getPriceHistoryCollectionNames(category, preferredCollection) {
     }
 
     if (normalizedCategory === 'gpu' || normalizedCategory === 'gpus') {
-        const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
-        const names = collections.map(col => col.name);
+        // Prefer the consolidated `gpus` collection; fall back to legacy shards.
         const mainGpuCollection = await db.listCollections({ name: 'gpus' }).toArray();
         if (mainGpuCollection.length > 0) {
-            names.push('gpus');
+            return ['gpus'];
         }
-        return names;
+        const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
+        return collections.map(col => col.name);
     }
 
     const categoryCollections = {
@@ -523,14 +523,16 @@ async function handleGPURequest(req, res) {
     try {
         const { manufacturer, priceRange, search, groupByModel } = req.query;
         
-        // Get all collections that start with "gpus_"
-        const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
-        const gpuCollectionNames = collections.map(col => col.name);
-        
-        // Also check for the main 'gpus' collection
+        // Prefer the consolidated `gpus` collection. Only fall back to the legacy
+        // per-model `gpus_*` shards if `gpus` doesn't exist yet (pre-migration) —
+        // this avoids double-counting docs that live in both during a transition.
         const mainGpuCollection = await db.listCollections({ name: 'gpus' }).toArray();
+        let gpuCollectionNames;
         if (mainGpuCollection.length > 0) {
-            gpuCollectionNames.push('gpus');
+            gpuCollectionNames = ['gpus'];
+        } else {
+            const collections = await db.listCollections({ name: /^gpus_/ }).toArray();
+            gpuCollectionNames = collections.map(col => col.name);
         }
 
         console.log(`Found GPU collections: ${gpuCollectionNames.join(', ')}`);
@@ -1361,8 +1363,9 @@ app.get('/api/parts/gpus/:collection', async (req, res) => {
 
         const { collection: collectionName } = req.params;
 
-        // Validate collection name starts with gpus_
-        if (!collectionName.startsWith('gpus_')) {
+        // Validate collection name: the consolidated `gpus` collection or a
+        // legacy per-model `gpus_*` shard.
+        if (collectionName !== 'gpus' && !collectionName.startsWith('gpus_')) {
             return res.status(400).json({ error: 'Invalid GPU collection name' });
         }
 

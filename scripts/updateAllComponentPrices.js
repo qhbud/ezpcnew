@@ -187,12 +187,12 @@ class AllComponentPriceUpdater {
             name === 'cpus'
         );
 
-        // GPUs are sharded across per-model `gpus_*` collections (unlike CPUs, they were
-        // never consolidated into a single `gpus` collection). Match every shard, plus a
-        // bare `gpus` collection if one is ever introduced.
-        const gpuCollections = componentCollectionNames.filter(name =>
-            name === 'gpus' || name.startsWith('gpus_')
-        );
+        // GPUs are now consolidated into a single `gpus` collection (like CPUs).
+        // Prefer it; fall back to the legacy per-model `gpus_*` shards only if `gpus`
+        // doesn't exist yet, so a card is never updated twice during a transition.
+        const gpuCollections = componentCollectionNames.includes('gpus')
+            ? ['gpus']
+            : componentCollectionNames.filter(name => name.startsWith('gpus_'));
 
         // Get other component collections, prioritizing addons and cases
         const priorityCollections = ['addons', 'cases'].filter(name => componentCollectionNames.includes(name));

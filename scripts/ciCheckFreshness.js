@@ -42,12 +42,12 @@ const COMPONENT_COLLECTIONS = ['cpus', 'gpus', 'motherboards', 'rams', 'storages
   const since = new Date(Date.now() - windowHours * 3600 * 1000);
   const present = (await db.listCollections().toArray()).map(c => c.name);
 
-  // GPUs are sharded across per-model `gpus_*` collections (they were never consolidated
-  // into a single `gpus` collection like CPUs were), so the logical "gpus" component maps
-  // to many physical collections. Group them under one label for counting + reporting.
+  // GPUs are now consolidated into a single `gpus` collection (like CPUs). Prefer it;
+  // fall back to the legacy per-model `gpus_*` shards only if `gpus` doesn't exist yet.
+  // (Counting stale dormant shards alongside `gpus` would wrongly drag freshness down.)
   const shardsFor = (name) =>
     name === 'gpus'
-      ? present.filter(p => p === 'gpus' || p.startsWith('gpus_'))
+      ? (present.includes('gpus') ? ['gpus'] : present.filter(p => p.startsWith('gpus_')))
       : (present.includes(name) ? [name] : []);
 
   const logical = onlyCollection ? [onlyCollection] : COMPONENT_COLLECTIONS;
