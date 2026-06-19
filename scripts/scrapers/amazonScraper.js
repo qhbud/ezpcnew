@@ -1,355 +1,215 @@
+// Amazon product-page price scraper for component ingest.
+//
+// Detection algorithm is ported from scripts/riverSearchPriceDetection.js — the
+// price detector the nightly price-updater uses, which reliably reads the real
+// buy-box price. The previous version of this file scanned EVERY <script> tag
+// for any "price": N and scanned every .a-offscreen on the page, so it picked up
+// the prices of *related/recommended* products (carousels) and returned inflated
+// numbers (a $200 B760-A came back $779). The fixes that matter:
+//   1. Read the buy-box / core price area FIRST (corePriceDisplay, apex, buybox).
+//   2. Fall back to JSON-LD offers.price, then reliable hidden price inputs.
+//   3. Only then scan generic .a-price — and EXCLUDE carousel / sponsored /
+//      "CardInstance" (recommendation) sections so a related product can't win.
+//   4. Drop the script-variable and broad data-attribute scans entirely.
+//   5. Dismiss the "Continue Shopping" interstitial first — when present it
+//      replaces the product page (no real price and no #productTitle), which
+//      caused both wrong prices and the "title did not load" failures.
+// Keep this in sync with riverSearchPriceDetection.js.
+
 async function scrapePrice(page, url, options = {}) {
-  // Accept a component-aware plausible price window. The old hardcoded floor of
-  // $100 was wrong for cheap parts (fans, paste, budget RAM): their real price
-  // was rejected, so the scraper fell through to grab an unrelated higher number
-  // elsewhere on the page (e.g. a $13 fan came back as $163, a case as $2317).
+  // Per-component plausible price window (caller passes PRICE_WINDOWS[type]).
   const minPrice = Number.isFinite(options.minPrice) ? options.minPrice : 10;
   const maxPrice = Number.isFinite(options.maxPrice) ? options.maxPrice : 5000;
+
   try {
     console.log(`🔍 Scraping: ${url} (price window $${minPrice}-$${maxPrice})`);
 
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
-    });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(1500 + Math.floor(Math.random() * 1500));
 
-    // Wait for dynamic content
-    await page.waitForTimeout(3000);
-
-    const result = await page.evaluate((minPrice, maxPrice) => {
-      console.log('🎯 PERFECT PRICE DETECTION - Based on comprehensive analysis');
-
-      let finalPrice = null;
-      let priceSource = null;
-
-      // STRATEGY 1: Hidden Input Fields (100% Reliable)
-      console.log('📍 Strategy 1: Hidden input fields (highest reliability)');
-      const hiddenInputSelectors = [
-        '#twister-plus-price-data-price',                    // value="845.98"
-        '#attach-base-product-price',                        // value="845.98"
-        '#items\\[0\\.base\\]\\[customerVisiblePrice\\]\\[amount\\]', // value="845.98"
-        'input[name*="customerVisiblePrice"][name*="amount"]', // Fallback pattern
-        'input[id*="price-data-price"]'                      // Fallback pattern
+    // Dismiss the "Continue Shopping" / warranty interstitial that Amazon
+    // sometimes injects in place of the product page.
+    try {
+      const dismissSelectors = [
+        'input[name="continueShopping"]',
+        'button[name="continueShopping"]',
+        'a[data-csa-c-content-id="continue_shopping"]',
+        '#nav-cart-flyout-continue-shopping',
+        'input[aria-labelledby="attachSiNoCoverage-announce"]',
+        '#attachSiNoCoverage',
+        'input[value="No thanks"]',
+        'button.a-button-close'
       ];
-
-      for (const selector of hiddenInputSelectors) {
-        try {
-          const element = document.querySelector(selector);
-          if (element && element.value) {
-            const price = parseFloat(element.value);
-            if (price >= minPrice && price <= maxPrice) {
-              finalPrice = price;
-              priceSource = `Hidden Input: ${selector}`;
-              console.log(`🎯 FOUND via hidden input: $${price} (${selector})`);
-              break;
-            }
-          }
-        } catch (e) {
-          // CSS selector might be complex, continue
-        }
-      }
-
-      // STRATEGY 2: JSON Data (Very Reliable)
-      if (!finalPrice) {
-        console.log('📍 Strategy 2: JSON price data');
-        const jsonSelectors = [
-          '#twisterPlusWWDesktop .twister-plus-buying-options-price-data',
-          '.twister-plus-buying-options-price-data',
-          '[class*="price-data"]'
-        ];
-
-        for (const selector of jsonSelectors) {
-          const elements = document.querySelectorAll(selector);
-          for (const element of elements) {
-            try {
-              const jsonText = element.textContent || element.innerHTML;
-              if (jsonText && jsonText.includes('priceAmount')) {
-                const jsonData = JSON.parse(jsonText);
-
-                // Look for priceAmount in various structures
-                const extractPrice = (obj) => {
-                  if (typeof obj === 'object' && obj !== null) {
-                    if (obj.priceAmount) return obj.priceAmount;
-                    if (obj.price) return obj.price;
-
-                    // Recursively search
-                    for (const key in obj) {
-                      const result = extractPrice(obj[key]);
-                      if (result) return result;
-                    }
-                  }
-                  return null;
-                };
-
-                const price = extractPrice(jsonData);
-                if (price && price >= minPrice && price <= maxPrice) {
-                  finalPrice = price;
-                  priceSource = `JSON Data: ${selector}`;
-                  console.log(`🎯 FOUND via JSON: $${price} (priceAmount: ${price})`);
-                  break;
-                }
-              }
-            } catch (e) {
-              // Not valid JSON, continue
-            }
-          }
-          if (finalPrice) break;
-        }
-      }
-
-      // STRATEGY 3: Specific High-Priority .aok-offscreen/.a-offscreen Elements
-      if (!finalPrice) {
-        console.log('📍 Strategy 3: High-priority offscreen elements');
-        const prioritySelectors = [
-          // Tier 1: Core price displays (proven most accurate)
-          '#corePrice_feature_div .a-offscreen',
-          '#corePriceDisplay_desktop_feature_div .aok-offscreen',
-          '#tp_price_block_total_price_ww .a-offscreen',
-          '#tp-tool-tip-subtotal-price-value .a-offscreen',
-
-          // Tier 2: Buy box areas
-          '#buybox .a-price:not(.a-text-strike) .a-offscreen',
-          '#price_inside_buybox .a-offscreen',
-
-          // Tier 3: Core price feature variations
-          '[data-feature-name="corePrice"] .a-offscreen',
-          '#apex_offerDisplay_desktop .a-offscreen'
-        ];
-
-        for (const selector of prioritySelectors) {
-          const elements = document.querySelectorAll(selector);
-          console.log(`   ${selector}: ${elements.length} elements`);
-
-          for (const element of elements) {
-            const text = element.textContent.trim();
-            const price = parseFloat(text.replace(/[^0-9.]/g, ''));
-
-            if (price >= minPrice && price <= maxPrice) {
-              // Additional validation: check it's not in shipping/tax context
-              const parentText = (element.parentElement?.textContent || '').toLowerCase();
-              const badKeywords = ['shipping', 'tax', 'import', 'handling', 'fee'];
-              const hasBadContext = badKeywords.some(keyword => parentText.includes(keyword));
-
-              if (!hasBadContext) {
-                finalPrice = price;
-                priceSource = `Priority Offscreen: ${selector}`;
-                console.log(`🎯 FOUND via priority offscreen: $${price} from "${text}"`);
-                break;
-              }
-            }
-          }
-          if (finalPrice) break;
-        }
-      }
-
-      // STRATEGY 4: Enhanced Core Price with variations (High Reliability)
-      if (!finalPrice) {
-        console.log('📍 Strategy 4: Enhanced core price variations');
-        const enhancedCoreSelectors = [
-          '#corePrice_feature_div .a-offscreen',
-          '#corePriceDisplay_desktop_feature_div .aok-offscreen',
-          '#tp_price_block_total_price_ww .a-offscreen',
-          '#priceblock_ourprice .a-offscreen',
-          '#priceblock_dealprice .a-offscreen',
-          '#apex_offerDisplay_desktop .a-offscreen',
-          '.a-price.a-price-current .a-offscreen'
-        ];
-
-        for (const selector of enhancedCoreSelectors) {
-          const elements = document.querySelectorAll(selector);
-          for (const element of elements) {
-            const text = element.textContent.trim();
-            const price = parseFloat(text.replace(/[^0-9.]/g, ''));
-
-            if (price >= minPrice && price <= maxPrice) {
-              // Additional validation: check it's not in shipping/tax context
-              const parentText = (element.parentElement?.textContent || '').toLowerCase();
-              const badKeywords = ['shipping', 'tax', 'import', 'handling', 'fee', 'list price', 'was'];
-              const hasBadContext = badKeywords.some(keyword => parentText.includes(keyword));
-
-              if (!hasBadContext) {
-                finalPrice = price;
-                priceSource = `Enhanced Core Price: ${selector}`;
-                console.log(`🎯 FOUND via enhanced core: $${price} from "${text}"`);
-                break;
-              }
-            }
-          }
-          if (finalPrice) break;
-        }
-      }
-
-      // STRATEGY 5: Data Attribute Search (Backup)
-      if (!finalPrice) {
-        console.log('📍 Strategy 5: Data attributes');
-        const dataElements = document.querySelectorAll('[data-price], [data-amount], [data-cost], [data-value]');
-
-        for (const element of dataElements) {
-          for (const attr of element.attributes) {
-            if (attr.name.startsWith('data-') && attr.value) {
-              const price = parseFloat(attr.value.replace(/[^0-9.]/g, ''));
-              if (price >= minPrice && price <= maxPrice) {
-                finalPrice = price;
-                priceSource = `Data Attribute: ${attr.name}="${attr.value}"`;
-                console.log(`🎯 FOUND via data attribute: $${price} (${attr.name})`);
-                break;
-              }
-            }
-          }
-          if (finalPrice) break;
-        }
-      }
-
-      // STRATEGY 6: Script Variable Search (Last Resort)
-      if (!finalPrice) {
-        console.log('📍 Strategy 6: Script variables');
-        const scripts = document.querySelectorAll('script');
-
-        for (const script of scripts) {
-          const content = script.textContent;
-          if (content && content.includes('price')) {
-            // Look for common price variable patterns
-            const patterns = [
-              /"price":\s*([\d.]+)/g,
-              /"priceAmount":\s*([\d.]+)/g,
-              /"amount":\s*([\d.]+)/g,
-              /price["\']:\s*["']?([\d.]+)/g
-            ];
-
-            for (const pattern of patterns) {
-              const matches = [...content.matchAll(pattern)];
-              for (const match of matches) {
-                const price = parseFloat(match[1]);
-                if (price >= minPrice && price <= maxPrice) {
-                  finalPrice = price;
-                  priceSource = `Script Variable: ${match[0]}`;
-                  console.log(`🎯 FOUND via script: $${price} from ${match[0]}`);
-                  break;
-                }
-              }
-              if (finalPrice) break;
-            }
-          }
-          if (finalPrice) break;
-        }
-      }
-
-      // STRATEGY 7: Comprehensive .aok-offscreen/.a-offscreen with Smart Filtering
-      if (!finalPrice) {
-        console.log('📍 Strategy 7: Comprehensive offscreen with smart filtering');
-
-        const allOffscreenElements = document.querySelectorAll('.aok-offscreen, .a-offscreen');
-        const candidates = [];
-
-        for (const element of allOffscreenElements) {
-          const text = element.textContent.trim();
-          const price = parseFloat(text.replace(/[^0-9.]/g, ''));
-
-          if (price >= minPrice && price <= maxPrice) {
-            let score = 1;
-
-            // Context analysis
-            const parentEl = element.parentElement;
-            const parentId = parentEl?.id || '';
-            const parentClasses = (parentEl?.className || '').toLowerCase();
-            const parentText = (parentEl?.textContent || '').toLowerCase();
-
-            // HIGH SCORES: Good price indicators
-            if (parentId.includes('price') || parentId.includes('core')) score += 10;
-            if (parentClasses.includes('price') && !parentClasses.includes('original')) score += 8;
-            if (parentClasses.includes('core')) score += 9;
-            if (text.includes('.') && text.match(/\.\d{2}/)) score += 5; // Exact cents
-
-            // NEGATIVE SCORES: Bad indicators
-            if (parentText.includes('shipping') || parentText.includes('tax')) score -= 15;
-            if (parentText.includes('list') || parentText.includes('was')) score -= 10;
-            if (parentText.includes('import') || parentText.includes('handling')) score -= 12;
-
-            candidates.push({ price, score, text, element });
-          }
-        }
-
-        if (candidates.length > 0) {
-          // Sort by score (highest first)
-          candidates.sort((a, b) => b.score - a.score);
-
-          const best = candidates[0];
-          if (best.score > 0) { // Only accept if score is positive
-            finalPrice = best.price;
-            priceSource = `Smart Filtered Offscreen (score: ${best.score})`;
-            console.log(`🎯 FOUND via smart filtering: $${best.price} (score: ${best.score})`);
-          }
-        }
-      }
-
-      // Simple sale detection
-      let basePrice = finalPrice;
-      let salePrice = null;
-      let isOnSale = false;
-
-      if (finalPrice) {
-        console.log('🔍 Checking for sale indicators...');
-
-        const strikethroughSelectors = [
-          '.a-price.a-text-strike .a-offscreen',
-          '.a-price-original .a-offscreen',
-          '[data-a-strike="true"] .a-offscreen'
-        ];
-
-        for (const selector of strikethroughSelectors) {
-          const elements = document.querySelectorAll(selector);
-          for (const element of elements) {
-            const priceText = element.textContent.trim();
-            const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-            if (price > finalPrice && price >= minPrice && price <= maxPrice) {
-              salePrice = finalPrice;
-              basePrice = price;
-              isOnSale = true;
-              console.log(`💰 Sale detected: Was $${basePrice} → Now $${salePrice}`);
-              break;
-            }
-          }
-          if (isOnSale) break;
-        }
-      }
-
-      // Extract image URL
-      let imageUrl = null;
-      const imageSelectors = [
-        '#landingImage',
-        '#imgBlkFront',
-        '.a-dynamic-image',
-        'img[data-a-image-name="landingImage"]'
-      ];
-
-      for (const selector of imageSelectors) {
-        const img = document.querySelector(selector);
-        if (img && img.src && img.src.includes('http')) {
-          imageUrl = img.src;
+      for (const selector of dismissSelectors) {
+        const button = await page.$(selector);
+        if (button) {
+          await button.click().catch(() => {});
+          await page.waitForTimeout(1500);
           break;
         }
       }
+    } catch (e) {
+      // No interstitial — proceed.
+    }
 
-      console.log(`🎯 PERFECT DETECTION RESULT: $${finalPrice} (${priceSource})`);
+    // Wait for a real price element, then nudge the page (human-like) so lazy
+    // price/title content renders.
+    try {
+      await page.waitForSelector('.a-price, #corePriceDisplay_desktop_feature_div, #apex_desktop', { timeout: 12000 });
+    } catch (e) {
+      // Continue anyway; the evaluate below still tries every strategy.
+    }
+    await page.evaluate(() => window.scrollBy(0, 200)).catch(() => {});
+    await page.waitForTimeout(800);
 
-      return {
-        basePrice: basePrice,
-        salePrice: salePrice,
-        isOnSale: isOnSale,
-        currentPrice: salePrice || basePrice,
-        imageUrl: imageUrl,
-        scrapedAt: new Date(),
-        success: !!finalPrice,
-        priceSource: priceSource,
-        detectionMethod: 'Perfect Detection v1.0'
+    const result = await page.evaluate((minPrice, maxPrice) => {
+      const out = {
+        basePrice: null,
+        salePrice: null,
+        isOnSale: false,
+        currentPrice: null,
+        imageUrl: null,
+        success: false,
+        priceSource: null
       };
+
+      // Parse a numeric price, rejecting unit prices ("$12.34 / kg") and anything
+      // outside the plausible window for this component type.
+      function extractPrice(text) {
+        if (!text) return null;
+        const lower = text.toLowerCase();
+        const unitPatterns = ['/kg', '/ kg', '/g', '/ g', '/100g', '/ 100 g', '/oz', '/ oz', '/lb', '/ lb', '/count', '/ count', 'per kg', 'per g', 'per oz', 'per lb', 'per count'];
+        for (const u of unitPatterns) { if (lower.includes(u)) return null; }
+        const n = parseFloat(text.replace(/[^0-9.]/g, ''));
+        return (Number.isFinite(n) && n >= minPrice && n <= maxPrice) ? n : null;
+      }
+
+      // True if the element sits inside a recommendation carousel, sponsored
+      // block, or comparison table — those prices belong to OTHER products.
+      function inExcludedSection(el) {
+        let p = el.parentElement;
+        while (p && p !== document.body) {
+          const cls = (p.className && p.className.toString ? p.className.toString() : '').toLowerCase();
+          const id = (p.id || '').toLowerCase();
+          if (cls.includes('carousel') || cls.includes('sponsored') || cls.includes('-similar') || cls.includes('comparison')
+            || id.includes('cardinstance') || id.includes('sims') || id.includes('similarities') || id.includes('comparison') || id.includes('sp_detail')) {
+            return true;
+          }
+          p = p.parentElement;
+        }
+        return false;
+      }
+
+      function priceFromScope(scope) {
+        const whole = scope.querySelector('.a-price:not(.a-text-price):not(.a-text-strike) .a-price-whole') || scope.querySelector('.a-price-whole');
+        if (whole) {
+          const wt = whole.textContent.trim().replace(/[^0-9]/g, '');
+          const fracEl = whole.parentElement ? whole.parentElement.querySelector('.a-price-fraction') : null;
+          const ft = fracEl ? fracEl.textContent.trim().replace(/[^0-9]/g, '') : '00';
+          const p = extractPrice(`${wt}.${ft || '00'}`);
+          if (p) return p;
+        }
+        const off = scope.querySelector('.a-price:not(.a-text-strike) .a-offscreen');
+        if (off) { const p = extractPrice(off.textContent); if (p) return p; }
+        return null;
+      }
+
+      // Image
+      for (const s of ['#landingImage', '#imgBlkFront', '#main-image', '.a-dynamic-image']) {
+        const img = document.querySelector(s);
+        if (img && img.src && img.src.includes('http')) { out.imageUrl = img.src; break; }
+      }
+
+      // STRATEGY 1: core price display (the main buy-box price block)
+      const core = document.getElementById('corePriceDisplay_desktop_feature_div') || document.getElementById('corePrice_feature_div');
+      if (core) {
+        const p = priceFromScope(core);
+        if (p) {
+          out.currentPrice = p; out.basePrice = p; out.success = true; out.priceSource = 'corePriceDisplay';
+          const strike = core.querySelector('.a-price.a-text-price .a-offscreen, .a-text-strike');
+          if (strike) {
+            const op = extractPrice(strike.textContent);
+            if (op && op > p && op < p * 2) { out.basePrice = op; out.salePrice = p; out.isOnSale = true; }
+          }
+        }
+      }
+
+      // STRATEGY 2: apex / buybox containers
+      if (!out.success) {
+        for (const id of ['apex_desktop', 'buybox', 'price_inside_buybox', 'apex_offerDisplay_desktop', 'corePrice_desktop']) {
+          const scope = document.getElementById(id);
+          if (!scope) continue;
+          const p = priceFromScope(scope);
+          if (p) { out.currentPrice = p; out.basePrice = p; out.success = true; out.priceSource = `buybox:${id}`; break; }
+        }
+      }
+
+      // STRATEGY 3: JSON-LD structured data (the product's own offer)
+      if (!out.success) {
+        for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+          try {
+            const d = JSON.parse(s.textContent);
+            const nodes = Array.isArray(d) ? d : (d['@graph'] && Array.isArray(d['@graph']) ? d['@graph'] : [d]);
+            for (const node of nodes) {
+              const offers = node && node.offers;
+              const raw = offers && (offers.price || offers.lowPrice || (Array.isArray(offers) && offers[0] && offers[0].price));
+              if (raw) { const p = extractPrice(String(raw)); if (p) { out.currentPrice = p; out.basePrice = p; out.success = true; out.priceSource = 'json-ld'; break; } }
+            }
+          } catch (e) { /* skip invalid JSON */ }
+          if (out.success) break;
+        }
+      }
+
+      // STRATEGY 4: reliable hidden price inputs
+      if (!out.success) {
+        for (const s of ['#twister-plus-price-data-price', '#attach-base-product-price', 'input[name*="customerVisiblePrice"][name*="amount"]', 'input[id*="price-data-price"]']) {
+          try {
+            const el = document.querySelector(s);
+            if (el && el.value) { const p = extractPrice(el.value); if (p) { out.currentPrice = p; out.basePrice = p; out.success = true; out.priceSource = `hidden:${s}`; break; } }
+          } catch (e) { /* complex selector — skip */ }
+        }
+      }
+
+      // STRATEGY 5: generic .a-price scan, main column first, carousels excluded
+      if (!out.success) {
+        const scoped = [
+          ...document.querySelectorAll('#centerCol .a-price, #ppd .a-price, #desktop_buybox .a-price'),
+          ...document.querySelectorAll('.a-price')
+        ];
+        for (const el of scoped) {
+          if (el.classList.contains('a-text-strike') || el.classList.contains('a-text-price')) continue;
+          if (inExcludedSection(el)) continue;
+          let p = null;
+          const whole = el.querySelector('.a-price-whole');
+          if (whole) {
+            const wt = whole.textContent.trim().replace(/[^0-9]/g, '');
+            const fracEl = el.querySelector('.a-price-fraction');
+            const ft = fracEl ? fracEl.textContent.trim().replace(/[^0-9]/g, '') : '00';
+            p = extractPrice(`${wt}.${ft || '00'}`);
+          }
+          if (!p) { const off = el.querySelector('.a-offscreen'); if (off) p = extractPrice(off.textContent); }
+          if (p) { out.currentPrice = p; out.basePrice = p; out.success = true; out.priceSource = 'a-price-scan'; break; }
+        }
+      }
+
+      return out;
     }, minPrice, maxPrice);
 
-    console.log(`🎯 Perfect scraping result: $${result.currentPrice} from ${result.priceSource}`);
-    return result;
+    console.log(`🎯 Scrape result: $${result.currentPrice} (${result.priceSource})`);
+    return {
+      basePrice: result.basePrice,
+      salePrice: result.salePrice,
+      isOnSale: result.isOnSale,
+      currentPrice: result.salePrice || result.currentPrice || result.basePrice,
+      imageUrl: result.imageUrl,
+      scrapedAt: new Date(),
+      success: !!result.currentPrice,
+      priceSource: result.priceSource,
+      detectionMethod: 'RiverSearch-port v2.0'
+    };
 
   } catch (error) {
-    console.error(`❌ Perfect scraping failed: ${error.message}`);
+    console.error(`❌ Price scrape failed: ${error.message}`);
     return {
       basePrice: null,
       salePrice: null,
