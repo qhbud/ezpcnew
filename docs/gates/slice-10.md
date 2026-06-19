@@ -14,9 +14,28 @@ server at `http://localhost:3000` (`node server.js` + local Mongo).
 REQUEST `POST /api/ai-build` — existing fields PLUS new `resolution`:
 `{ budget: number|'unlimited', performance: 'single'|'multi', storage: <GB>,
    includeMonitor: boolean, resolution: '1080p'|'1440p'|'4k' }`
-- If `resolution` is absent/invalid, server defaults it to `'1440p'` (back-compat).
+- If `resolution` is absent/invalid, server defaults it to the budget tier's
+  highest sensible target (see tiers below; e.g. a $700 build defaults to 1080p).
 - Budget floor is **500** (was 1000) in the server guard AND the client
   guards/inputs.
+
+ADAPTIVE QUESTIONING (budget-tier gating — frozen thresholds, tunable later):
+The wizard must NOT ask questions whose answers the budget can't support, and the
+server must DEFENSIVELY enforce the same ceilings even if a client sends past them.
+- `MONITOR_MIN = 800`: the monitor question is shown ONLY when budget >= 800.
+  Below that, the question is skipped and `includeMonitor` is effectively false.
+- Resolution options offered by budget:
+  - budget <  1000  → 1080p ONLY (resolution question auto-resolves to 1080p / is
+    skipped since there is one option).
+  - 1000 <= budget < 2000 → 1080p, 1440p.
+  - budget >= 2000 → 1080p, 1440p, 4k.
+- SERVER DEFENSE (do not trust the client): clamp an incoming `resolution` DOWN to
+  the budget tier's ceiling (e.g. `4k` at a $1200 budget → treated as `1440p`); and
+  treat a monitor as the LAST optional add — include it only when a COMPLETE,
+  compatible tower already fits and real headroom remains. If a monitor would break
+  the budget or the core build, omit it (response reflects no monitor) rather than
+  compromise the tower. A 4k monitor is only ever paired with a build whose budget
+  tier unlocks 4k.
 
 RESPONSE — UNCHANGED success shape:
 `{ success:true, build:{cpu,gpu,motherboard,ram,storage,psu,case,cooler,
@@ -63,6 +82,12 @@ For EVERY `success:true` build, assert:
 - **W7 sub-$1000:** the 700/single/1080p scenario returns `success:true` with a
   complete, W2-compatible build (proves the floor was lowered and the low-budget
   path works).
+- **W8 adaptive ceilings (server defense):** (a) a request with budget < 800 +
+  `includeMonitor:true` returns a build with NO monitor (monitor omitted, tower
+  intact); (b) a request with budget < 2000 + `resolution:'4k'` is clamped — the
+  returned build does NOT contain a 4k monitor and its GPU sizing reflects at most
+  the tier ceiling (<= 1440p), never 4k. Add explicit scenarios:
+  600/single/4k+monitor and 1200/single/4k+monitor for this.
 Print `PASS <id>` / `FAIL <id>: <why>` per assertion; `process.exitCode = 1` on
 any failure.
 
@@ -84,12 +109,19 @@ any failure.
   gracefully (no console error, no blank modal).
 - Budget floor lowered to 500 in BOTH the server guard and the client guards.
 
-## G5 — Client (resolution question + floor)
-- A new resolution question (1080p / 1440p / 4k) is reachable in the wizard flow;
+## G5 — Client (adaptive resolution/monitor questions + floor)
+- A new resolution question (options gated by budget tier per the contract:
+  <1000 → 1080p only/skip; 1000–1999 → 1080p+1440p; >=2000 → +4k) is reachable;
   `wizardData.resolution` is set and included in the `/api/ai-build` POST body.
-- `#budgetSlider` min ≤ 500, `#budgetInput` min ≤ 500, and the client validation
+- The monitor question is SHOWN only when budget >= 800 and SKIPPED below it
+  (verified by driving the wizard at a <800 budget and confirming the monitor
+  step does not appear / `includeMonitor` ends false).
+- 4k is NOT offered as a selectable resolution when budget < 2000 (verified by
+  driving the wizard at a mid budget).
+- `#budgetSlider` min <= 500, `#budgetInput` min <= 500, and the client validation
   guard (`index.html:~2454`) accepts budgets down to 500.
-- G2 smoke remains `0/0`; the full wizard (all questions) is navigable without
+- G2 smoke remains `0/0`; the wizard is navigable end-to-end at a low budget
+  (questions correctly skipped) and a high budget (all questions shown) without
   throwing.
 
 ## Slice verdict

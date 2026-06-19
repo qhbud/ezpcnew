@@ -271,10 +271,14 @@ errors** (today there are 3: missing-filter null-guards).
   budget floor 500; RESPONSE success shape UNCHANGED + new fail-fast
   `{success:false,error,reason}`; NEVER success:true with a missing core part.
 - Quinn approved both defaults ("go", 2026-06-19): ADD resolution question + lower
-  floor to $500.
-- Status: **DISPATCHED 2026-06-19**, judge next session (high-stakes → architect
-  adds a cross-model `codex review` before the verdict). Builder writes raw results
-  to `docs/lanes/slice-10-00.md`.
+  floor to $500. THEN amended (2026-06-19) to ADAPTIVE QUESTIONING: skip the monitor
+  question below $800; gate resolution options by budget (1080p<$1000; +1440p
+  $1000-1999; +4k >=$2000); server clamps resolution to tier + adds monitor only as
+  last optional item. First dispatch was KILLED at end of PHASE 0 (no files touched)
+  to fold this in; gates re-frozen, re-dispatched.
+- Status: **RE-DISPATCHED 2026-06-19** (adaptive-questioning amendment), judge next
+  session (high-stakes → architect adds a cross-model `codex review` before the
+  verdict). Builder writes raw results to `docs/lanes/slice-10-00.md`.
 
 ## Track B (queued, NOT a frontend slice) — physical-fit data acquisition
 True physical-fit (GPU-length-in-case, cooler-height clearance, RAM clearance,
