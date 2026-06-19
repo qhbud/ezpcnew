@@ -1,4 +1,3 @@
-const puppeteer = require('puppeteer');
 const colors = require('colors');
 
 /**
@@ -7,6 +6,28 @@ const colors = require('colors');
  * to accurately find prices on Amazon product pages
  */
 
+// Stealth user-agent pool — rotated per browser launch to vary the fingerprint.
+const RS_USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+];
+
+// Optional residential proxy — same env secrets as the component ingest, so one
+// set of GitHub Actions secrets covers both pipelines. Amazon bot-blocks the
+// datacenter runner IP; this routes the price updater through residential IPs.
+// A literal {session} token in the username rotates the IP per launch.
+function rsGetProxyConfig() {
+  const raw = process.env.INGEST_PROXY_SERVER || process.env.SCRAPER_PROXY_SERVER;
+  if (!raw) return null;
+  return {
+    server: /:\/\//.test(raw) ? raw : `http://${raw}`,
+    username: process.env.INGEST_PROXY_USERNAME || process.env.SCRAPER_PROXY_USERNAME || '',
+    password: process.env.INGEST_PROXY_PASSWORD || process.env.SCRAPER_PROXY_PASSWORD || ''
+  };
+}
+
 class RiverSearchPriceDetector {
   constructor() {
     this.browser = null;
@@ -14,22 +35,45 @@ class RiverSearchPriceDetector {
   }
 
   async initialize() {
-    this.browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
-      ]
-    });
+    // puppeteer-extra + stealth masks the headless fingerprint; fall back to
+    // plain puppeteer if the optional deps aren't installed.
+    let puppeteer;
+    try {
+      puppeteer = require('puppeteer-extra');
+      puppeteer.use(require('puppeteer-extra-plugin-stealth')());
+    } catch (err) {
+      console.log(`ℹ️  puppeteer-extra/stealth unavailable (${err.message}); using plain puppeteer`.gray);
+      puppeteer = require('puppeteer');
+    }
+
+    const proxy = rsGetProxyConfig();
+    const args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
+    ];
+    if (proxy) {
+      args.push(`--proxy-server=${proxy.server}`);
+      console.log(`🌐 RiverSearch routing via proxy ${proxy.server}`.cyan);
+    }
+
+    this.browser = await puppeteer.launch({ headless: 'new', args });
     this.page = await this.browser.newPage();
 
-    // Set user agent to avoid detection (same as priceUpdater)
-    await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // Authenticate the proxy (rotating a fresh {session} token per launch).
+    if (proxy && (proxy.username || proxy.password)) {
+      const username = proxy.username.includes('{session}')
+        ? proxy.username.replace(/\{session\}/g, Math.random().toString(36).slice(2, 10))
+        : proxy.username;
+      await this.page.authenticate({ username, password: proxy.password });
+    }
+
+    // Rotate the user agent to avoid detection
+    await this.page.setUserAgent(RS_USER_AGENTS[Math.floor(Math.random() * RS_USER_AGENTS.length)]);
 
     // Set viewport
     await this.page.setViewport({ width: 1920, height: 1080 });

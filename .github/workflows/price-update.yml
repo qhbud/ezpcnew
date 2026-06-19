@@ -95,6 +95,12 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DB_NAME: pcbuilder
           NODE_ENV: production
+          # Residential proxy + stealth so Amazon doesn't bot-block the runner IP
+          # (same secrets as the component ingest). Without it the price scraper
+          # hits "price_not_found" from the datacenter IP.
+          INGEST_PROXY_SERVER: ${{ secrets.INGEST_PROXY_SERVER }}
+          INGEST_PROXY_USERNAME: ${{ secrets.INGEST_PROXY_USERNAME }}
+          INGEST_PROXY_PASSWORD: ${{ secrets.INGEST_PROXY_PASSWORD }}
         run: |
           set -o pipefail
           echo "::group::Scrape output for ${{ matrix.collection }}"
