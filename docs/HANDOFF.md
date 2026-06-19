@@ -12,10 +12,12 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 8** (new-component scraper → `pending_components` review
-  queue) verified GREEN, pushed to origin/main 2026-06-15, first test dispatch
-  fired. Review queued items with `npm run review-pending`. Then a later slice for
-  promotion-to-live tooling. S0–S7 frontend campaign live in prod.
+- Next action: **Slice 9** (compatibility depth + budget floor) gates frozen +
+  builder DISPATCHED 2026-06-19 — judge next session. S0–S8 all live in prod.
+- Note (2026-06-19): repo also advanced OUTSIDE the loop in regular sessions
+  (commits through 6cccbcf): CPU+GPU single-collection consolidation, canonical
+  GPU benchmark table, ingest hardening, availability sweep/hide. Those are in
+  the workspace MEMORY.md, not re-narrated here.
 
 ## Project goal
 
@@ -216,6 +218,34 @@ errors** (today there are 3: missing-filter null-guards).
 - Next: review the queued `pending_components` (via `npm run review-pending`), then
   a later slice for promotion-to-live tooling/UI.
 
+- **Slice 9** — compatibility depth (data-backed) + wizard budget floor (S11).
+- Gates: `docs/gates/slice-9.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice9.block.md`, bypass-sandbox).
+  Effort: xhigh. Extends the SINGLE `classifyCompatibilityIssues` with TWO new
+  WARNINGS only: (1) high-power-GPU 12VHPWR/12V-2x6 connector advisory (fires on
+  `gpu.tdp >= 300`; PSU connector fields are 0% populated so it's a verify-this
+  warning, not pass/fail); (2) AM5 Ryzen-9000-on-600-series BIOS-update trap
+  (`cpu.socket` AM5 + Ryzen-9xxx name + `motherboard.chipset` A620/B650/X670 →
+  warn). Plus S11: `#budgetSlider` min 1000→500 in index.html.
+- DATA-DRIVEN RE-SCOPE (architect, 2026-06-19): Quinn asked for S9 = "physical-fit
+  compatibility." Live Atlas probe showed it is NOT buildable — cases have 0/111
+  max-GPU-length, 0/111 max-cooler-height, 0/111 radiatorSupport; only ~3/111 even
+  mention GPU length in any text; `cases.specifications` = {color,hasRGB,window}.
+  GPU length is 96% populated but useless with no case clearance to compare to.
+  Wiring those checks would ship no-ops/fabrication. Re-scoped (Quinn: "A then B")
+  to the data-backed checks above. TRUE physical-fit deferred to **Track B** below.
+- Status: **DISPATCHED 2026-06-19**, judge next session. Builder writes raw
+  results to `docs/lanes/slice-9-00.md`.
+
+## Track B (queued, NOT a frontend slice) — physical-fit data acquisition
+True physical-fit (GPU-length-in-case, cooler-height clearance, RAM clearance,
+radiator fit) is blocked on missing dimensions data with NO reliable in-repo
+source (Amazon ingest already yields ~0% case clearance; cases turn over too fast
+to hand-curate like the 60-GPU benchmark table). Track B = a research/spike to
+find a dimensions data source (manufacturer spec pages / a parts dataset) and a
+sustainable population path, THEN a follow-on slice turns the checks on. Queued
+behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked up.
+
 ## Decisions log (architect + human)
 
 | Date | Decision | Why |
@@ -226,6 +256,7 @@ errors** (today there are 3: missing-filter null-guards).
 | 2026-06-14 | Tier-3 scope (Quinn) | BUILD: preset budget-tier builds (S4); bottleneck/balance meter (S5); public build showcase WITHOUT accounts/logins, on Copy-Link share + curated gallery (S6); agent-driven component auto-ingestion from Amazon for new GPU/mobo listings (S7, ties to findNewComponents.js + flaky-scraper fix). DEFER: accounts/email, multi-retailer pricing, standalone AI assistant. |
 | 2026-06-14 | Slice 6 = curated themed gallery (Quinn) | Chose curated gallery over a localStorage "your shared builds" list — without accounts/DB, curated themed builds (assembled from live parts + Copy-Link share) are a credible public showcase; localStorage would be a personal-history feature, not a showcase. |
 | 2026-06-14 | Slice 7 UX refinement after local review (Quinn) | Reviewed S1-S6 locally; builder page too cluttered. Decided: A1 (one collapsible quick-start strip) + B2 (merge dock into tab strip) + curate presets to 4; also remove Guides page, fix component cards to ~4:3 w/ more detail, widen build-summary, fix change-component scroll anchor. Auto-ingestion renumbered S6→S8. |
+| 2026-06-19 | S9 re-scoped from physical-fit to data-backed compat depth; "A then B" (Quinn) | Atlas probe: physical-fit checks have 0% case-clearance data, no reliable source → would be no-ops/fabrication. Re-scoped S9 to GPU-connector (tdp≥300) + AM5-BIOS warnings (both data-backed) + S11 budget floor. True physical-fit moved to Track B (data-acquisition spike), queued behind S9. |
 
 ## Session log
 
