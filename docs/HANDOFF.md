@@ -255,6 +255,27 @@ errors** (today there are 3: missing-filter null-guards).
   and the separate `budgetInput` number field share one value (judge flagged
   only the slider floor was lowered).
 
+- **Slice 10** — PC-builder WIZARD recommendation-engine REWORK + resolution
+  question + $500 floor (this SUPERSEDES the S9b budget-guard follow-up).
+- Gates: `docs/gates/slice-10.md`, frozen at THIS commit BEFORE dispatch.
+- Lane: single lane, main checkout (`.architect/slice10.block.md`, bypass-sandbox).
+  Effort: xhigh. One lane because the server rewrite + new client question share
+  one frozen request/response contract and the integration test spans both.
+- Why: the wizard engine is a ~2000-line procedural `POST /api/ai-build` handler
+  (`server.js` ~1488-3552) that can return builds with undefined core components
+  (no fail-fast), sorts cases/coolers by HIGHEST price, queries `'storage'`
+  (singular) for extra SSDs, never asks/uses display resolution (cheapest monitor
+  regardless of GPU), has incoherent unlimited-budget output, non-adaptive % splits,
+  and thin compatibility enforcement. Mapped in full by an Explore pass 2026-06-19.
+- Frozen contract: REQUEST adds `resolution:'1080p'|'1440p'|'4k'` (defaults 1440p);
+  budget floor 500; RESPONSE success shape UNCHANGED + new fail-fast
+  `{success:false,error,reason}`; NEVER success:true with a missing core part.
+- Quinn approved both defaults ("go", 2026-06-19): ADD resolution question + lower
+  floor to $500.
+- Status: **DISPATCHED 2026-06-19**, judge next session (high-stakes → architect
+  adds a cross-model `codex review` before the verdict). Builder writes raw results
+  to `docs/lanes/slice-10-00.md`.
+
 ## Track B (queued, NOT a frontend slice) — physical-fit data acquisition
 True physical-fit (GPU-length-in-case, cooler-height clearance, RAM clearance,
 radiator fit) is blocked on missing dimensions data with NO reliable in-repo
@@ -275,6 +296,8 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-14 | Slice 6 = curated themed gallery (Quinn) | Chose curated gallery over a localStorage "your shared builds" list — without accounts/DB, curated themed builds (assembled from live parts + Copy-Link share) are a credible public showcase; localStorage would be a personal-history feature, not a showcase. |
 | 2026-06-14 | Slice 7 UX refinement after local review (Quinn) | Reviewed S1-S6 locally; builder page too cluttered. Decided: A1 (one collapsible quick-start strip) + B2 (merge dock into tab strip) + curate presets to 4; also remove Guides page, fix component cards to ~4:3 w/ more detail, widen build-summary, fix change-component scroll anchor. Auto-ingestion renumbered S6→S8. |
 | 2026-06-19 | S9 re-scoped from physical-fit to data-backed compat depth; "A then B" (Quinn) | Atlas probe: physical-fit checks have 0% case-clearance data, no reliable source → would be no-ops/fabrication. Re-scoped S9 to GPU-connector (tdp≥300) + AM5-BIOS warnings (both data-backed) + S11 budget floor. True physical-fit moved to Track B (data-acquisition spike), queued behind S9. |
+| 2026-06-19 | S9 verdict PASS/CONTINUE (independent judge); committed local 1c6010d, NOT pushed | Cold-session judge re-ran G1-G5 green, tamper/boundary clean. Push deferred (= prod deploy, ask Quinn). |
+| 2026-06-19 | Slice 10 = full wizard-engine rework; add resolution Q + $500 floor ("go", Quinn) | Wizard `/api/ai-build` is a 2000-line procedural handler returning broken/partial builds. Rework into a clean fail-fast compatibility-aware allocator; add 1080p/1440p/4k question to size the GPU; lower floor to 500. Supersedes S9b. Same req/resp contract + new success:false failure path. |
 
 ## Session log
 
