@@ -1416,6 +1416,9 @@ function isWrongCategoryListing(componentType, productName) {
 function isNonPcPowerSupply(productName) {
   const name = String(productName || '').toLowerCase();
   if (/\b(iso-?brick|pedal|guitar|bench|laboratory|lab\s+power|variable|adjustable|regulated\s+dc|dc\s+power\s+supply|ac\/dc\s+adapter|power\s+brick)\b/.test(name)) return true;
+  // Power inverters / RV / solar / car / UPS units — sold as "power supplies" but
+  // not ATX PC PSUs (an inverter slipped through: B0FG7V3Q4Q).
+  if (/\b(inverter|sine\s*wave|\brv\b|recreational\s+vehicle|solar|car\s+power|cigarette\s+lighter|dc\s+to\s+ac|uninterruptible|\bups\b)\b/.test(name)) return true;
   const hasWattage = /\b\d{3,4}\s*w(?:att)?s?\b/.test(name);
   const hasFormSignal = /\b(atx|sfx|sfx-l|tfx|modular|80\s*(?:\+|plus)|gold|platinum|titanium|bronze)\b/.test(name);
   return !hasWattage && !hasFormSignal;
@@ -1544,6 +1547,14 @@ async function scrapeAmazonCandidate(browser, candidate, componentType, affiliat
         const priceResult = await scrapePrice(page, productUrl, PRICE_WINDOWS[componentType] || {});
         if (await isBotBlocked(page)) throw new Error('bot wall on product page');
         const pageDetails = await extractAmazonPageDetails(page);
+
+        // If the product title never rendered (slow proxy hop, partial load), the
+        // name falls back to the bare brand and every spec parses to null — a
+        // useless doc. Treat it as a transient failure so withScrapeRetry tries
+        // again on a fresh page/IP, where the title usually loads.
+        if (!pageDetails.title || pageDetails.title.trim().length < 10) {
+          throw new Error('product title did not load');
+        }
 
         return {
           asin,
@@ -1909,7 +1920,9 @@ async function runIngest(options) {
     upserted: 0,
     skipped: 0,
     alreadyInLiveSkipped: 0,
-    noPriceSkipped: 0
+    noPriceSkipped: 0,
+    incompleteNameSkipped: 0,
+    implausiblePriceSkipped: 0
   };
 
   if (options.dryRun) {
@@ -2009,6 +2022,29 @@ async function runIngest(options) {
             summary.skipped += 1;
             summary.noPriceSkipped += 1;
             console.log(`Skipped (no price): ${pendingDoc.name || rawProduct.name || candidate.name}`);
+            continue;
+          }
+
+          // Reject an implausible price. When scrapePrice finds nothing in the
+          // plausible window it falls back to the search-result price, which is
+          // unclamped and can be garbage (a CPU came through at $467,506). Gate
+          // it against the per-type ceiling so junk numbers never reach staging.
+          const priceCeiling = (PRICE_WINDOWS[componentType] || {}).maxPrice || 10000;
+          if (pendingDoc.price > priceCeiling) {
+            summary.skipped += 1;
+            summary.implausiblePriceSkipped += 1;
+            console.log(`Skipped (implausible price $${pendingDoc.price} > $${priceCeiling}): ${pendingDoc.name}`);
+            continue;
+          }
+
+          // Drop docs whose title never loaded — the name is just the bare brand
+          // (e.g. "msi", "Intel") and every spec parsed to null. A real listing
+          // name is always multiple words with a model; a single token is junk.
+          const trimmedName = (pendingDoc.name || '').trim();
+          if (trimmedName.split(/\s+/).filter(Boolean).length < 2) {
+            summary.skipped += 1;
+            summary.incompleteNameSkipped += 1;
+            console.log(`Skipped (incomplete name "${trimmedName}"): ${pendingDoc.asin || ''}`);
             continue;
           }
 
