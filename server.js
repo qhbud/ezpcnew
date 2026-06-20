@@ -1568,6 +1568,16 @@ app.use((err, req, res, next) => {
     if (err && err.type === 'entity.too.large' && isSharedBuildPostRequest(req)) {
         return res.status(413).json({ error: 'Request body too large' });
     }
+    if (
+        isSharedBuildPostRequest(req) &&
+        err &&
+        (
+            err.type === 'entity.parse.failed' ||
+            (err instanceof SyntaxError && (err.status === 400 || err.statusCode === 400))
+        )
+    ) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+    }
     console.error(err.stack);
     return res.status(500).json({ error: 'Something went wrong!' });
 });
