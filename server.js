@@ -9,6 +9,7 @@ try {
     console.warn('compression middleware unavailable, continuing without gzip:', err.message);
 }
 const path = require('path');
+const crypto = require('crypto');
 const { ObjectId } = require('mongodb');
 const { connectToDatabase, getDatabase } = require('./config/database');
 
@@ -57,6 +58,83 @@ function getGpuPerformance(gpu) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const LIST_PARTS_PROJECTION = { priceHistory: 0 };
+const SHARED_BUILD_BODY_LIMIT_BYTES = 16 * 1024;
+const SHARED_BUILD_ID_PATTERN = /^[A-Za-z0-9_-]{12}$/;
+const SHARED_BUILD_REFERENCE_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const SHARED_BUILD_KEYS = new Set([
+    'gpu',
+    'cpu',
+    'motherboard',
+    'ram',
+    'cooler',
+    'psu',
+    'storage',
+    'storage2',
+    'storage3',
+    'storage4',
+    'storage5',
+    'storage6',
+    'case',
+    'addon',
+    'addon2',
+    'addon3',
+    'addon4',
+    'addon5',
+    'addon6'
+]);
+
+function normalizeSharedBuild(body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.getPrototypeOf(body) !== Object.prototype) {
+        return { error: 'Build must be an object' };
+    }
+
+    const entries = Object.entries(body);
+    if (entries.length === 0) {
+        return { error: 'Build must contain at least one component' };
+    }
+
+    const build = {};
+    for (const [type, reference] of entries) {
+        if (!SHARED_BUILD_KEYS.has(type)) {
+            return { error: `Unknown component type: ${type}` };
+        }
+
+        if (typeof reference === 'string') {
+            if (!SHARED_BUILD_REFERENCE_PATTERN.test(reference)) {
+                return { error: `Invalid component reference: ${type}` };
+            }
+            build[type] = reference;
+            continue;
+        }
+
+        if (type !== 'gpu' && type !== 'ram') {
+            return { error: `Invalid component reference: ${type}` };
+        }
+        if (!reference || typeof reference !== 'object' || Array.isArray(reference) ||
+            Object.getPrototypeOf(reference) !== Object.prototype) {
+            return { error: `Invalid component reference: ${type}` };
+        }
+
+        const referenceKeys = Object.keys(reference);
+        if (referenceKeys.length !== 2 || !referenceKeys.includes('id') || !referenceKeys.includes('qty') ||
+            typeof reference.id !== 'string' || !SHARED_BUILD_REFERENCE_PATTERN.test(reference.id) ||
+            !Number.isInteger(reference.qty) || reference.qty < 1 || reference.qty > 16) {
+            return { error: `Invalid component reference: ${type}` };
+        }
+
+        build[type] = { id: reference.id, qty: reference.qty };
+    }
+
+    return { build };
+}
+
+function createSharedBuildId() {
+    return crypto.randomBytes(9).toString('base64url');
+}
+
+function isSharedBuildPostRequest(req) {
+    return req.method === 'POST' && (req.path === '/api/builds' || req.path === '/api/builds/');
+}
 
 // Simple in-memory cache with TTL
 class SimpleCache {
@@ -127,6 +205,13 @@ function cacheMiddleware(duration) {
 if (compression) {
     app.use(compression());
 }
+const parseSharedBuildJson = express.json({ limit: SHARED_BUILD_BODY_LIMIT_BYTES });
+app.use((req, res, next) => {
+    if (isSharedBuildPostRequest(req)) {
+        return parseSharedBuildJson(req, res, next);
+    }
+    next();
+});
 app.use(express.json());
 
 // Add cache-control headers to force browsers to reload
@@ -1480,8 +1565,21 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+    if (err && err.type === 'entity.too.large' && isSharedBuildPostRequest(req)) {
+        return res.status(413).json({ error: 'Request body too large' });
+    }
+    if (
+        isSharedBuildPostRequest(req) &&
+        err &&
+        (
+            err.type === 'entity.parse.failed' ||
+            (err instanceof SyntaxError && (err.status === 400 || err.statusCode === 400))
+        )
+    ) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+    }
     console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
+    return res.status(500).json({ error: 'Something went wrong!' });
 });
 
 const AI_BUILD_MIN_BUDGET = 500;
@@ -2553,6 +2651,62 @@ app.get('/api/builds/averages', async (req, res) => {
     } catch (e) {
         console.error('Build averages error:', e);
         res.status(500).json({ error: 'Failed to get build averages' });
+    }
+});
+
+// Store a compact build reference map under a random, URL-safe id.
+app.post('/api/builds', async (req, res) => {
+    const normalized = normalizeSharedBuild(req.body);
+    if (normalized.error) {
+        return res.status(400).json({ error: normalized.error });
+    }
+
+    try {
+        const database = getDatabase();
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const id = createSharedBuildId();
+            try {
+                await database.collection('builds').insertOne({
+                    _id: id,
+                    build: normalized.build,
+                    createdAt: new Date()
+                });
+                return res.json({ id });
+            } catch (error) {
+                if (error && error.code === 11000) {
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        return res.status(503).json({ error: 'Failed to allocate build id' });
+    } catch (error) {
+        console.error('Shared build save error:', error);
+        return res.status(500).json({ error: 'Failed to save build' });
+    }
+});
+
+// Return the stored reference map unchanged so applyBuildData can consume it.
+app.get('/api/builds/:id', async (req, res) => {
+    const { id } = req.params;
+    if (!SHARED_BUILD_ID_PATTERN.test(id)) {
+        return res.status(404).json({ error: 'Build not found' });
+    }
+
+    try {
+        const database = getDatabase();
+        const document = await database.collection('builds').findOne(
+            { _id: id },
+            { projection: { build: 1 } }
+        );
+        if (!document) {
+            return res.status(404).json({ error: 'Build not found' });
+        }
+        return res.json(document.build);
+    } catch (error) {
+        console.error('Shared build load error:', error);
+        return res.status(500).json({ error: 'Failed to load build' });
     }
 });
 

@@ -6930,11 +6930,6 @@ class PartsDatabase {
         // Increment save counts for all components
         await this.incrementComponentSaveCounts();
 
-        // Encode the build data as a URL parameter
-        const jsonString = JSON.stringify(buildData);
-        const encodedBuild = btoa(jsonString);
-        const shareURL = `${window.location.origin}${window.location.pathname}?build=${encodedBuild}`;
-
         // Copy to clipboard with fallback for mobile browsers
         const copyToClipboard = async (text) => {
             // Try modern Clipboard API first
@@ -6968,15 +6963,33 @@ class PartsDatabase {
             }
         };
 
-        // Use the copy function
-        copyToClipboard(shareURL).then(success => {
+        try {
+            const response = await fetch('/api/builds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(buildData)
+            });
+            if (!response.ok) {
+                throw new Error(`Build save failed with status ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (!result || !/^[A-Za-z0-9_-]{12}$/.test(result.id)) {
+                throw new Error('Build save returned an invalid id');
+            }
+
+            const shareURL = `${window.location.origin}${window.location.pathname}?build=${result.id}`;
+            const success = await copyToClipboard(shareURL);
             if (success) {
                 const componentCount = Object.keys(buildData).length;
                 this.showToast(`Share link copied to clipboard. Total: $${this.totalPrice.toFixed(2)} (${componentCount} components)`);
             } else {
                 alert('Failed to copy link. Please try again.');
             }
-        });
+        } catch (error) {
+            console.error('Error creating share link:', error);
+            alert('Failed to create a share link. Please try again.');
+        }
     }
 
     async addToAmazonCart() {
@@ -7115,18 +7128,24 @@ class PartsDatabase {
         }
 
         try {
-            // Clean up the build parameter - remove any whitespace or invalid characters
-            buildParam = buildParam.trim().replace(/\s/g, '');
+            buildParam = buildParam.trim();
+            let buildData;
 
-            // Remove any trailing commas or other invalid characters that might have been added
-            buildParam = buildParam.replace(/[^A-Za-z0-9+/=]/g, '');
-
-            console.log('Raw build parameter length:', buildParam.length);
-            console.log('First 50 chars:', buildParam.substring(0, 50));
-            console.log('Last 10 chars:', buildParam.substring(buildParam.length - 10));
-
-            // Decode the build data (simple base64 decode, IDs only)
-            const buildData = JSON.parse(atob(buildParam));
+            if (/^[A-Za-z0-9_-]{12}$/.test(buildParam)) {
+                const response = await fetch(`/api/builds/${encodeURIComponent(buildParam)}`);
+                if (!response.ok) {
+                    throw new Error(response.status === 404
+                        ? 'The shared build was not found.'
+                        : `Build request failed with status ${response.status}`);
+                }
+                buildData = await response.json();
+            } else {
+                // Legacy links contain the complete build as standard base64.
+                const legacyBuildParam = buildParam
+                    .replace(/\s/g, '+')
+                    .replace(/[^A-Za-z0-9+/=]/g, '');
+                buildData = JSON.parse(atob(legacyBuildParam));
+            }
 
             console.log('Loading build from URL:', buildData);
 

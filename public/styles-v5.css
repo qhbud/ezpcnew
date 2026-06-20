@@ -7211,3 +7211,125 @@ GPU Listings Section ───────────────────�
     }
 
 }
+
+/* Site footer and static trust pages */
+.site-footer {
+    margin-top: var(--space-8);
+    background: #0f172a;
+    color: #cbd5e1;
+    border-top: 3px solid var(--brand);
+}
+
+.site-footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+    text-align: center;
+}
+
+.affiliate-disclosure {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.site-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-5);
+}
+
+.site-footer a {
+    color: #93c5fd;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.site-footer a:hover,
+.site-footer a:focus {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.site-footer-copyright {
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.legal-page {
+    max-width: 860px;
+    margin: 0 auto var(--space-8);
+    padding: var(--space-6);
+    background: var(--bg-primary);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+}
+
+.legal-page h1 {
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.legal-page h2 {
+    margin: var(--space-6) 0 var(--space-2);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+.legal-page p,
+.legal-page li {
+    color: var(--text-secondary);
+}
+
+.legal-page p + p,
+.legal-page ul + p {
+    margin-top: var(--space-3);
+}
+
+.legal-page ul {
+    margin: var(--space-3) 0 0 var(--space-6);
+}
+
+.legal-page li + li {
+    margin-top: var(--space-2);
+}
+
+.legal-page a {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.legal-page .legal-effective-date {
+    margin-bottom: var(--space-5);
+    color: var(--text-muted);
+}
+
+.legal-page .affiliate-disclosure {
+    margin-top: var(--space-6);
+    padding: var(--space-4);
+    color: var(--text-primary);
+    background: var(--brand-light);
+    border-left: 4px solid var(--brand);
+    border-radius: var(--radius-md);
+}
+
+.legal-header-home {
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (max-width: 720px) {
+    .legal-page {
+        padding: var(--space-5);
+    }
+
+    .legal-page h1 {
+        font-size: 1.65rem;
+    }
+}
