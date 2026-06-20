@@ -12,11 +12,13 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 11** (P0 launch-hygiene part 1) — both lanes BUILT + committed
-  to lane branches 2026-06-20. Lane 11-A (durable share) JUDGED **PASS** (00129a6).
-  Lane 11-B (trust pages) BUILT after 2 PHASE-0 halts + re-dispatch (dbc22e7),
-  UNJUDGED. NEXT SESSION: judge Lane B's gates, then merge both into `slice/11` →
-  main + push (prod deploy — confirm w/ Quinn). S0–S10 all live in prod.
+- Next action: **Slice 11** (P0 launch-hygiene part 1) — BOTH lanes JUDGED **PASS**
+  and INTEGRATED on branch `slice/11` (6af356e), integration-verified GREEN on the
+  merged tree (share-e2e ✓ + trust-e2e 23/0 ✓ + smoke 0/0 ✓; both lanes' features
+  coexist — privacy.html 200 AND /api/builds 404-on-bogus). 2026-06-20.
+  **AWAITING QUINN'S GO TO PUSH** — final step is merge `slice/11` → main + push
+  origin/main (= Railway+Render prod deploy). Optional: fold the Lane-A P2
+  (malformed-JSON→400) in first. S0–S10 all live in prod.
 - **Reconcile 2026-06-20:** S9 (a4ebe53,1c6010d) and S10 (16149b0; verified
   64/64 e2e) are DONE + PUSHED to prod (per workspace MEMORY.md). The "judge next
   session" notes below for S9/S10 are CLOSED — both passed and shipped.
@@ -326,22 +328,25 @@ errors** (today there are 3: missing-filter null-guards).
     gates pass) → not blocking, but a launch-hygiene endpoint should return 400. Fix:
     add `entity.parse.failed`/`SyntaxError(status 400)`→400 in that handler + a
     share-e2e assertion. Needs server.js, so it can't ride Lane B (script/index only).
-  - **Lane 11-B — BUILT + checkpointed `lane/slice-11-B` (dbc22e7), UNJUDGED.** First
-    two runs halted at PHASE 0 (plan + 4 disagreements, zero files). Architect ruled on
-    all 4 and re-dispatched with a no-halt operating rule; the 3rd run built the full
-    scope. Post-flight clean: boundary = exactly the 7 declared files (index.html +
-    styles-v5.css modified; privacy/terms/about.html + test/trust-e2e.js +
-    docs/lanes/slice-11-B.md new); gates-tamper empty. Builder SELF-reported trust-e2e
-    23/0 + smoke 0/0 — HEARSAY, NOT yet architect-run (dispatched this session → gate
-    verdict belongs to next session per the don't-grade-your-own-dispatch rule).
-- **NEXT SESSION (judge + integrate Slice 11):**
-  1. Judge `lane/slice-11-B` (dbc22e7): run B-G1 `node test/trust-e2e.js` (pages 200 +
-     footer links + FTC disclosure + Plausible placeholder), B-G2 `npm test` smoke 0/0,
-     B-G3 diff review (static pages only, no server.js/script.js edits, no committed
-     secret) against the verbatim `docs/gates/slice-11.md` "Lane 11-B" text.
-  2. On PASS: `git checkout -b slice/11 6db6677`; `git merge --no-ff lane/slice-11-A`
-     (00129a6) then `git merge --no-ff lane/slice-11-B` (dbc22e7); run smoke after each
-     merge (lanes are file-disjoint so no conflict expected — a conflict = spec defect).
+  - **Lane 11-B — JUDGED PASS / committed `lane/slice-11-B` (dbc22e7).** First two runs
+    halted at PHASE 0 (plan + 4 disagreements, zero files). Architect ruled on all 4 and
+    re-dispatched with a no-halt operating rule; the 3rd run built the full scope.
+    Architect-run gates (clean local server, fresh port — a stale :3000 server first gave
+    a FALSE 404 fail; killed it + re-ran): B-G1 `node test/trust-e2e.js` **23/0 PASS**
+    (3 pages 200 + >500 bytes + exact title/h1 + FTC disclosure each; index footer links
+    to all 3; index disclosure; Plausible placeholder snippet in <head>; Quinn launch
+    comment; NEGATIVE assertion = no secret/Sentry/GA id); B-G2 smoke **0/0**; B-G3 diff —
+    static pages only, FTC wording clear/unburied, NO server.js/script.js edits, only the
+    7 declared files, footer/legal CSS reuses site tokens. Boundary + gates-tamper clean.
+  - **INTEGRATED → `slice/11` (6af356e), verified GREEN, AWAITING PUSH.** `git checkout
+    -b slice/11 6db6677`; merged `lane/slice-11-A` (a4c3835) then `lane/slice-11-B`
+    (6af356e) — both clean, no conflicts (lanes disjoint). Integration smoke on the
+    merged tree: parse 0, share-e2e PASS, trust-e2e 23/0, smoke 0/0; server identity
+    confirmed both features coexist (privacy.html 200 AND /api/builds bogus-id 404).
+- **REMAINING (awaiting Quinn's GO):** merge `slice/11` → main + `git push origin main`
+  (= Railway+Render prod deploy). Then remove worktrees (`git worktree remove
+  .architect/wt/slice-11-A` + `-B`) + delete lane branches. Optional: fold the Lane-A P2
+  (malformed-JSON→400, server.js ~1568 + a share-e2e assertion) before/with the push.
   3. Then merge `slice/11` → main + push (= Railway+Render prod deploy — CONFIRM w/
      Quinn before pushing). Remove worktrees + lane branches after.
   4. Optionally fold the Lane-A P2 (malformed-JSON→400) into a tiny server follow-up
@@ -413,6 +418,7 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-14 | Architect | slice-7 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-7.md`; builder dispatched for builder-page UX refinement (A1+B2, curate to 4, remove Guides); judge next session |
 | 2026-06-20 | Architect | slice-11 | lane/slice-11-A 00129a6 | A: G1✓ G2✓ G3✓ G4✓ | Lane A (durable share) judged PASS, committed to lane branch; cross-model review = 1 P2 logged. Lane B halted at PHASE 0 twice → ruled + re-dispatched (no-halt). Integration deferred until B judged. |
 | 2026-06-20 | Builder | slice-11-B | lane/slice-11-B dbc22e7 | self: trust 23/0, smoke 0/0 (UNJUDGED) | 3rd run (post no-halt rule) built full scope: 3 trust pages + footer + FTC disclosure + Plausible scaffold + trust-e2e. Boundary/tamper clean, checkpointed to lane branch; architect judges next session. |
+| 2026-06-20 | Architect | slice-11 | slice/11 6af356e | B: G1✓ G2✓ G3✓; integ ✓ | Quinn OK'd same-session judge. Lane B judged PASS (architect-run trust-e2e 23/0 after killing a stale :3000 server that gave a false 404; smoke 0/0; diff clean). Merged both lanes → slice/11, integration GREEN (share+trust+smoke). HELD at push awaiting Quinn's go. |
 
 ## Notes for next session
 
