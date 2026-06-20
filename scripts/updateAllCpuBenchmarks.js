@@ -8,126 +8,135 @@ const { MongoClient } = require('mongodb');
 // (Single / Multi), Geekbench 6 (Single-Core / Multi-Core). Regenerate via
 // scripts/_blendCpu.js (embeds the raw source numbers + methodology). singleThread
 // feeds singleCorePerformance, multiThread feeds multiThreadPerformance.
+// Ordered by single-thread desc. One entry per canonical modelToken (see below):
+// AMD uses the exact model (X3D/X/non-X distinct); Intel folds KF->K and F->base
+// but keeps K vs non-K and KS distinct; Ultra folds K/non-K of a SKU together.
 const benchmarkData = [
-    { name: 'AMD Ryzen 5 5600X', year: 2020, singleThread: 65.9, multiThread: 32.7 },
-    { name: 'AMD Ryzen 5 5600', year: 2020, singleThread: 63.5, multiThread: 34.6 },
-    { name: 'AMD Ryzen 5 7600', year: 2022, singleThread: 80.7, multiThread: 41.2 },
-    { name: 'AMD Ryzen 7 5700X', year: 2022, singleThread: 65.8, multiThread: 37.7 },
-    { name: 'AMD Ryzen 7 5800X', year: 2020, singleThread: 67.8, multiThread: 40.7 },
-    { name: 'AMD Ryzen 7 7700X', year: 2022, singleThread: 86.4, multiThread: 55.1 },
-    { name: 'AMD Ryzen 7 7800X3D', year: 2023, singleThread: 77.3, multiThread: 52.4 },
-    { name: 'AMD Ryzen 7 9700X', year: 2025, singleThread: 96.5, multiThread: 59.1 },
-    { name: 'AMD Ryzen 7 9800X3D', year: 2024, singleThread: 93.0, multiThread: 64.8 },
-    { name: 'AMD Ryzen 9 5900X', year: 2020, singleThread: 67.2, multiThread: 48.5 },
-    { name: 'AMD Ryzen 9 5950X', year: 2020, singleThread: 68.6, multiThread: 60.3 },
-    { name: 'AMD Ryzen 9 7900X', year: 2022, singleThread: 86.9, multiThread: 74.2 },
-    // NOTE: list X3D variants BEFORE the base model — the name matcher uses a
-    // substring check, and "9950X" is a substring of "9950X3D", so the base entry
-    // would otherwise capture the X3D docs. Specific-first ensures correct matches.
-    { name: 'AMD Ryzen 9 7950X3D', year: 2023, singleThread: 86.7, multiThread: 87.8 },
-    { name: 'AMD Ryzen 9 7950X', year: 2022, singleThread: 87.0, multiThread: 85.6 },
+    { name: 'Intel Core Ultra 9 285K', year: 2024, singleThread: 100, multiThread: 99.6 },
+    { name: 'AMD Ryzen 9 9950X3D', year: 2025, singleThread: 98.3, multiThread: 100 },
+    { name: 'AMD Ryzen 9 9950X', year: 2025, singleThread: 97.3, multiThread: 96 },
     { name: 'AMD Ryzen 9 9900X', year: 2025, singleThread: 97.2, multiThread: 80.9 },
-    { name: 'AMD Ryzen 9 9950X3D', year: 2025, singleThread: 98.3, multiThread: 100.0 },
-    { name: 'AMD Ryzen 9 9950X', year: 2025, singleThread: 97.3, multiThread: 96.0 },
-    { name: 'Intel Core i5-12400F', year: 2022, singleThread: 69.8, multiThread: 32.7 },
-    { name: 'Intel Core i5-12600K', year: 2021, singleThread: 78.5, multiThread: 44.7 },
-    { name: 'Intel Core i5-13600K', year: 2022, singleThread: 83.2, multiThread: 59.3 },
-    { name: 'Intel Core i7-13700K', year: 2022, singleThread: 88.0, multiThread: 72.5 },
-    { name: 'Intel Core i7-13700KF', year: 2022, singleThread: 88.0, multiThread: 72.5 },
-    { name: 'Intel Core i9-12900K', year: 2021, singleThread: 82.4, multiThread: 63.0 },
-    { name: 'Intel Core i9-13900F', year: 2023, singleThread: 92.9, multiThread: 87.1 },
-    { name: 'Intel Core i9-13900K', year: 2022, singleThread: 92.9, multiThread: 87.1 },
-    { name: 'Intel Core i9-13900KF', year: 2022, singleThread: 92.9, multiThread: 87.1 },
-    { name: 'Intel Core i9-14700K', year: 2024, singleThread: 90.2, multiThread: 79.4 },
-    { name: 'Intel Core i9-14900', year: 2024, singleThread: 94.6, multiThread: 89.1 },
-    { name: 'Intel Core i9-14900KF', year: 2024, singleThread: 94.6, multiThread: 89.1 },
     { name: 'Intel Core i9-14900KS', year: 2024, singleThread: 96.8, multiThread: 94.5 },
-    { name: 'Intel Core Ultra 5', year: 2025, singleThread: 93.5, multiThread: 61.2 },
-    { name: 'Intel Core Ultra 7', year: 2025, singleThread: 95.4, multiThread: 87.9 },
-    { name: 'Intel Core Ultra 9', year: 2025, singleThread: 100.0, multiThread: 99.6 }
+    { name: 'AMD Ryzen 7 9700X', year: 2025, singleThread: 96.5, multiThread: 59.1 },
+    { name: 'AMD Ryzen 9 9900X3D', year: 2025, singleThread: 95.9, multiThread: 85.2 },
+    { name: 'AMD Ryzen 5 9600X', year: 2024, singleThread: 95.7, multiThread: 54.5 },
+    { name: 'Intel Core Ultra 7 265K', year: 2024, singleThread: 95.4, multiThread: 87.9 },
+    { name: 'Intel Core i9-14900K', year: 2024, singleThread: 94.6, multiThread: 89.1 },
+    { name: 'Intel Core i9-13900KS', year: 2023, singleThread: 94.2, multiThread: 91.1 },
+    { name: 'Intel Core Ultra 5 245K', year: 2024, singleThread: 93.5, multiThread: 61.2 },
+    { name: 'AMD Ryzen 7 9800X3D', year: 2024, singleThread: 93, multiThread: 64.8 },
+    { name: 'Intel Core i9-13900K', year: 2022, singleThread: 92.9, multiThread: 87.1 },
+    { name: 'Intel Core i7-14700K', year: 2024, singleThread: 90.2, multiThread: 79.4 },
+    { name: 'Intel Core i7-13700K', year: 2022, singleThread: 88, multiThread: 72.5 },
+    { name: 'AMD Ryzen 9 7950X', year: 2022, singleThread: 87, multiThread: 85.6 },
+    { name: 'AMD Ryzen 9 7900X', year: 2022, singleThread: 86.9, multiThread: 74.2 },
+    { name: 'AMD Ryzen 9 7950X3D', year: 2023, singleThread: 86.7, multiThread: 87.8 },
+    { name: 'AMD Ryzen 7 7700X', year: 2022, singleThread: 86.4, multiThread: 55.1 },
+    { name: 'Intel Core i9-13900', year: 2022, singleThread: 85.6, multiThread: 71.4 },
+    { name: 'Intel Core i5-14600K', year: 2023, singleThread: 85.2, multiThread: 63 },
+    { name: 'Intel Core i9-14900', year: 2024, singleThread: 85.1, multiThread: 69.3 },
+    { name: 'AMD Ryzen 5 7600X', year: 2022, singleThread: 84.8, multiThread: 49 },
+    { name: 'AMD Ryzen 9 7900', year: 2023, singleThread: 84.5, multiThread: 72 },
+    { name: 'AMD Ryzen 7 7700', year: 2023, singleThread: 83.9, multiThread: 57.6 },
+    { name: 'Intel Core i7-14700', year: 2024, singleThread: 83.2, multiThread: 63.5 },
+    { name: 'Intel Core i5-13600K', year: 2022, singleThread: 83.2, multiThread: 59.3 },
+    { name: 'Intel Core i9-12900K', year: 2021, singleThread: 82.4, multiThread: 63 },
+    { name: 'AMD Ryzen 5 7600', year: 2022, singleThread: 80.7, multiThread: 41.2 },
+    { name: 'Intel Core i9-12900', year: 2021, singleThread: 80.2, multiThread: 54.8 },
+    { name: 'Intel Core i7-12700K', year: 2021, singleThread: 78.6, multiThread: 55.6 },
+    { name: 'Intel Core i5-12600K', year: 2021, singleThread: 78.5, multiThread: 44.7 },
+    { name: 'AMD Ryzen 7 7800X3D', year: 2023, singleThread: 77.3, multiThread: 52.4 },
+    { name: 'Intel Core i5-14500', year: 2024, singleThread: 77.2, multiThread: 50.3 },
+    { name: 'Intel Core i5-13500', year: 2023, singleThread: 75, multiThread: 49.2 },
+    { name: 'Intel Core i5-14400F', year: 2023, singleThread: 71.8, multiThread: 42.7 },
+    { name: 'Intel Core i5-13400F', year: 2023, singleThread: 70.7, multiThread: 41.9 },
+    { name: 'Intel Core i3-13100F', year: 2023, singleThread: 70, multiThread: 27.3 },
+    { name: 'Intel Core i5-12400F', year: 2022, singleThread: 69.8, multiThread: 32.7 },
+    { name: 'AMD Ryzen 9 5950X', year: 2020, singleThread: 68.6, multiThread: 60.3 },
+    { name: 'AMD Ryzen 7 5800X', year: 2020, singleThread: 67.8, multiThread: 40.7 },
+    { name: 'Intel Core i3-12100F', year: 2022, singleThread: 67.7, multiThread: 26.4 },
+    { name: 'AMD Ryzen 9 5900X', year: 2020, singleThread: 67.2, multiThread: 48.5 },
+    { name: 'Intel Core i9-11900', year: 2021, singleThread: 66.8, multiThread: 36.6 },
+    { name: 'AMD Ryzen 5 5600X', year: 2020, singleThread: 65.9, multiThread: 32.7 },
+    { name: 'AMD Ryzen 7 5700X', year: 2022, singleThread: 65.8, multiThread: 37.7 },
+    { name: 'AMD Ryzen 7 5800X3D', year: 2022, singleThread: 64.2, multiThread: 45 },
+    { name: 'AMD Ryzen 5 5600', year: 2020, singleThread: 63.5, multiThread: 34.6 },
+    { name: 'Intel Core i5-11400F', year: 2021, singleThread: 59.6, multiThread: 29 },
+    { name: 'AMD Ryzen 5 5500', year: 2022, singleThread: 58.8, multiThread: 33.7 },
+    { name: 'AMD Ryzen 7 5700X3D', year: 2024, singleThread: 58.6, multiThread: 41.4 },
 ];
 
-// Normalize CPU name for matching
+// Normalize CPU name for matching: lowercase, strip marketing/spec noise so the
+// vendor regexes below land on just "<brand> <series> <model><suffix>".
 function normalizeName(name) {
     if (!name) return '';
     return name
         .toLowerCase()
+        .replace(/®|\(r\)/gi, '')
+        .replace(/™|\(tm\)/gi, '')
         .replace(/desktop processor/gi, '')
         .replace(/\s+processor/gi, '')
         .replace(/\s+desktop/gi, '')
         .replace(/\s+unlocked/gi, '')
+        .replace(/new gaming/gi, '')
         .replace(/\d+-core,?\s+\d+-thread/gi, '') // Remove "8-Core, 16-Thread"
-        .replace(/™/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
 
-// Extract the core model name (e.g., "Ryzen 7 5700X" from "AMD Ryzen 7 5700X")
-function extractModelName(name) {
-    const normalized = normalizeName(name);
+// Canonical model token used for matching. Returns e.g. "amd-9-9950x3d",
+// "intel-9-14900k", "intel-9-14900" (non-K distinct from K), "ultra-9-285k".
+// AMD: strict — the full alphanumeric model token (so 9950X != 9950X3D,
+//   7700 != 7700X). Intel i-series: series + 3-5 digit number + suffix, where
+//   the F (iGPU-disabled, identical CPU perf) is dropped and KF folds to K, but
+//   K vs non-K and KS stay distinct (real power/clock differences). Accepts a
+//   space OR hyphen before the number ("i9 14900" and "i9-14900" both work).
+//   Ultra: by SKU number when both names have one, else by tier.
+function modelToken(name) {
+    const s = normalizeName(name);
 
-    // For AMD CPUs, extract "Ryzen X XXXXXX" pattern
-    const amdMatch = normalized.match(/(ryzen\s+\d+\s+\w+)/i);
-    if (amdMatch) return amdMatch[1];
+    const amd = s.match(/ryzen\s+(\d+)\s+(\d{3,4}[a-z0-9]*)/);
+    if (amd) return `amd-${amd[1]}-${amd[2]}`;
 
-    // For Intel CPUs, extract "Core iX-XXXXX" pattern
-    const intelMatch = normalized.match(/(core\s+i\d+-\w+)/i);
-    if (intelMatch) return intelMatch[1];
+    const ultra = s.match(/core\s+ultra\s+(\d+)/);
+    if (ultra) {
+        // SKU number, K/non-K folded together (e.g. "285K" and "285" -> 285).
+        const sku = s.match(/ultra\s+\d+\s+(\d{3})[a-z]*/);
+        return sku ? `ultra-sku-${sku[1]}` : `ultra-tier-${ultra[1]}`;
+    }
 
-    // For Intel Core Ultra, extract "Core Ultra X"
-    const ultraMatch = normalized.match(/(core\s+ultra\s+\d+)/i);
-    if (ultraMatch) return ultraMatch[1];
-
-    return normalized;
+    // Prefer "Core iN <number>"; fall back to a bare "iN-number" (some listings
+    // read "Core i9 (12th Gen) i9-12900 ...", where the model trails the brand).
+    const intel = s.match(/core\s+i(\d+)[\s-]+(\d{3,5})(ks|kf|k|f)?/)
+               || s.match(/\bi(\d+)-(\d{3,5})(ks|kf|k|f)?/);
+    if (intel) {
+        let suf = intel[3] || '';
+        if (suf === 'kf') suf = 'k';   // KF == K (no iGPU, same perf)
+        if (suf === 'f') suf = '';      // F  == non-K base (same CPU perf)
+        return `intel-${intel[1]}-${intel[2]}${suf}`;
+    }
+    return null;
 }
 
-// Check if two CPU names match
+// Two CPU names match if they share a canonical token (or are identical). The
+// Ultra case allows a tier-only benchmark entry (e.g. "Intel Core Ultra 9") to
+// match any SKU of that tier when the entry itself has no SKU number.
 function namesMatch(dbName, benchmarkName) {
     if (!dbName || !benchmarkName) return false;
+    if (normalizeName(dbName) === normalizeName(benchmarkName)) return true;
 
-    const normalizedDb = normalizeName(dbName);
-    const normalizedBenchmark = normalizeName(benchmarkName);
+    const a = modelToken(dbName);
+    const b = modelToken(benchmarkName);
+    if (!a || !b) return false;
+    if (a === b) return true;
 
-    // Exact match after normalization
-    if (normalizedDb === normalizedBenchmark) return true;
-
-    // Check if benchmark name is fully contained in db name
-    if (normalizedDb.includes(normalizedBenchmark)) return true;
-
-    // For more specific matching, extract key components
-    // AMD: Extract "ryzen X XXXX" (e.g., "ryzen 7 5700x")
-    // Intel: Extract "core iX-XXXX" (e.g., "core i7-13700kf")
-
-    // AMD Ryzen matching
-    const amdDbMatch = normalizedDb.match(/ryzen\s+(\d+)\s+(\w+)/);
-    const amdBenchMatch = normalizedBenchmark.match(/ryzen\s+(\d+)\s+(\w+)/);
-
-    if (amdDbMatch && amdBenchMatch) {
-        // Must match series (5/7/9) and model (5700x, 7950x3d, etc.)
-        return amdDbMatch[1] === amdBenchMatch[1] && amdDbMatch[2] === amdBenchMatch[2];
+    // A tier-only Ultra entry (e.g. "Intel Core Ultra 9", no SKU) matches any
+    // Ultra doc of that tier — a safety net for future SKUs not yet in the table.
+    if (a.startsWith('ultra-') && b.startsWith('ultra-') && (a.startsWith('ultra-tier-') || b.startsWith('ultra-tier-'))) {
+        const tier = (n) => (normalizeName(n).match(/core\s+ultra\s+(\d+)/) || [])[1] || null;
+        const ta = tier(dbName), tb = tier(benchmarkName);
+        if (ta && ta === tb) return true;
     }
-
-    // Intel Core matching
-    const intelDbMatch = normalizedDb.match(/core\s+i(\d+)-(\w+)/);
-    const intelBenchMatch = normalizedBenchmark.match(/core\s+i(\d+)-(\w+)/);
-
-    if (intelDbMatch && intelBenchMatch) {
-        // Must match series (5/7/9) and model number
-        // Compare base model (e.g., "13900" matches "13900k", "13900kf", etc.)
-        const dbBase = intelDbMatch[2].replace(/k[fs]?$/, '');
-        const benchBase = intelBenchMatch[2].replace(/k[fs]?$/, '');
-
-        return intelDbMatch[1] === intelBenchMatch[1] && dbBase === benchBase;
-    }
-
-    // Intel Core Ultra matching
-    const ultraDbMatch = normalizedDb.match(/core\s+ultra\s+(\d+)/);
-    const ultraBenchMatch = normalizedBenchmark.match(/core\s+ultra\s+(\d+)/);
-
-    if (ultraDbMatch && ultraBenchMatch) {
-        return ultraDbMatch[1] === ultraBenchMatch[1];
-    }
-
     return false;
 }
 
