@@ -12,9 +12,19 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 12** — next P0 batch (compat filter toggle, PSU-headroom
-  warning, empty/loading/error states, UX null-guards, mobile-responsive verify).
-  See "P0 items NOT in Slice 11" below.
+- Next action: **Slice 12** — DISPATCHED 2026-06-20 (lane `lane/slice-12-00`, worktree
+  `.architect/wt/slice-12-00`, freeze e2fbb8e, effort xhigh). Scope = **compatibility
+  filter toggle** (P0-2: a per-tab "Compatible with my build" switch reusing the single
+  `isCompatibleWithBuild`, applied across `_renderTabList` + GPU + mobo renderers) +
+  **PSU-undersize into `isCompatibleWithBuild`** (P0-3 buildable: PSU wattage < estimated
+  draw → incompatible/greys/filters; existing 80%-headroom WARNING + GPU-length warning
+  left untouched). Gate `docs/gates/slice-12.md` (G1 parse, G2 smoke, G3
+  compat-filter-e2e F1-F4, G4 diff). JUDGE NEXT SESSION (dispatched this session →
+  can't self-grade). Builder writes raw results to `docs/lanes/slice-12-00.md`.
+  NOTE (grounding): the PSU 80%-headroom warning + GPU/ITX-mATX length warnings ALREADY
+  exist in `classifyCompatibilityIssues` (~5780-5862); S12 does NOT rebuild them.
+  Remaining P0 (→ Slice 13): empty/loading/error states, UX null-guards,
+  mobile-responsive verify.
 - **Slice 11 (P0 launch-hygiene part 1) — DONE + PUSHED to origin/main 2026-06-20
   (commit 9a305d6, `ec731e4..9a305d6`).** Prod auto-deploys via Railway+Render.
   Shipped: durable server-stored shareable builds (Lane A) + trust/legal pages +
