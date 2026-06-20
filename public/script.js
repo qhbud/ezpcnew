@@ -14953,6 +14953,28 @@ class PartsDatabase {
                 metric: p => p.wattage || 0,
                 badge: p => p.wattage ? `${p.wattage}W` : null,
                 tags: p => [p.manufacturer, p.efficiency, p.wattage ? `${p.wattage}W` : null, p.modular]
+            },
+            // Case + Add-on have no scatter chart and no perf-per-dollar metric, so
+            // their list sources straight from the raw items (noChart) and shows
+            // only the price sort (noMetric). Still build-compatibility aware.
+            case: {
+                itemKey: 'case', selProp: '_caseCardCurrent', card: '_renderCaseProductCard',
+                noChart: true, noMetric: true, icon: 'fa-box',
+                badge: c => { const ff = Array.isArray(c.formFactor) ? c.formFactor[0] : c.formFactor; return ff ? String(ff) : null; },
+                tags: c => [
+                    c.manufacturer || c.brand,
+                    Array.isArray(c.formFactor) ? c.formFactor.join('/') : c.formFactor,
+                    (c.maxGpuLength || c.specifications?.maxGpuLength) ? `GPU ${c.maxGpuLength || c.specifications?.maxGpuLength}mm` : null,
+                    c.color || c.specifications?.color
+                ]
+            },
+            addon: {
+                itemKey: 'addon', selProp: '_addonCardCurrent', card: '_renderAddonProductCard',
+                noChart: true, noMetric: true, icon: 'fa-plus-circle',
+                // category often just holds the collection name ("addons") — only
+                // surface it when it's a real category.
+                badge: a => { const cat = a.addonType || a.type || a.category; return cat && !/^add[- ]?ons?$/i.test(cat) ? String(cat) : null; },
+                tags: a => { const cat = a.addonType || a.type || a.category; return [a.manufacturer || a.brand, cat && !/^add[- ]?ons?$/i.test(cat) ? cat : null]; }
             }
         };
         return C[kind];
@@ -14982,12 +15004,21 @@ class PartsDatabase {
         this._tabItems = this._tabItems || {};
         if (items) this._tabItems[kind] = items;
 
-        const pts = this[cfg.ptsProp] || [];
         this._tabListSort = this._tabListSort || {};
         const sort = this._tabListSort[kind] || (this._tabListSort[kind] = 'price-asc');
 
-        const rows = pts.map(p => ({ item: p[cfg.itemKey], price: p.price, metric: cfg.metric(p[cfg.itemKey]) }))
-            .filter(r => r.item && r.price > 0);
+        let rows;
+        if (cfg.noChart) {
+            // No scatter — list straight from the raw items kept for this tab.
+            const raw = this._tabItems[kind] || [];
+            const priceOf = it => parseFloat(it.salePrice || it.currentPrice || it.basePrice || it.price) || 0;
+            rows = raw.map(item => ({ item, price: priceOf(item), metric: cfg.metric ? cfg.metric(item) : 0 }))
+                .filter(r => r.item && r.price > 0);
+        } else {
+            const pts = this[cfg.ptsProp] || [];
+            rows = pts.map(p => ({ item: p[cfg.itemKey], price: p.price, metric: cfg.metric(p[cfg.itemKey]) }))
+                .filter(r => r.item && r.price > 0);
+        }
         if (sort === 'price-desc') rows.sort((a, b) => b.price - a.price);
         else if (sort === 'metric-asc') rows.sort((a, b) => (a.metric || 0) - (b.metric || 0) || a.price - b.price);
         else if (sort === 'metric-desc') rows.sort((a, b) => (b.metric || 0) - (a.metric || 0) || a.price - b.price);
@@ -14997,11 +15028,13 @@ class PartsDatabase {
         const isMetric = sort.startsWith('metric');
         const priceLabel = isPrice ? `Price ${sort === 'price-asc' ? '&uarr;' : '&darr;'}` : 'Price';
         const metricLabel = isMetric ? `${cfg.metricLabel} ${sort === 'metric-asc' ? '&uarr;' : '&darr;'}` : cfg.metricLabel;
+        const metricChip = cfg.noMetric ? '' : `<button type="button" class="gc-chip gpu-sort-btn${isMetric ? ' active' : ''}" data-sort-key="metric">${metricLabel}</button>`;
+        const countLabel = kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind + 's';
         const header = `<div class="mobo-results-head">
-            <span><strong>${rows.length}</strong> ${kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind + 's'}</span>
+            <span><strong>${rows.length}</strong> ${countLabel}</span>
             <div class="gpu-sort-controls"><span class="gpu-sort-label">Sort:</span>
                 <button type="button" class="gc-chip gpu-sort-btn${isPrice ? ' active' : ''}" data-sort-key="price">${priceLabel}</button>
-                <button type="button" class="gc-chip gpu-sort-btn${isMetric ? ' active' : ''}" data-sort-key="metric">${metricLabel}</button>
+                ${metricChip}
             </div>
         </div>`;
 
@@ -15015,7 +15048,8 @@ class PartsDatabase {
             }));
 
         if (!rows.length) {
-            results.innerHTML = header + `<div class="mobo-results-empty">No matches. Adjust the filters above to broaden.</div>`;
+            const emptyMsg = cfg.noChart ? 'No items available yet.' : 'No matches. Adjust the filters above to broaden.';
+            results.innerHTML = header + `<div class="mobo-results-empty">${emptyMsg}</div>`;
             wireSort();
             return;
         }
@@ -15028,7 +15062,7 @@ class PartsDatabase {
             const img = item.imageUrl || item.image || '';
             const imgHTML = img
                 ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
-                : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-microchip"></i></div>`;
+                : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas ${cfg.icon || 'fa-microchip'}"></i></div>`;
             return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}" data-id="${this.getPartId(item)}">
                 ${imgHTML}
                 <div class="mobo-row-main">
@@ -18046,6 +18080,7 @@ class PartsDatabase {
                 if (best) this._renderCaseProductCard(best);
                 this._casePickSig = sig;
             }
+            this._renderTabList('case', items); // selectable list (no graph)
             this._caseListingsRendered = true;
         } catch (e) {
             console.error('Case listings error:', e);
@@ -18269,12 +18304,14 @@ class PartsDatabase {
     }
 
     async renderAddonListingsSection() {
-        if (this._addonListingsRendered) return;
         try {
             if (!this.allAddons || this.allAddons.length === 0) await this.loadAllAddons();
             const items = this.allAddons || [];
-            const best = this._pickBestValueGeneric(items);
-            if (best) this._renderAddonProductCard(best);
+            if (!this._addonListingsRendered) {
+                const best = this._pickBestValueGeneric(items);
+                if (best) this._renderAddonProductCard(best);
+            }
+            this._renderTabList('addon', items); // selectable list (no graph)
             this._addonListingsRendered = true;
         } catch (e) {
             console.error('Add-on listings error:', e);
