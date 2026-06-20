@@ -12,8 +12,11 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 11** (P0 launch-hygiene part 1) gates frozen + 2 parallel
-  lanes DISPATCHED 2026-06-20 — judge next session. S0–S10 all live in prod.
+- Next action: **Slice 11** (P0 launch-hygiene part 1). Lane 11-A (durable share)
+  JUDGED **PASS** + committed to `lane/slice-11-A` (00129a6) 2026-06-20. Lane 11-B
+  (trust pages) halted at PHASE 0 twice → re-dispatched 2026-06-20 with rulings +
+  no-halt instruction; judge next session, then integrate both into `slice/11` and
+  push. S0–S10 all live in prod.
 - **Reconcile 2026-06-20:** S9 (a4ebe53,1c6010d) and S10 (16149b0; verified
   64/64 e2e) are DONE + PUSHED to prod (per workspace MEMORY.md). The "judge next
   session" notes below for S9/S10 are CLOSED — both passed and shipped.
@@ -302,8 +305,34 @@ errors** (today there are 3: missing-filter null-guards).
   (placeholder domain, NO secret). Files: public/index.html, public/privacy.html,
   public/terms.html, public/about.html, public/styles-v5.css, test/trust-e2e.js,
   docs/lanes/slice-11-B.md.
-- Status: **DISPATCHED 2026-06-20**, judge next session. Builders write raw
-  results to their lane reports.
+- Status (2026-06-20 judge session):
+  - **Lane 11-A — PASS / committed `lane/slice-11-A` (00129a6).** Architect ran all
+    gates independently in the worktree: A-G1 `node --check` server.js+script.js exit 0;
+    A-G3 `node test/share-e2e.js` 9/9 PASS (POST→{id} 12-char base64url, GET round-trip
+    deep-equal, Mongo doc shape, 404 missing, unknown-key 400, nested-field/XSS-payload
+    400, oversized 413, client short-id+legacy branches); A-G2 smoke 0/0; A-G4 diff —
+    new `builds` collection only (no component-collection writes), `crypto.randomBytes(9)
+    .toString('base64url')` unguessable id (not ObjectId/sequential), reference-only
+    validation w/ prototype-pollution guards + 16KB cap, shareBuild POST + `?build=<id>`,
+    legacy base64 back-compat via `/^[A-Za-z0-9_-]{12}$/` discriminator, reuses
+    serializeBuild/applyBuildData; boundary clean (only the 4 declared files); tamper
+    clean (`git diff 6db6677 -- docs/gates/` empty). Cross-model `codex review
+    --uncommitted`: core flow sound, ONE finding logged below.
+  - **Lane 11-A FOLLOW-UP (P2, logged — fix in next server-touching change):**
+    `POST /api/builds` with malformed (syntactically invalid) JSON under the 16KB cap
+    raises express `entity.parse.failed`; the error middleware (server.js ~1568) only
+    maps `entity.too.large`→413, so bad JSON returns 500 instead of 400. Low severity
+    (our own client always sends valid JSON; no security/back-compat impact; all frozen
+    gates pass) → not blocking, but a launch-hygiene endpoint should return 400. Fix:
+    add `entity.parse.failed`/`SyntaxError(status 400)`→400 in that handler + a
+    share-e2e assertion. Needs server.js, so it can't ride Lane B (script/index only).
+  - **Lane 11-B — RE-DISPATCHED 2026-06-20, NOT yet built.** Both runs halted at
+    PHASE 0 (plan + 4 disagreements, zero files written). Architect ruled on all 4 and
+    re-dispatched with a no-halt operating rule. Judge next session. Builder writes raw
+    results to `docs/lanes/slice-11-B.md`.
+- **Integration (next session):** once Lane 11-B passes, `git checkout -b slice/11
+  6db6677`, merge `lane/slice-11-A` then `lane/slice-11-B`, run smoke after each, then
+  (on PASS) merge to main + push (= Railway+Render prod deploy — confirm w/ Quinn).
 - **P0 items NOT in Slice 11 (queued/flagged):**
   - **Slice 12 (next):** compat filter toggle (P0-2) + PSU-headroom warning
     (P0-3 buildable part) + empty/loading/error states + leftover UX null-guards
@@ -344,6 +373,8 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Run the whole P0 launch list through the loop (Quinn) | Drives off `memory/2026-06-20-launch-readiness-report.md`. Started as Slice 11 (2 disjoint lanes: durable share + trust pages). |
 | 2026-06-20 | P0 physical-clearance (GPU-len/cooler-height) BLOCKED, not in S11 (architect) | Live Atlas probe: cases 0/111 maxGpuLength, 0/111 maxCpuCoolerHeight, 0/111 radiatorSupport. Report's "data exists" was wrong. Only PSU-headroom is buildable (→ S12); GPU/cooler clearance needs Track B data acquisition. |
 | 2026-06-20 | Mobile P0 de-scoped (architect) | server.js has NO UA redirect to mobile.html → mobile users get the responsive index.html; mobile.html (3507 lines) is an orphan. P0-4 = verify/clean the responsive main app (S12), not sync the dead file. |
+| 2026-06-20 | S11 Lane A PASS; one P2 logged not fixed (architect) | All frozen gates green on independent run + cross-model review clean except malformed-JSON→500 (P2). Endpoint safe/correct for all real inputs; not worth churning a verified lane. Logged for next server-touching change. |
+| 2026-06-20 | S11 Lane B PHASE-0 rulings, re-dispatched with no-halt rule (architect) | B halted at PHASE 0 twice (plan+disagreements, no files). All 4 disagreements ruled (footer classes OK; describe shipping server-store behavior; leave OG metadata; Plausible placeholder satisfies scaffold). Re-dispatched with an explicit "do not stop after PHASE 0" operating rule. |
 
 ## Session log
 
@@ -367,6 +398,7 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-14 | Builder | slice-6 | (uncommitted) | self: G1/G2/G3 pass | 4 themed builds via S4-helper reuse + showcase-e2e S1-S6; STATUS COMPLETE |
 | 2026-06-14 | Architect | slice-6 | committed to main b995fee | G1✓ G2✓ G3✓ G4✓ | independent gate run; reuse-verified (applyBuildData + classifier + ?build= share, no server write), additive diff, 4 distinct 0/0 builds; merged, not pushed |
 | 2026-06-14 | Architect | slice-7 | (freeze + dispatch) | n/a | gates frozen `docs/gates/slice-7.md`; builder dispatched for builder-page UX refinement (A1+B2, curate to 4, remove Guides); judge next session |
+| 2026-06-20 | Architect | slice-11 | lane/slice-11-A 00129a6 | A: G1✓ G2✓ G3✓ G4✓ | Lane A (durable share) judged PASS, committed to lane branch; cross-model review = 1 P2 logged. Lane B halted at PHASE 0 twice → ruled + re-dispatched (no-halt). Integration deferred until B passes. |
 
 ## Notes for next session
 
