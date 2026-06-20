@@ -12,13 +12,20 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 11** (P0 launch-hygiene part 1) — BOTH lanes JUDGED **PASS**
-  and INTEGRATED on branch `slice/11` (6af356e), integration-verified GREEN on the
-  merged tree (share-e2e ✓ + trust-e2e 23/0 ✓ + smoke 0/0 ✓; both lanes' features
-  coexist — privacy.html 200 AND /api/builds 404-on-bogus). 2026-06-20.
-  **AWAITING QUINN'S GO TO PUSH** — final step is merge `slice/11` → main + push
-  origin/main (= Railway+Render prod deploy). Optional: fold the Lane-A P2
-  (malformed-JSON→400) in first. S0–S10 all live in prod.
+- Next action: **Slice 12** — next P0 batch (compat filter toggle, PSU-headroom
+  warning, empty/loading/error states, UX null-guards, mobile-responsive verify).
+  See "P0 items NOT in Slice 11" below.
+- **Slice 11 (P0 launch-hygiene part 1) — DONE + PUSHED to origin/main 2026-06-20
+  (commit 9a305d6, `ec731e4..9a305d6`).** Prod auto-deploys via Railway+Render.
+  Shipped: durable server-stored shareable builds (Lane A) + trust/legal pages +
+  FTC disclosure + Plausible analytics scaffold (Lane B) + malformed-JSON→400 fix
+  (P2 follow-up). All architect-verified green pre-push (share-e2e 10/10, trust-e2e
+  23/0, smoke 0/0; integration GREEN). Worktrees + lane/slice branches cleaned up.
+  S0–S11 all live in prod.
+- **POST-DEPLOY TODO (next session):** confirm the Railway+Render deploy went green
+  and the new endpoints/pages are live (curl prod `/privacy.html` 200, `POST
+  /api/builds` round-trip). Before relying on analytics, Quinn must register
+  `ezpc.world` in Plausible (or swap provider) — the scaffold is a placeholder.
 - **Reconcile 2026-06-20:** S9 (a4ebe53,1c6010d) and S10 (16149b0; verified
   64/64 e2e) are DONE + PUSHED to prod (per workspace MEMORY.md). The "judge next
   session" notes below for S9/S10 are CLOSED — both passed and shipped.
@@ -419,6 +426,7 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Architect | slice-11 | lane/slice-11-A 00129a6 | A: G1✓ G2✓ G3✓ G4✓ | Lane A (durable share) judged PASS, committed to lane branch; cross-model review = 1 P2 logged. Lane B halted at PHASE 0 twice → ruled + re-dispatched (no-halt). Integration deferred until B judged. |
 | 2026-06-20 | Builder | slice-11-B | lane/slice-11-B dbc22e7 | self: trust 23/0, smoke 0/0 (UNJUDGED) | 3rd run (post no-halt rule) built full scope: 3 trust pages + footer + FTC disclosure + Plausible scaffold + trust-e2e. Boundary/tamper clean, checkpointed to lane branch; architect judges next session. |
 | 2026-06-20 | Architect | slice-11 | slice/11 6af356e | B: G1✓ G2✓ G3✓; integ ✓ | Quinn OK'd same-session judge. Lane B judged PASS (architect-run trust-e2e 23/0 after killing a stale :3000 server that gave a false 404; smoke 0/0; diff clean). Merged both lanes → slice/11, integration GREEN (share+trust+smoke). HELD at push awaiting Quinn's go. |
+| 2026-06-20 | Builder+Architect | slice-11p2 | c6e9044 / merged 9a305d6 | P-G1✓ P-G2✓ P-G3✓ P-G4✓ | Quinn chose "fold P2 then push". Froze micro-gate (5aa9854), dispatched 1-line fix (malformed JSON→400) + test assertion; verified malformed→400, share-e2e 10/10, smoke 0/0. Merged → slice/11 → **main + PUSHED origin/main (9a305d6)**. Prod deploy triggered. Worktrees/branches cleaned. |
 
 ## Notes for next session
 
