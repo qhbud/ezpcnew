@@ -5790,6 +5790,28 @@ GPU Listings Section ───────────────────�
     border-radius: 5px;
     padding: 1px 6px;
 }
+/* Status pills: On Sale (green) + Refurbished (amber). Used in list rows and
+   appended to product-card titles via .card-status-badges. */
+.mobo-row-tag.status-sale {
+    color: #166534;
+    background: #dcfce7;
+    font-weight: 700;
+}
+.mobo-row-tag.status-refurb {
+    color: #92400e;
+    background: #fef3c7;
+    font-weight: 700;
+}
+.card-status-badges {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.card-status-badges .mobo-row-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+}
 .mobo-row-price {
     font-size: 13px;
     font-weight: 700;

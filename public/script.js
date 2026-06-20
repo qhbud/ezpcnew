@@ -10819,6 +10819,32 @@ class PartsDatabase {
             notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Incompatible with your current build';
             card.insertBefore(notice, card.firstChild);
         }
+        // Status pills (On Sale / Refurbished) appended once to the card title.
+        const titleEl = card.querySelector('.gpu-card-title');
+        if (titleEl && !titleEl.querySelector('.card-status-badges')) {
+            const badges = this._statusBadges(item);
+            if (badges.length) titleEl.insertAdjacentHTML('beforeend', ` <span class="card-status-badges">${badges.join('')}</span>`);
+        }
+    }
+
+    // Status pills surfaced in list rows and product cards. "On Sale" fires when
+    // the current/sale price is below the recorded base price (with the % off);
+    // "Refurbished" fires on the `renewed`/`refurbished` flag or a Renewed/Refurb
+    // mention in the title. Returns an array of <span> HTML strings.
+    _statusBadges(item) {
+        if (!item) return [];
+        const out = [];
+        const base = parseFloat(item.basePrice) || 0;
+        const sale = parseFloat(item.salePrice || item.currentPrice) || 0;
+        if (base > 0 && sale > 0 && sale < base - 0.005) {
+            const pct = Math.round(((base - sale) / base) * 100);
+            out.push(`<span class="mobo-row-tag status-sale"><i class="fas fa-tag"></i> Sale${pct > 0 ? ` -${pct}%` : ''}</span>`);
+        }
+        const title = item.title || item.name || '';
+        if (item.renewed === true || item.refurbished === true || /\b(renew|refurb)/i.test(title)) {
+            out.push(`<span class="mobo-row-tag status-refurb"><i class="fas fa-recycle"></i> Refurbished</span>`);
+        }
+        return out;
     }
 
     // Resolve a product card element to its component type + featured item, then
@@ -15058,7 +15084,10 @@ class PartsDatabase {
             const title = item.title || item.name || '';
             const incompat = !this.isCompatibleWithBuild(kind, item);
             const badge = cfg.badge(item);
-            const tags = cfg.tags(item).filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(String(t))}</span>`).join('');
+            const tags = [
+                ...this._statusBadges(item),
+                ...cfg.tags(item).filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(String(t))}</span>`)
+            ].join('');
             const img = item.imageUrl || item.image || '';
             const imgHTML = img
                 ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
@@ -15722,12 +15751,14 @@ class PartsDatabase {
             const perfPct = perf != null ? Math.round(perf * 100) : null;
             const vram = g.memory && g.memory.size ? `${g.memory.size}GB ${g.memory.type || 'GDDR6'}` : null;
             const tags = [
-                g.manufacturer,
-                g.gpuModel,
-                vram,
-                g.tdp ? `${g.tdp}W` : null,
-                g.renewed ? 'Renewed' : null
-            ].filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(t)}</span>`).join('');
+                ...this._statusBadges(g),
+                ...[
+                    g.manufacturer,
+                    g.gpuModel,
+                    vram,
+                    g.tdp ? `${g.tdp}W` : null
+                ].filter(Boolean).map(t => `<span class="mobo-row-tag">${this._escapeHtml(t)}</span>`)
+            ].join('');
             const img = g.imageUrl || g.image || '';
             const imgHTML = img
                 ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
@@ -17024,10 +17055,13 @@ class PartsDatabase {
                 ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
                 : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-memory"></i></div>`;
             const tags = [
-                mb.socket, ff, mem, wifi,
-                m2 ? `${m2} M.2` : null,
-                (mb.pcieSlots || mb.pcieSlotCount) ? `${mb.pcieSlots || mb.pcieSlotCount} PCIe` : null,
-            ].filter(Boolean).map(t => `<span class="mobo-row-tag">${t}</span>`).join('');
+                ...this._statusBadges(mb),
+                ...[
+                    mb.socket, ff, mem, wifi,
+                    m2 ? `${m2} M.2` : null,
+                    (mb.pcieSlots || mb.pcieSlotCount) ? `${mb.pcieSlots || mb.pcieSlotCount} PCIe` : null,
+                ].filter(Boolean).map(t => `<span class="mobo-row-tag">${t}</span>`)
+            ].join('');
             return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}" data-id="${this.getPartId(mb)}">
                 ${imgHTML}
                 <div class="mobo-row-main">
