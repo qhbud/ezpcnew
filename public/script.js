@@ -157,6 +157,7 @@ class PartsDatabase {
             addon5: null,
             addon6: null
         };
+        this._compatOnly = false;
         this.totalPrice = 0;
         this.balanceMeterState = {
             state: 'incomplete',
@@ -10798,6 +10799,13 @@ class PartsDatabase {
             }
         }
 
+        // PSU vs the estimated draw of the parts already in the build.
+        if (componentType === 'psu') {
+            const wattage = parseFloat(component.wattage) || 0;
+            const estimatedDraw = Number(this.calculateEstimatedWattage()?.total) || 0;
+            if (wattage > 0 && estimatedDraw > 0 && wattage < estimatedDraw) return false;
+        }
+
         return true;
     }
 
@@ -15039,6 +15047,40 @@ class PartsDatabase {
         this._syncTabListSelection(kind);
     }
 
+    _renderCompatFilterControl(kind) {
+        return `<label class="compat-filter-toggle${this._compatOnly ? ' active' : ''}">
+            <input type="checkbox" class="compat-only-toggle" data-compat-kind="${kind}" aria-label="Compatible with my build"${this._compatOnly ? ' checked' : ''}>
+            <span>Compatible with my build</span>
+        </label>`;
+    }
+
+    _compatEmptyMessage(kind) {
+        const labels = {
+            gpu: 'GPUs',
+            cpu: 'CPUs',
+            motherboard: 'motherboards',
+            ram: 'RAM kits',
+            psu: 'PSUs',
+            cooler: 'coolers',
+            case: 'cases',
+            addon: 'add-ons'
+        };
+        return `No compatible ${labels[kind] || kind} for your current build &mdash; clear the filter or change earlier parts.`;
+    }
+
+    _wireCompatFilter(results, rerender) {
+        const checkbox = results.querySelector('.compat-only-toggle');
+        if (!checkbox) return;
+        checkbox.addEventListener('change', () => {
+            this._compatOnly = checkbox.checked;
+            document.querySelectorAll('.compat-only-toggle').forEach(input => {
+                input.checked = this._compatOnly;
+                input.closest('.compat-filter-toggle')?.classList.toggle('active', this._compatOnly);
+            });
+            rerender();
+        });
+    }
+
     // Render the sortable component list for a tab. Source is the scatter's
     // currently-visible points so the list always matches the chart's filters.
     _renderTabList(kind, items) {
@@ -15064,6 +15106,10 @@ class PartsDatabase {
             rows = pts.map(p => ({ item: p[cfg.itemKey], price: p.price, metric: cfg.metric(p[cfg.itemKey]) }))
                 .filter(r => r.item && r.price > 0);
         }
+        const rowsBeforeCompat = rows.length;
+        if (this._compatOnly) {
+            rows = rows.filter(({ item }) => this.isCompatibleWithBuild(kind, item));
+        }
         if (sort === 'price-desc') rows.sort((a, b) => b.price - a.price);
         else if (sort === 'metric-asc') rows.sort((a, b) => (a.metric || 0) - (b.metric || 0) || a.price - b.price);
         else if (sort === 'metric-desc') rows.sort((a, b) => (b.metric || 0) - (a.metric || 0) || a.price - b.price);
@@ -15077,7 +15123,9 @@ class PartsDatabase {
         const countLabel = kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind + 's';
         const header = `<div class="mobo-results-head">
             <span><strong>${rows.length}</strong> ${countLabel}</span>
-            <div class="gpu-sort-controls"><span class="gpu-sort-label">Sort:</span>
+            <div class="gpu-sort-controls">
+                ${this._renderCompatFilterControl(kind)}
+                <span class="gpu-sort-label">Sort:</span>
                 <button type="button" class="gc-chip gpu-sort-btn${isPrice ? ' active' : ''}" data-sort-key="price">${priceLabel}</button>
                 ${metricChip}
             </div>
@@ -15093,9 +15141,12 @@ class PartsDatabase {
             }));
 
         if (!rows.length) {
-            const emptyMsg = cfg.noChart ? 'No items available yet.' : 'No matches. Adjust the filters above to broaden.';
+            const emptyMsg = this._compatOnly && rowsBeforeCompat > 0
+                ? this._compatEmptyMessage(kind)
+                : cfg.noChart ? 'No items available yet.' : 'No matches. Adjust the filters above to broaden.';
             results.innerHTML = header + `<div class="mobo-results-empty">${emptyMsg}</div>`;
             wireSort();
+            this._wireCompatFilter(results, () => this._renderTabList(kind));
             return;
         }
 
@@ -15123,6 +15174,7 @@ class PartsDatabase {
 
         results.innerHTML = header + `<div class="mobo-results-list">${html}</div>`;
         wireSort();
+        this._wireCompatFilter(results, () => this._renderTabList(kind));
         results.querySelectorAll('.mobo-row').forEach(row => {
             row.addEventListener('click', () => {
                 const item = rows.find(r => this.getPartId(r.item) === row.dataset.id)?.item;
@@ -15712,7 +15764,7 @@ class PartsDatabase {
         const sort = this._gpuListSort || (this._gpuListSort = 'price-asc');
 
         const priceOf = (g) => parseFloat(g.salePrice || g.currentPrice || g.basePrice || g.price) || 0;
-        const matches = gpus
+        let matches = gpus
             .filter(g => {
                 const price = priceOf(g);
                 if (!(price > 0)) return false;
@@ -15723,6 +15775,10 @@ class PartsDatabase {
                 return true;
             })
             .map(g => ({ g, price: priceOf(g), perf: this.getGpuPerformance(g) }));
+        const matchesBeforeCompat = matches.length;
+        if (this._compatOnly) {
+            matches = matches.filter(({ g }) => this.isCompatibleWithBuild('gpu', g));
+        }
 
         // Sort by price or performance, each direction-toggleable. Ties on a
         // performance sort fall back to cheapest first; GPUs without a benchmark
@@ -15742,7 +15798,9 @@ class PartsDatabase {
         const perfLabel = isPerf ? `Performance ${sort === 'perf-asc' ? '&uarr;' : '&darr;'}` : 'Performance';
         const header = `<div class="mobo-results-head">
             <span><strong>${matches.length}</strong> of ${total} GPUs</span>
-            <div class="gpu-sort-controls"><span class="gpu-sort-label">Sort:</span>
+            <div class="gpu-sort-controls">
+                ${this._renderCompatFilterControl('gpu')}
+                <span class="gpu-sort-label">Sort:</span>
                 <button type="button" class="gc-chip gpu-sort-btn${isPrice ? ' active' : ''}" data-sort-key="price" title="Sort by price (click to flip direction)">${priceLabel}</button>
                 <button type="button" class="gc-chip gpu-sort-btn${isPerf ? ' active' : ''}" data-sort-key="perf" title="Sort by performance (click to flip direction)">${perfLabel}</button>
             </div>
@@ -15758,8 +15816,12 @@ class PartsDatabase {
             }));
 
         if (!matches.length) {
-            results.innerHTML = header + `<div class="mobo-results-empty">No GPUs match these filters. Adjust the filters above to broaden.</div>`;
+            const emptyMsg = this._compatOnly && matchesBeforeCompat > 0
+                ? this._compatEmptyMessage('gpu')
+                : 'No GPUs match these filters. Adjust the filters above to broaden.';
+            results.innerHTML = header + `<div class="mobo-results-empty">${emptyMsg}</div>`;
             wireSort();
+            this._wireCompatFilter(results, () => this._renderGpuFilterResults(gpus));
             return;
         }
 
@@ -15795,6 +15857,7 @@ class PartsDatabase {
 
         results.innerHTML = header + `<div class="mobo-results-list">${rows}</div>`;
         wireSort();
+        this._wireCompatFilter(results, () => this._renderGpuFilterResults(gpus));
 
         results.querySelectorAll('.mobo-row').forEach(row => {
             row.addEventListener('click', () => {
@@ -17032,10 +17095,14 @@ class PartsDatabase {
         const results = document.getElementById('moboFilterResults');
         if (!results) return;
 
-        const matches = mobos
+        let matches = mobos
             .filter(mb => this._moboMatchesFilters(mb))
             .map(mb => ({ mb, price: parseFloat(mb.salePrice || mb.currentPrice || mb.basePrice || mb.price) || 0 }))
             .sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+        const matchesBeforeCompat = matches.length;
+        if (this._compatOnly) {
+            matches = matches.filter(({ mb }) => this.isCompatibleWithBuild('motherboard', mb));
+        }
 
         const total = mobos.length;
         const activeChips = this._moboActiveFilterChips();
@@ -17044,7 +17111,10 @@ class PartsDatabase {
                 activeChips.map(c => `<button type="button" class="mobo-active-chip" data-clear="${c.clear.replace(/"/g, '&quot;')}">${c.text} <i class="fas fa-times"></i></button>`).join('') +
                 `<button type="button" class="mobo-clear-all" data-clear-all>Clear all</button></div>`
             : `<div class="mobo-active-filters mobo-no-filters">No filters — showing all boards</div>`;
-        const header = `<div class="mobo-results-head"><span><strong>${matches.length}</strong> of ${total} boards match</span></div>${summary}`;
+        const header = `<div class="mobo-results-head">
+            <span><strong>${matches.length}</strong> of ${total} boards match</span>
+            <div class="gpu-sort-controls">${this._renderCompatFilterControl('motherboard')}</div>
+        </div>${summary}`;
 
         const wireFilterChips = () => {
             results.querySelectorAll('.mobo-active-chip').forEach(b =>
@@ -17057,8 +17127,12 @@ class PartsDatabase {
         };
 
         if (!matches.length) {
-            results.innerHTML = header + `<div class="mobo-results-empty">No motherboards match these filters. Remove a filter to broaden.</div>`;
+            const emptyMsg = this._compatOnly && matchesBeforeCompat > 0
+                ? this._compatEmptyMessage('motherboard')
+                : 'No motherboards match these filters. Remove a filter to broaden.';
+            results.innerHTML = header + `<div class="mobo-results-empty">${emptyMsg}</div>`;
             wireFilterChips();
+            this._wireCompatFilter(results, () => this._renderMoboFilterResults(mobos));
             return;
         }
 
@@ -17093,6 +17167,7 @@ class PartsDatabase {
 
         results.innerHTML = header + `<div class="mobo-results-list">${rows}</div>`;
         wireFilterChips();
+        this._wireCompatFilter(results, () => this._renderMoboFilterResults(mobos));
 
         results.querySelectorAll('.mobo-row').forEach(row => {
             row.addEventListener('click', () => {
