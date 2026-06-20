@@ -12,12 +12,17 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 9** (compatibility depth + budget floor) gates frozen +
-  builder DISPATCHED 2026-06-19 — judge next session. S0–S8 all live in prod.
-- Note (2026-06-19): repo also advanced OUTSIDE the loop in regular sessions
-  (commits through 6cccbcf): CPU+GPU single-collection consolidation, canonical
-  GPU benchmark table, ingest hardening, availability sweep/hide. Those are in
-  the workspace MEMORY.md, not re-narrated here.
+- Next action: **Slice 11** (P0 launch-hygiene part 1) gates frozen + 2 parallel
+  lanes DISPATCHED 2026-06-20 — judge next session. S0–S10 all live in prod.
+- **Reconcile 2026-06-20:** S9 (a4ebe53,1c6010d) and S10 (16149b0; verified
+  64/64 e2e) are DONE + PUSHED to prod (per workspace MEMORY.md). The "judge next
+  session" notes below for S9/S10 are CLOSED — both passed and shipped.
+- Note: repo also advanced OUTSIDE the loop in regular sessions through ec731e4
+  (CPU+GPU single-collection consolidation, REAL multi-source GPU+CPU benchmark
+  tables, ingest hardening, availability sweep/hide, case/addon selectable lists,
+  on-sale/refurbished status tags, GPU scatter coincident-dot fix). In MEMORY.md,
+  not re-narrated here. **Launch-readiness report:** workspace
+  `memory/2026-06-20-launch-readiness-report.md` (the P0 list this campaign drains).
 
 ## Project goal
 
@@ -280,6 +285,40 @@ errors** (today there are 3: missing-filter null-guards).
   session (high-stakes → architect adds a cross-model `codex review` before the
   verdict). Builder writes raw results to `docs/lanes/slice-10-00.md`.
 
+- **Slice 11** — P0 launch-hygiene part 1: durable shareable builds + trust pages.
+  Drains the launch-readiness report's P0 list (workspace memory). Two DISJOINT
+  parallel lanes (file sets verified non-overlapping), dispatched 2026-06-20.
+- Gates: `docs/gates/slice-11.md`, frozen at THIS commit BEFORE dispatch.
+- **Lane 11-A** (worktree `.architect/wt/slice-11-A`, branch `lane/slice-11-A`,
+  effort xhigh): durable shareable builds. Replaces the brittle base64-in-URL
+  share with server-stored builds: `POST /api/builds`→short id, `GET
+  /api/builds/:id`, load via `?build=<id>`; new Mongo `builds` collection;
+  legacy base64 links must still load. Files: server.js, public/script.js,
+  test/share-e2e.js, docs/lanes/slice-11-A.md. High-stakes (persistence/API) →
+  cross-model `codex review` at judgment.
+- **Lane 11-B** (worktree `.architect/wt/slice-11-B`, branch `lane/slice-11-B`,
+  effort high): trust & launch hygiene. New privacy/terms/about static pages +
+  FTC affiliate disclosure + footer links + privacy-friendly analytics scaffold
+  (placeholder domain, NO secret). Files: public/index.html, public/privacy.html,
+  public/terms.html, public/about.html, public/styles-v5.css, test/trust-e2e.js,
+  docs/lanes/slice-11-B.md.
+- Status: **DISPATCHED 2026-06-20**, judge next session. Builders write raw
+  results to their lane reports.
+- **P0 items NOT in Slice 11 (queued/flagged):**
+  - **Slice 12 (next):** compat filter toggle (P0-2) + PSU-headroom warning
+    (P0-3 buildable part) + empty/loading/error states + leftover UX null-guards
+    (P0-6) + mobile-responsive verification (P0-4, main app is responsive; no UA
+    redirect, mobile.html is an orphan — verify/clean, don't sync). All touch
+    script.js/index.html → conflicts with S11, must follow.
+  - **BLOCKED:** P0-3 GPU-length & cooler-height clearance — live Atlas 0/111
+    case clearance fields → Track B prerequisite (the launch report's "data
+    exists" claim was wrong; corrected here).
+  - **NEEDS QUINN:** P0-8 live analytics IDs / Sentry DSN (accounts).
+  - **GREEN (architect-verified 2026-06-20):** P0-7 data accuracy — availability
+    sweep working (hidden priceless parts: 51 GPU / 97 RAM / 49 storage / 11
+    mobo / 8 PSU / 11 case / etc.); confirm the GH Actions price-update cron is
+    passing.
+
 ## Track B (queued, NOT a frontend slice) — physical-fit data acquisition
 True physical-fit (GPU-length-in-case, cooler-height clearance, RAM clearance,
 radiator fit) is blocked on missing dimensions data with NO reliable in-repo
@@ -302,6 +341,9 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-19 | S9 re-scoped from physical-fit to data-backed compat depth; "A then B" (Quinn) | Atlas probe: physical-fit checks have 0% case-clearance data, no reliable source → would be no-ops/fabrication. Re-scoped S9 to GPU-connector (tdp≥300) + AM5-BIOS warnings (both data-backed) + S11 budget floor. True physical-fit moved to Track B (data-acquisition spike), queued behind S9. |
 | 2026-06-19 | S9 verdict PASS/CONTINUE (independent judge); committed local 1c6010d, NOT pushed | Cold-session judge re-ran G1-G5 green, tamper/boundary clean. Push deferred (= prod deploy, ask Quinn). |
 | 2026-06-19 | Slice 10 = full wizard-engine rework; add resolution Q + $500 floor ("go", Quinn) | Wizard `/api/ai-build` is a 2000-line procedural handler returning broken/partial builds. Rework into a clean fail-fast compatibility-aware allocator; add 1080p/1440p/4k question to size the GPU; lower floor to 500. Supersedes S9b. Same req/resp contract + new success:false failure path. |
+| 2026-06-20 | Run the whole P0 launch list through the loop (Quinn) | Drives off `memory/2026-06-20-launch-readiness-report.md`. Started as Slice 11 (2 disjoint lanes: durable share + trust pages). |
+| 2026-06-20 | P0 physical-clearance (GPU-len/cooler-height) BLOCKED, not in S11 (architect) | Live Atlas probe: cases 0/111 maxGpuLength, 0/111 maxCpuCoolerHeight, 0/111 radiatorSupport. Report's "data exists" was wrong. Only PSU-headroom is buildable (→ S12); GPU/cooler clearance needs Track B data acquisition. |
+| 2026-06-20 | Mobile P0 de-scoped (architect) | server.js has NO UA redirect to mobile.html → mobile users get the responsive index.html; mobile.html (3507 lines) is an orphan. P0-4 = verify/clean the responsive main app (S12), not sync the dead file. |
 
 ## Session log
 
