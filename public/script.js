@@ -15455,6 +15455,24 @@ class PartsDatabase {
                 p.valueScore = scores[i];
             });
 
+            // Listings sharing gpuModel + price land on identical (cx,cy); spread
+            // them in a small ring so each can be individually selected/highlighted.
+            const coincident = new Map();
+            visiblePts.forEach(p => {
+                const k = Math.round(p.cx) + ',' + Math.round(p.cy);
+                if (!coincident.has(k)) coincident.set(k, []);
+                coincident.get(k).push(p);
+            });
+            coincident.forEach(group => {
+                if (group.length <= 1) return;
+                const r = 7;
+                group.forEach((p, idx) => {
+                    const a = (Math.PI * 2 * idx) / group.length;
+                    p.cx += Math.cos(a) * r;
+                    p.cy += Math.sin(a) * r;
+                });
+            });
+
             // Grid + Y labels
             for (let i = 0; i <= 5; i++) {
                 const price = rMin + step * i;
