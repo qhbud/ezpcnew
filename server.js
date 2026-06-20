@@ -1484,2077 +1484,797 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// AI Part Selection API - Select parts based on wizard data
-app.post('/api/ai-build', async (req, res) => {
-    try {
-        const { budget, performance, storage, includeMonitor } = req.body;
+const AI_BUILD_MIN_BUDGET = 500;
+const AI_BUILD_MONITOR_MIN = 800;
+const AI_BUILD_UNLIMITED_BUDGET = 999999;
+const AI_BUILD_CORE_COMPONENTS = ['cpu', 'gpu', 'motherboard', 'ram', 'storage', 'psu', 'case'];
+const AI_BUILD_RESOLUTION_ORDER = ['1080p', '1440p', '4k'];
 
-        if (!db) {
-            return res.status(500).json({ error: 'Database not connected' });
-        }
+function aiBuildPrice(part) {
+    const price = Number(part?.currentPrice || part?.price || part?.basePrice);
+    return Number.isFinite(price) && price > 0 ? price : null;
+}
 
-        // Debug log object to track component selection
-        const debugLog = {
-            timestamp: new Date().toISOString(),
-            userChoices: {
-                budget: budget === 'Unlimited' || budget > 5000 ? 'Unlimited' : `$${budget}`,
-                performanceType: performance === 'multi' ? 'Multi-threaded workloads (Productivity, Rendering, etc.)' : 'Single-threaded/Gaming (High FPS, Fast response)',
-                storageRequired: `${storage}GB`,
-                includeMonitor: includeMonitor ? 'Yes' : 'No'
-            },
-            allocations: {},
-            selections: []
+function aiBuildName(part) {
+    return String(part?.name || part?.title || part?.gpuModel || part?.model || '').trim();
+}
+
+function aiBuildNormalize(value) {
+    return String(value || '').toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
+}
+
+function aiBuildIsAvailable(part) {
+    return Boolean(
+        part &&
+        part.hidden !== true &&
+        part.isAvailable !== false &&
+        aiBuildName(part) &&
+        aiBuildPrice(part)
+    );
+}
+
+function aiBuildUniqueParts(parts) {
+    const seen = new Set();
+    return parts.filter(part => {
+        const key = String(part?._id || part?.id || part?.asin || aiBuildName(part)).trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function aiBuildResolutionCeiling(budget, unlimited) {
+    if (unlimited || budget >= 2000) return '4k';
+    if (budget >= 1000) return '1440p';
+    return '1080p';
+}
+
+function normalizeAiBuildRequest(body = {}) {
+    const rawBudget = body.budget;
+    const unlimited = typeof rawBudget === 'string' && rawBudget.trim().toLowerCase() === 'unlimited';
+    const numericBudget = Number.parseInt(rawBudget, 10);
+    const treatAsUnlimited = unlimited || (Number.isFinite(numericBudget) && numericBudget > 5000);
+
+    if (!treatAsUnlimited && (!Number.isFinite(numericBudget) || numericBudget < AI_BUILD_MIN_BUDGET)) {
+        return {
+            error: `Minimum budget is $${AI_BUILD_MIN_BUDGET}`,
+            reason: 'invalid_budget'
         };
+    }
 
-        // Handle budget: could be a number, 'Unlimited' string, or > 5000
-        let maxBudget;
-        if (budget === 'Unlimited' || budget > 5000) {
-            maxBudget = 999999;
-        } else {
-            maxBudget = parseInt(budget);
-            if (isNaN(maxBudget) || maxBudget < 1000) {
-                return res.status(400).json({ error: 'Minimum budget is $1000' });
-            }
+    const storage = Number.parseInt(body.storage, 10);
+    if (!Number.isFinite(storage) || storage <= 0) {
+        return {
+            error: 'Storage must be a positive number of gigabytes',
+            reason: 'invalid_storage'
+        };
+    }
+
+    const maxBudget = treatAsUnlimited ? AI_BUILD_UNLIMITED_BUDGET : numericBudget;
+    const ceiling = aiBuildResolutionCeiling(maxBudget, treatAsUnlimited);
+    const requestedResolution = String(body.resolution || '').trim().toLowerCase();
+    const requestedIndex = AI_BUILD_RESOLUTION_ORDER.indexOf(requestedResolution);
+    const ceilingIndex = AI_BUILD_RESOLUTION_ORDER.indexOf(ceiling);
+    const resolution = requestedIndex < 0
+        ? ceiling
+        : AI_BUILD_RESOLUTION_ORDER[Math.min(requestedIndex, ceilingIndex)];
+    const performance = body.performance === 'multi' ? 'multi' : 'single';
+    const includeMonitor = Boolean(body.includeMonitor) &&
+        (treatAsUnlimited || maxBudget >= AI_BUILD_MONITOR_MIN);
+
+    return {
+        budget: treatAsUnlimited ? 'Unlimited' : maxBudget,
+        maxBudget,
+        unlimited: treatAsUnlimited,
+        performance,
+        storage,
+        includeMonitor,
+        resolution,
+        requestedResolution: requestedResolution || null,
+        resolutionCeiling: ceiling
+    };
+}
+
+function allocateBudget(budget, performance, resolution) {
+    const profiles = {
+        single: {
+            '1080p': { gpu: 0.34, cpu: 0.20, motherboard: 0.11, ram: 0.10, storage: 0.09, psu: 0.07, case: 0.05, cooler: 0.04 },
+            '1440p': { gpu: 0.42, cpu: 0.18, motherboard: 0.10, ram: 0.08, storage: 0.08, psu: 0.07, case: 0.04, cooler: 0.03 },
+            '4k': { gpu: 0.50, cpu: 0.16, motherboard: 0.09, ram: 0.07, storage: 0.07, psu: 0.06, case: 0.03, cooler: 0.02 }
+        },
+        multi: {
+            '1080p': { gpu: 0.22, cpu: 0.29, motherboard: 0.12, ram: 0.15, storage: 0.09, psu: 0.06, case: 0.04, cooler: 0.03 },
+            '1440p': { gpu: 0.30, cpu: 0.26, motherboard: 0.11, ram: 0.13, storage: 0.08, psu: 0.06, case: 0.035, cooler: 0.025 },
+            '4k': { gpu: 0.38, cpu: 0.23, motherboard: 0.10, ram: 0.11, storage: 0.07, psu: 0.06, case: 0.03, cooler: 0.02 }
         }
+    };
+    const weights = profiles[performance][resolution];
+    const amounts = Object.fromEntries(
+        Object.entries(weights).map(([component, weight]) => [component, budget * weight])
+    );
 
-        const storageGB = parseInt(storage);
-        if (isNaN(storageGB) || storageGB < 0) {
-            return res.status(400).json({ error: 'Invalid storage value' });
+    return { weights, amounts };
+}
+
+function aiBuildCpuPerformance(cpu, performance) {
+    const preferred = performance === 'multi'
+        ? Number(cpu?.multiThreadPerformance ?? cpu?.multiThreadScore)
+        : Number(cpu?.singleCorePerformance ?? cpu?.singleThreadScore);
+    return Number.isFinite(preferred) && preferred > 0 ? preferred : 0;
+}
+
+function aiBuildRamCapacity(ram) {
+    const capacity = Number.parseFloat(ram?.totalCapacity ?? ram?.capacity);
+    return Number.isFinite(capacity) && capacity > 0 ? capacity : 0;
+}
+
+function aiBuildMotherboardMemoryTypes(motherboard) {
+    const raw = motherboard?.specifications?.memoryType || motherboard?.memoryType || [];
+    return (Array.isArray(raw) ? raw : [raw]).map(aiBuildNormalize).filter(Boolean);
+}
+
+function aiBuildMotherboardMaxMemory(motherboard) {
+    const candidates = [
+        motherboard?.maxMemory,
+        motherboard?.maxRam,
+        motherboard?.maxMemoryCapacity,
+        motherboard?.specifications?.maxMemory
+    ];
+    for (const candidate of candidates) {
+        const parsed = Number.parseFloat(candidate);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return null;
+}
+
+function aiBuildRamIsDesktop(ram) {
+    const formFactor = aiBuildNormalize(ram?.specifications?.formFactor);
+    const text = aiBuildNormalize(`${aiBuildName(ram)} ${ram?.kitConfiguration || ''}`);
+    if (
+        formFactor.includes('SODIMM') ||
+        text.includes('SODIMM') ||
+        text.includes('LAPTOP') ||
+        text.includes('NOTEBOOK') ||
+        text.includes('SERVER') ||
+        text.includes('LRDIMM') ||
+        text.includes('REGISTEREDDIMM')
+    ) {
+        return false;
+    }
+    return true;
+}
+
+function aiBuildMemoryMatches(motherboard, ram) {
+    const ramType = aiBuildNormalize(ram?.memoryType);
+    const supported = aiBuildMotherboardMemoryTypes(motherboard);
+    if (!ramType || supported.length === 0) return false;
+    return supported.some(type => type.includes(ramType) || ramType.includes(type));
+}
+
+function aiBuildCaseFitsMotherboard(motherboard, pcCase) {
+    const motherboardFormFactor = aiBuildNormalize(motherboard?.formFactor);
+    const caseFormFactors = Array.isArray(pcCase?.formFactor) ? pcCase.formFactor : [pcCase?.formFactor];
+    if (!motherboardFormFactor || caseFormFactors.every(value => !value)) return false;
+
+    const motherboardIsItx = motherboardFormFactor.includes('ITX') && !motherboardFormFactor.includes('ATX');
+    const motherboardIsMatx = motherboardFormFactor.includes('MATX') || motherboardFormFactor.includes('MICROATX');
+    const motherboardIsEatx = motherboardFormFactor.includes('EATX');
+    const motherboardIsAtx = !motherboardIsItx && !motherboardIsMatx &&
+        !motherboardIsEatx && motherboardFormFactor.includes('ATX');
+
+    return caseFormFactors.some(value => {
+        const caseFormFactor = aiBuildNormalize(value);
+        const caseIsItx = caseFormFactor.includes('ITX') && !caseFormFactor.includes('ATX');
+        const caseIsMatx = caseFormFactor.includes('MATX') || caseFormFactor.includes('MICROATX');
+        const caseIsEatx = caseFormFactor.includes('EATX');
+        const caseIsAtx = !caseIsItx && !caseIsMatx &&
+            !caseIsEatx && caseFormFactor.includes('ATX');
+
+        return caseIsEatx ||
+            (caseIsAtx && (motherboardIsAtx || motherboardIsMatx || motherboardIsItx)) ||
+            (caseIsMatx && (motherboardIsMatx || motherboardIsItx)) ||
+            (caseIsItx && motherboardIsItx);
+    });
+}
+
+function aiBuildCaseGpuLimit(pcCase) {
+    const candidates = [
+        pcCase?.maxGpuLength,
+        pcCase?.gpuLength,
+        pcCase?.maxVideoCardLength,
+        pcCase?.specifications?.maxGpuLength,
+        pcCase?.specifications?.gpuClearance
+    ];
+    for (const candidate of candidates) {
+        const parsed = Number.parseFloat(candidate);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return null;
+}
+
+function aiBuildCaseFitsGpu(pcCase, gpu) {
+    const limit = aiBuildCaseGpuLimit(pcCase);
+    const gpuLength = Number.parseFloat(gpu?.length);
+    if (!limit || !Number.isFinite(gpuLength) || gpuLength <= 0) return true;
+    return gpuLength <= limit;
+}
+
+function aiBuildCpuHasStockCooler(cpu) {
+    return cpu?.coolerIncluded === true || cpu?.includesCooler === true;
+}
+
+function aiBuildCoolerFitsCpu(cooler, cpu) {
+    const sockets = cooler?.socketCompatibility || cooler?.compatibleSockets || [];
+    const normalizedSockets = (Array.isArray(sockets) ? sockets : [sockets]).map(aiBuildNormalize);
+    return normalizedSockets.includes(aiBuildNormalize(cpu?.socket));
+}
+
+function ceilTo50(value) {
+    return Math.ceil(value / 50) * 50;
+}
+
+function deriveRecommendedPsuWattage(gpu, cpu) {
+    const gpuTdp = Number.parseFloat(gpu?.tdp);
+    if (!Number.isFinite(gpuTdp) || gpuTdp <= 0) return null;
+    const cpuTdp = getCPUTDP(cpu);
+    // Required PSU = GPU TDP + CPU TDP + 150W system overhead, then 20% transient/headroom margin.
+    return ceilTo50((gpuTdp + cpuTdp + 150) * 1.20);
+}
+
+function aiBuildPartFeatureScore(part, type, context = {}) {
+    if (!part) return 0;
+    if (type === 'gpu') return getGpuPerformance(part) || 0;
+    if (type === 'cpu') return aiBuildCpuPerformance(part, context.performance);
+    if (type === 'ram') {
+        const capacity = aiBuildRamCapacity(part);
+        const speed = Number(part.speedMHz || part.speed) || 0;
+        return capacity + Math.min(speed / 1000, 10);
+    }
+    if (type === 'storage') {
+        const capacity = Number(part.capacity || part.capacityGB) || 0;
+        const text = `${part.type || ''} ${part.storageType || ''} ${aiBuildName(part)}`;
+        const solidStateBonus = /SSD|NVME|M\.2/i.test(text) ? 1500 : 0;
+        return capacity + solidStateBonus;
+    }
+    if (type === 'motherboard') {
+        const slots = Number(part.ramSlots || part.memorySlots || 0) +
+            Number(part.m2Slots || 0) * 2 +
+            Number(part.pcieSlots || 0);
+        const networking = JSON.stringify(part.networking || '');
+        return 1 + slots + (/WIFI/i.test(networking) ? 2 : 0);
+    }
+    if (type === 'psu') {
+        const wattage = Number.parseInt(part.wattage, 10) || 0;
+        const text = `${part.efficiency || ''} ${part.certification || ''} ${aiBuildName(part)}`;
+        const efficiencyBonus = /TITANIUM/i.test(text) ? 5 :
+            /PLATINUM/i.test(text) ? 4 :
+                /GOLD/i.test(text) ? 3 :
+                    /SILVER/i.test(text) ? 2 :
+                        /BRONZE/i.test(text) ? 1 : 0;
+        return wattage / 100 + efficiencyBonus;
+    }
+    if (type === 'case') {
+        const text = `${aiBuildName(part)} ${JSON.stringify(part.features || {})} ${JSON.stringify(part.specifications || {})}`;
+        const fans = Number(part.includedFans || part.fansIncluded || 0);
+        return 1 + fans + (/MESH|AIRFLOW/i.test(text) ? 2 : 0) + (/TEMPERED/i.test(text) ? 1 : 0);
+    }
+    if (type === 'cooler') {
+        const performance = Number(part.performance);
+        if (Number.isFinite(performance) && performance > 0) return performance;
+        const text = `${part.coolerType || ''} ${aiBuildName(part)}`;
+        return /360|420/.test(text) ? 5 : /280/.test(text) ? 4 : /240/.test(text) ? 3 : /AIO|LIQUID/i.test(text) ? 2 : 1;
+    }
+    return 1;
+}
+
+function aiBuildRankForTarget(parts, target, type, context = {}) {
+    if (parts.length === 0) return [];
+    const qualities = parts.map(part => aiBuildPartFeatureScore(part, type, context));
+    const maxQuality = Math.max(...qualities, 1);
+    const minPrice = Math.min(...parts.map(aiBuildPrice));
+
+    return parts.map((part, index) => {
+        const price = aiBuildPrice(part);
+        const quality = qualities[index] / maxQuality;
+        const value = (qualities[index] || 1) / price;
+        const targetFit = context.unlimited
+            ? 1
+            : Math.max(0, 1 - Math.abs(price - target) / Math.max(target, minPrice, 1));
+        return {
+            part,
+            score: quality * 0.68 + targetFit * 0.22 + Math.min(value, 1) * 0.10
+        };
+    }).sort((a, b) =>
+        b.score - a.score ||
+        aiBuildPrice(a.part) - aiBuildPrice(b.part)
+    ).map(entry => entry.part);
+}
+
+function aiBuildStrategicCandidates(parts, target, type, context = {}, limit = 10) {
+    if (parts.length === 0) return [];
+    const ranked = aiBuildRankForTarget(parts, target, type, context);
+    const cheapest = [...parts].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b)).slice(0, 2);
+    return aiBuildUniqueParts([...ranked.slice(0, limit), ...cheapest]);
+}
+
+function selectGpuForTarget(gpus, target, resolution, context = {}) {
+    const cheapestPrice = Math.min(...gpus.map(aiBuildPrice));
+    const cap = context.unlimited
+        ? Infinity
+        : Math.max(cheapestPrice, target * (context.capMultiplier || 1.10));
+    const withinCap = gpus.filter(gpu => aiBuildPrice(gpu) <= cap && getGpuPerformance(gpu) !== null);
+    const pool = withinCap.length > 0
+        ? withinCap
+        : [...gpus].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b)).slice(0, 5);
+    return aiBuildStrategicCandidates(pool, target, 'gpu', { ...context, resolution }, 12);
+}
+
+function selectCpu(cpus, target, performance, context = {}) {
+    const usable = cpus.filter(cpu => cpu.socket && aiBuildCpuPerformance(cpu, performance) > 0);
+    const cheapestPrice = Math.min(...usable.map(aiBuildPrice));
+    const cap = context.unlimited
+        ? Infinity
+        : Math.max(cheapestPrice, target * (context.capMultiplier || 1.25));
+    const withinCap = usable.filter(cpu => aiBuildPrice(cpu) <= cap);
+    const pool = withinCap.length > 0
+        ? withinCap
+        : [...usable].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b)).slice(0, 5);
+    return aiBuildStrategicCandidates(pool, target, 'cpu', { ...context, performance }, 10);
+}
+
+function selectCompatibleMotherboard(motherboards, cpu, target, context = {}) {
+    const cpuSocket = aiBuildNormalize(cpu.socket);
+    const compatible = motherboards.filter(motherboard =>
+        aiBuildNormalize(motherboard.socket) === cpuSocket &&
+        motherboard.formFactor &&
+        aiBuildMotherboardMemoryTypes(motherboard).length > 0
+    );
+    return aiBuildStrategicCandidates(compatible, target, 'motherboard', context, 4);
+}
+
+function selectRam(rams, motherboard, target, performance, context = {}) {
+    const maxMemory = aiBuildMotherboardMaxMemory(motherboard);
+    const compatible = rams.filter(ram =>
+        aiBuildRamIsDesktop(ram) &&
+        aiBuildMemoryMatches(motherboard, ram) &&
+        aiBuildRamCapacity(ram) > 0 &&
+        (!maxMemory || aiBuildRamCapacity(ram) <= maxMemory)
+    );
+    const ranked = aiBuildStrategicCandidates(compatible, target, 'ram', { ...context, performance }, 8);
+    return context.minimum
+        ? [...compatible].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0] || null
+        : ranked[0] || null;
+}
+
+function selectStorage(storages, requiredCapacity, target, context = {}) {
+    const compatible = storages.filter(storage =>
+        Number(storage.capacity || storage.capacityGB) >= requiredCapacity
+    );
+    const ranked = aiBuildStrategicCandidates(compatible, target, 'storage', context, 8);
+    return context.minimum
+        ? [...compatible].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0] || null
+        : ranked[0] || null;
+}
+
+function selectPsu(psus, gpu, cpu, target, context = {}) {
+    const requiredWattage = deriveRecommendedPsuWattage(gpu, cpu);
+    if (!requiredWattage) return null;
+    const compatible = psus.filter(psu => Number.parseInt(psu.wattage, 10) >= requiredWattage);
+    const ranked = aiBuildStrategicCandidates(compatible, target, 'psu', context, 8);
+    return context.minimum
+        ? [...compatible].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0] || null
+        : ranked[0] || null;
+}
+
+function selectCase(cases, motherboard, gpu, target, context = {}) {
+    const compatible = cases.filter(pcCase =>
+        aiBuildCaseFitsMotherboard(motherboard, pcCase) &&
+        aiBuildCaseFitsGpu(pcCase, gpu)
+    );
+    if (compatible.length === 0) return null;
+    if (context.minimum) {
+        return [...compatible].sort((a, b) => {
+            const valueA = aiBuildPartFeatureScore(a, 'case') / aiBuildPrice(a);
+            const valueB = aiBuildPartFeatureScore(b, 'case') / aiBuildPrice(b);
+            return valueB - valueA || aiBuildPrice(a) - aiBuildPrice(b);
+        })[0];
+    }
+    return aiBuildStrategicCandidates(compatible, target, 'case', context, 8)[0] || null;
+}
+
+function selectCooler(coolers, cpu, target, context = {}) {
+    if (aiBuildCpuHasStockCooler(cpu)) return null;
+    const compatible = coolers.filter(cooler => aiBuildCoolerFitsCpu(cooler, cpu));
+    if (compatible.length === 0) return null;
+    if (context.minimum) {
+        return [...compatible].sort((a, b) => {
+            const valueA = aiBuildPartFeatureScore(a, 'cooler') / aiBuildPrice(a);
+            const valueB = aiBuildPartFeatureScore(b, 'cooler') / aiBuildPrice(b);
+            return valueB - valueA || aiBuildPrice(a) - aiBuildPrice(b);
+        })[0];
+    }
+    return aiBuildStrategicCandidates(compatible, target, 'cooler', context, 8)[0] || null;
+}
+
+function assembleAndValidate(build, context = {}) {
+    const errors = [];
+    for (const component of AI_BUILD_CORE_COMPONENTS) {
+        if (!build[component]) errors.push(`missing_${component}`);
+    }
+    if (build.cpu && !aiBuildCpuHasStockCooler(build.cpu) && !build.cooler) {
+        errors.push('missing_cooler');
+    }
+
+    for (const [component, part] of Object.entries(build)) {
+        if (!part || component === 'monitor') continue;
+        if (!aiBuildName(part)) errors.push(`${component}_missing_name`);
+        if (!aiBuildPrice(part)) errors.push(`${component}_invalid_price`);
+    }
+
+    if (build.cpu && build.motherboard &&
+        aiBuildNormalize(build.cpu.socket) !== aiBuildNormalize(build.motherboard.socket)) {
+        errors.push('cpu_motherboard_socket');
+    }
+    if (build.ram && build.motherboard && !aiBuildMemoryMatches(build.motherboard, build.ram)) {
+        errors.push('ram_memory_type');
+    }
+    if (build.ram && build.motherboard) {
+        const maxMemory = aiBuildMotherboardMaxMemory(build.motherboard);
+        if (maxMemory && aiBuildRamCapacity(build.ram) > maxMemory) errors.push('ram_capacity');
+    }
+    if (build.psu && build.gpu && build.cpu) {
+        const requiredWattage = deriveRecommendedPsuWattage(build.gpu, build.cpu);
+        if (!requiredWattage || Number.parseInt(build.psu.wattage, 10) < requiredWattage) {
+            errors.push('psu_wattage');
         }
+    }
+    if (build.case && build.motherboard && !aiBuildCaseFitsMotherboard(build.motherboard, build.case)) {
+        errors.push('case_form_factor');
+    }
+    if (build.case && build.gpu && !aiBuildCaseFitsGpu(build.case, build.gpu)) {
+        errors.push('case_gpu_length');
+    }
+    if (build.cooler && build.cpu && !aiBuildCoolerFitsCpu(build.cooler, build.cpu)) {
+        errors.push('cooler_socket');
+    }
 
-        // Budget allocation percentages (adjustable based on performance priority)
-        let allocations = {};
+    const totalCost = Object.values(build)
+        .filter(Boolean)
+        .reduce((sum, part) => sum + (aiBuildPrice(part) || 0), 0);
+    if (!context.unlimited && Number.isFinite(context.budget) && totalCost > context.budget + 0.001) {
+        errors.push('over_budget');
+    }
 
-        if (performance === 'multi') {
-            // Multi-threaded workloads: Prioritize CPU and RAM
-            allocations = {
-                cpu: 0.25,
-                gpu: 0.20,
-                motherboard: 0.12,
-                ram: 0.15,
-                storage: 0.10,
-                psu: 0.08,
-                cooler: 0.05,
-                case: 0.05
-            };
-            debugLog.allocations.strategy = 'Multi-threaded workloads (prioritize CPU and RAM)';
-        } else {
-            // Single-threaded/gaming: Prioritize GPU heavily
-            allocations = {
-                cpu: 0.18,
-                gpu: 0.38,       // Increased from 30% to 38%
-                motherboard: 0.12,
-                ram: 0.10,       // Reduced from 12% to 10%
-                storage: 0.10,
-                psu: 0.06,       // Reduced from 8% to 6%
-                cooler: 0.03,    // Reduced from 5% to 3%
-                case: 0.03       // Reduced from 5% to 3%
-            };
-            debugLog.allocations.strategy = 'Single-threaded/Gaming (heavily prioritize GPU)';
-        }
+    return {
+        valid: errors.length === 0,
+        errors,
+        totalCost
+    };
+}
 
-        // Add budget allocations to debug log
-        debugLog.allocations.percentages = allocations;
-        debugLog.allocations.budgetAmounts = Object.fromEntries(
-            Object.entries(allocations).map(([key, percent]) => [key, `$${(maxBudget * percent).toFixed(2)}`])
+function aiBuildScore(build, validation, allocation, context) {
+    const gpuPerformance = getGpuPerformance(build.gpu) || 0;
+    const cpuMax = context.cpuMaxPerformance || 1;
+    const cpuPerformance = aiBuildCpuPerformance(build.cpu, context.performance) / cpuMax;
+    const utilization = context.unlimited ? 1 : Math.min(validation.totalCost / context.budget, 1);
+    const ramScore = Math.min(aiBuildRamCapacity(build.ram) / 64, 1);
+    const storageCapacity = Number(build.storage?.capacity || build.storage?.capacityGB) || 0;
+    const storageScore = Math.min(storageCapacity / Math.max(context.storage, 1000), 2) / 2;
+    const psuRequired = deriveRecommendedPsuWattage(build.gpu, build.cpu) || 1;
+    const psuScore = Math.min(Number.parseInt(build.psu?.wattage, 10) / psuRequired, 1.5) / 1.5;
+
+    return gpuPerformance * allocation.weights.gpu * 3 +
+        cpuPerformance * allocation.weights.cpu * 3 +
+        ramScore * allocation.weights.ram +
+        storageScore * allocation.weights.storage +
+        psuScore * allocation.weights.psu +
+        utilization * 0.35;
+}
+
+function aiBuildCreateCandidate(catalogs, gpu, cpu, motherboard, allocation, request, minimum) {
+    const selectionContext = {
+        unlimited: request.unlimited,
+        performance: request.performance,
+        minimum
+    };
+    const build = {
+        cpu,
+        gpu,
+        motherboard,
+        ram: selectRam(catalogs.rams, motherboard, allocation.amounts.ram, request.performance, selectionContext),
+        storage: selectStorage(catalogs.storages, request.storage, allocation.amounts.storage, selectionContext),
+        psu: selectPsu(catalogs.psus, gpu, cpu, allocation.amounts.psu, selectionContext),
+        case: selectCase(catalogs.cases, motherboard, gpu, allocation.amounts.case, selectionContext),
+        cooler: selectCooler(catalogs.coolers, cpu, allocation.amounts.cooler, selectionContext)
+    };
+    if (!build.cooler) delete build.cooler;
+    return build;
+}
+
+function buildCompatibleTower(catalogs, towerBudget, request, allocation) {
+    const cpuMaxPerformance = Math.max(
+        ...catalogs.cpus.map(cpu => aiBuildCpuPerformance(cpu, request.performance)),
+        1
+    );
+    const expansionSteps = request.unlimited ? [Infinity] : [1, 1.25, 1.6, Infinity];
+
+    for (const capMultiplier of expansionSteps) {
+        const gpuCandidates = selectGpuForTarget(
+            catalogs.gpus,
+            allocation.amounts.gpu,
+            request.resolution,
+            { unlimited: request.unlimited, capMultiplier }
         );
+        const cpuCandidates = selectCpu(
+            catalogs.cpus,
+            allocation.amounts.cpu,
+            request.performance,
+            { unlimited: request.unlimited, capMultiplier }
+        );
+        const candidates = [];
 
-        const selectedParts = {};
-        let totalCost = 0;
-
-        // CRITICAL: For budget builds (<$1500), select RAM FIRST to avoid DDR5 trap
-        // DDR5 is expensive and forces expensive AM5/LGA1700 platforms
-        // By selecting DDR4 first, we ensure affordable CPU/motherboard compatibility
-        const isBudgetBuild = maxBudget < 1500;
-        let ramMemoryType = null; // Will be set if we select RAM first
-
-        if (isBudgetBuild) {
-            console.log(`\n💰 Budget build detected ($${maxBudget}). Selecting RAM first to ensure DDR4 compatibility.`);
-
-            // Select affordable DDR4 RAM first
-            const ramBudget = maxBudget * allocations.ram;
-            const preferredCapacity = performance === 'multi' ? '32GB' : '16GB';
-
-            const ramDebug = {
-                component: 'RAM (Pre-selected for budget build)',
-                budget: `$${ramBudget.toFixed(2)}`,
-                searchCriteria: `Price: $0 - $${(ramBudget * 1.3).toFixed(2)} (30% buffer), Preferred: ${preferredCapacity}, DDR4 only`,
-                candidatesFound: 0,
-                topCandidates: []
-            };
-
-            // Search for DDR4 RAM only
-            const rams = await db.collection('rams').find({
-                $and: [
-                    { currentPrice: { $gt: 0, $lte: ramBudget * 1.3 } },
-                    {
-                        $or: [
-                            { memoryType: { $regex: 'DDR4', $options: 'i' } },
-                            { type: { $regex: 'DDR4', $options: 'i' } }
-                        ]
-                    }
-                ]
-            }).toArray();
-
-            ramDebug.candidatesFound = rams.length;
-
-            if (rams.length > 0) {
-                // Sort by capacity (prefer requested capacity), then by price
-                rams.sort((a, b) => {
-                    const aCapacity = parseInt(a.totalCapacity || a.capacity || '0');
-                    const bCapacity = parseInt(b.totalCapacity || b.capacity || '0');
-                    const targetCapacity = parseInt(preferredCapacity);
-
-                    // Prefer RAM closest to target capacity
-                    const aDiff = Math.abs(aCapacity - targetCapacity);
-                    const bDiff = Math.abs(bCapacity - targetCapacity);
-
-                    if (aDiff !== bDiff) return aDiff - bDiff;
-
-                    // If same capacity difference, prefer cheaper
-                    return parseFloat(a.currentPrice || a.price) - parseFloat(b.currentPrice || b.price);
-                });
-
-                selectedParts.ram = rams[0];
-                ramMemoryType = 'DDR4'; // Lock to DDR4 for CPU/motherboard selection
-                const ramPrice = parseFloat(selectedParts.ram.currentPrice || selectedParts.ram.price);
-                totalCost += ramPrice;
-
-                ramDebug.selected = {
-                    name: selectedParts.ram.name || selectedParts.ram.title,
-                    price: `$${ramPrice.toFixed(2)}`,
-                    capacity: selectedParts.ram.totalCapacity || selectedParts.ram.capacity,
-                    type: selectedParts.ram.memoryType || selectedParts.ram.type,
-                    reason: `Pre-selected DDR4 for budget build compatibility`
-                };
-
-                ramDebug.topCandidates = rams.slice(0, 5).map(ram => ({
-                    name: ram.name || ram.title,
-                    price: `$${parseFloat(ram.currentPrice || ram.price).toFixed(2)}`,
-                    capacity: ram.totalCapacity || ram.capacity
-                }));
-
-                console.log(`✓ Pre-selected RAM: ${selectedParts.ram.name || selectedParts.ram.title} (${ramMemoryType}) - $${ramPrice.toFixed(2)}`);
-            } else {
-                ramDebug.selected = null;
-                ramDebug.reason = 'ERROR: No DDR4 RAM found in budget';
-                console.error('ERROR: No DDR4 RAM found for budget build!');
-            }
-
-            debugLog.selections.push(ramDebug);
-        }
-
-        // 1. Select GPU - prioritize the best GPU within budget allocation
-        const gpuBudget = maxBudget * allocations.gpu;
-        const gpuDebug = {
-            component: 'GPU',
-            budget: `$${gpuBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(gpuBudget * 1.3).toFixed(2)} (30% buffer), Available only`,
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        // Get all GPU collections
-        const gpuCollections = await db.listCollections({ name: /^gpus/ }).toArray();
-        let allGPUs = [];
-
-        for (const collection of gpuCollections) {
-            const gpus = await db.collection(collection.name).find({
-                currentPrice: { $gt: 0, $lte: gpuBudget * 1.3 },
-                isAvailable: { $ne: false }
-            }).toArray();
-            const filtered = gpus.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
-            allGPUs = allGPUs.concat(filtered);
-            if (filtered.length > 0) {
-                gpuDebug.candidatesFound += filtered.length;
-            }
-        }
-
-        // Calculate performance score for each GPU using benchmark data
-        allGPUs.forEach(gpu => {
-            gpu.performanceScore = getGpuPerformance(gpu);
-        });
-
-        // Sort by performance score descending, fallback to price if no score
-        allGPUs.sort((a, b) => {
-            const perfA = parseFloat(a.performanceScore) || 0;
-            const perfB = parseFloat(b.performanceScore) || 0;
-
-            // If both have performance scores, sort by performance
-            if (perfA > 0 && perfB > 0) {
-                return perfB - perfA;
-            }
-
-            // If only one has a performance score, prioritize it
-            if (perfA > 0) return -1;
-            if (perfB > 0) return 1;
-
-            // If neither has performance score, sort by price
-            return parseFloat(b.currentPrice || b.price) - parseFloat(a.currentPrice || a.price);
-        });
-
-        console.log(`Found ${allGPUs.length} GPUs in budget. Top 5 by performance:`);
-        allGPUs.slice(0, 5).forEach((gpu, idx) => {
-            const perfScore = gpu.performanceScore ? `${(gpu.performanceScore * 100).toFixed(1)}%` : 'N/A';
-            console.log(`  ${idx + 1}. ${gpu.name || gpu.title} - ${perfScore} performance, $${parseFloat(gpu.currentPrice || gpu.price).toFixed(2)}`);
-        });
-
-        // Store top 5 candidates for debugging
-        gpuDebug.topCandidates = allGPUs.slice(0, 5).map(gpu => ({
-            name: gpu.name || gpu.title,
-            price: `$${parseFloat(gpu.currentPrice || gpu.price).toFixed(2)}`,
-            model: extractGPUModel(gpu.name || gpu.title),
-            performanceScore: gpu.performanceScore || 'N/A'
-        }));
-
-        if (allGPUs.length > 0) {
-            selectedParts.gpu = allGPUs[0];
-
-            // For unlimited budget, set GPU quantity to 2
-            if (maxBudget === 999999) {
-                selectedParts.gpu.quantity = 2;
-            }
-
-            const gpuQuantity = selectedParts.gpu.quantity || 1;
-            const unitGpuPrice = parseFloat(selectedParts.gpu.currentPrice || selectedParts.gpu.price);
-            const gpuPrice = unitGpuPrice * gpuQuantity;
-            totalCost += gpuPrice;
-            const perfScore = selectedParts.gpu.performanceScore;
-            gpuDebug.selected = {
-                name: selectedParts.gpu.name || selectedParts.gpu.title,
-                price: `$${gpuPrice.toFixed(2)}`,
-                unitPrice: `$${unitGpuPrice.toFixed(2)}`,
-                quantity: gpuQuantity,
-                model: extractGPUModel(selectedParts.gpu.name || selectedParts.gpu.title),
-                performanceScore: perfScore || 'N/A',
-                reason: perfScore ?
-                    `Best performance within budget (Score: ${perfScore})${gpuQuantity > 1 ? ` x${gpuQuantity} for multi-GPU` : ''}` :
-                    `Best GPU within budget by price (no performance data available)${gpuQuantity > 1 ? ` x${gpuQuantity} for multi-GPU` : ''}`
-            };
-            console.log(`Selected GPU: ${selectedParts.gpu.name || selectedParts.gpu.title} (Performance: ${perfScore || 'N/A'}, Price: $${unitGpuPrice.toFixed(2)} x${gpuQuantity} = $${gpuPrice.toFixed(2)})`);
-        } else {
-            gpuDebug.selected = null;
-            gpuDebug.reason = 'No GPUs found within budget';
-        }
-
-        debugLog.selections.push(gpuDebug);
-
-        // 2. Select CPU - prioritize the best CPU within budget allocation
-        const cpuBudget = maxBudget * allocations.cpu;
-        const performanceMetric = performance === 'multi' ? 'multiThreadPerformance' : 'singleCorePerformance';
-        const performanceLabel = performance === 'multi' ? 'Multi-thread' : 'Single-thread';
-
-        const cpuDebug = {
-            component: 'CPU',
-            budget: `$${cpuBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(cpuBudget * 1.3).toFixed(2)} (30% buffer), Available only`,
-            performanceMetric: `Sorting by ${performanceLabel} performance`,
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        // Get all CPU collections
-        const cpuCollections = await db.listCollections({ name: /^cpus/ }).toArray();
-        let allCPUs = [];
-
-        // For unlimited budget, remove price limit to get all CPUs
-        const cpuQuery = maxBudget === 999999 ?
-            { currentPrice: { $gt: 0 }, isAvailable: { $ne: false } } :
-            { currentPrice: { $gt: 0, $lte: cpuBudget * 1.3 }, isAvailable: { $ne: false } };
-
-        for (const collection of cpuCollections) {
-            const cpus = await db.collection(collection.name).find(cpuQuery).toArray();
-            allCPUs = allCPUs.concat(cpus);
-        }
-
-        // Also check main cpus collection
-        const mainCpus = await db.collection('cpus').find(cpuQuery).toArray();
-        allCPUs = allCPUs.concat(mainCpus);
-
-        // For budget builds, EXCLUDE DDR5-only CPUs to ensure motherboard compatibility
-        if (isBudgetBuild) {
-            const ddr4Cpus = allCPUs.filter(cpu => {
-                const name = (cpu.name || cpu.title || '').toLowerCase();
-                const socket = (cpu.socket || '').toLowerCase();
-
-                // Intel: LGA1851 (Ultra/Core 200 series) is DDR5-only, EXCLUDE
-                const isIntelDDR5Only = socket.includes('1851');
-
-                // AMD: AM5 (Ryzen 7000/9000) is DDR5-only, EXCLUDE
-                const isAmdDDR5Only = (
-                    socket.includes('am5') ||
-                    name.includes('7950') || name.includes('7900') ||
-                    name.includes('7800') || name.includes('7700') ||
-                    name.includes('7600') || name.includes('9950') ||
-                    name.includes('9900') || name.includes('9800') ||
-                    name.includes('9700') || name.includes('9600')
+        for (const gpu of gpuCandidates) {
+            for (const cpu of cpuCandidates) {
+                const motherboards = selectCompatibleMotherboard(
+                    catalogs.motherboards,
+                    cpu,
+                    allocation.amounts.motherboard,
+                    { unlimited: request.unlimited }
                 );
-
-                // Intel LGA1700 (12th/13th/14th gen) supports BOTH DDR4 and DDR5, KEEP
-                // AMD AM4 (Ryzen 5000) is DDR4-only, KEEP
-                return !isIntelDDR5Only && !isAmdDDR5Only;
-            });
-
-            if (ddr4Cpus.length > 0) {
-                allCPUs = ddr4Cpus;
-                console.log(`💰 Budget build: Filtered to ${ddr4Cpus.length} DDR4-compatible CPUs (excluded DDR5-only platforms)`);
-            } else {
-                console.log('⚠️ Warning: No DDR4-compatible CPUs found for budget build, using all CPUs');
-            }
-        }
-
-        // For unlimited budget, prioritize DDR5-compatible CPUs (Intel 12th gen+, AMD Ryzen 7000+)
-        if (maxBudget === 999999) {
-            const ddr5Cpus = allCPUs.filter(cpu => {
-                const name = (cpu.name || cpu.title || '').toLowerCase();
-                const socket = (cpu.socket || '').toLowerCase();
-
-                // Intel: 12th gen (Alder Lake) and newer support DDR5 (LGA1700, LGA1851)
-                const isIntelDDR5 = (
-                    socket.includes('1700') || socket.includes('1851') ||
-                    name.includes('13th') || name.includes('14th') || name.includes('15th') ||
-                    name.match(/core.*[ui][359].*1[3-5]\d{3}/) // i3/i5/i9 13xxx, 14xxx, 15xxx series
-                );
-
-                // AMD: Ryzen 7000 series (AM5 socket) supports DDR5
-                const isAmdDDR5 = (
-                    socket.includes('am5') ||
-                    name.includes('7950') || name.includes('7900') ||
-                    name.includes('7800') || name.includes('7700') ||
-                    name.includes('7600') || name.includes('9950') ||
-                    name.includes('9900') || name.includes('9800') ||
-                    name.includes('9700') || name.includes('9600')
-                );
-
-                return isIntelDDR5 || isAmdDDR5;
-            });
-
-            if (ddr5Cpus.length > 0) {
-                allCPUs = ddr5Cpus;
-                console.log(`Unlimited budget: Filtered to ${ddr5Cpus.length} DDR5-compatible CPUs`);
-            } else {
-                console.log('Warning: No DDR5-compatible CPUs found, using all CPUs');
-            }
-        }
-
-        cpuDebug.candidatesFound = allCPUs.length;
-
-        // Sort by performance metric (single-thread or multi-thread) descending
-        // CPUs without the performance metric go to the end, then sort by price
-        allCPUs.sort((a, b) => {
-            const perfA = parseFloat(a[performanceMetric]) || 0;
-            const perfB = parseFloat(b[performanceMetric]) || 0;
-
-            // If both have performance scores, sort by performance
-            if (perfA > 0 && perfB > 0) {
-                return perfB - perfA;
-            }
-
-            // If only one has a performance score, prioritize it
-            if (perfA > 0) return -1;
-            if (perfB > 0) return 1;
-
-            // If neither has performance score, sort by price
-            return parseFloat(b.currentPrice || b.price) - parseFloat(a.currentPrice || a.price);
-        });
-
-        // Store top 5 candidates for debugging
-        cpuDebug.topCandidates = allCPUs.slice(0, 5).map(cpu => ({
-            name: cpu.name || cpu.title,
-            price: `$${parseFloat(cpu.currentPrice || cpu.price).toFixed(2)}`,
-            manufacturer: cpu.manufacturer,
-            cores: cpu.cores,
-            singleCorePerformance: cpu.singleCorePerformance || 'N/A',
-            multiThreadPerformance: cpu.multiThreadPerformance || 'N/A',
-            selectedMetric: `${performanceLabel}: ${cpu[performanceMetric] || 'N/A'}`
-        }));
-
-        if (allCPUs.length > 0) {
-            selectedParts.cpu = allCPUs[0];
-            const cpuPrice = parseFloat(selectedParts.cpu.currentPrice || selectedParts.cpu.price);
-            totalCost += cpuPrice;
-            const selectedPerf = selectedParts.cpu[performanceMetric];
-            cpuDebug.selected = {
-                name: selectedParts.cpu.name || selectedParts.cpu.title,
-                price: `$${cpuPrice.toFixed(2)}`,
-                manufacturer: selectedParts.cpu.manufacturer,
-                cores: selectedParts.cpu.cores,
-                singleCorePerformance: selectedParts.cpu.singleCorePerformance || 'N/A',
-                multiThreadPerformance: selectedParts.cpu.multiThreadPerformance || 'N/A',
-                reason: selectedPerf ?
-                    `Best ${performanceLabel} performance within budget (Score: ${selectedPerf})` :
-                    'Best CPU within budget by price (no performance data available)'
-            };
-        } else {
-            cpuDebug.selected = null;
-            cpuDebug.reason = 'No CPUs found within budget';
-        }
-
-        debugLog.selections.push(cpuDebug);
-
-        // 3. Select RAM (prioritize 32GB for multi, 16GB for single)
-        // Skip if RAM was already pre-selected for budget build
-        if (selectedParts.ram) {
-            console.log(`✓ Skipping RAM selection - already pre-selected for budget build`);
-        } else {
-            const ramBudget = maxBudget * allocations.ram;
-            const preferredCapacity = performance === 'multi' ? '32GB' : '16GB';
-
-        const ramDebug = {
-            component: 'RAM',
-            budget: `$${ramBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(ramBudget * 1.3).toFixed(2)} (30% buffer)`,
-            preferredCapacity: preferredCapacity,
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        // Build query without memory type requirement (motherboard not selected yet)
-        // Extract numeric capacity from preferredCapacity (e.g., "16GB" -> 16)
-        const numericCapacity = parseInt(preferredCapacity);
-
-        const ramQuery = {
-            currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-            capacity: { $gte: numericCapacity } // Search for capacity as number, not string
-        };
-
-        let rams = await db.collection('rams').find(ramQuery)
-            .sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-        // Filter out laptop RAM by checking product name
-        rams = rams.filter(ram => {
-            const name = (ram.name || ram.title || '').toLowerCase();
-            const formFactor = (ram.formFactor || '').toLowerCase();
-
-            // Check formFactor if it exists (prioritize this)
-            if (formFactor) {
-                // Exclude SODIMM (laptop RAM)
-                if (formFactor.includes('sodimm')) return false;
-                // Include DIMM (desktop RAM)
-                if (formFactor.includes('dimm')) return true;
-            }
-
-            // Fallback: Check product name for laptop keywords
-            const laptopKeywords = ['laptop', 'notebook', 'sodimm', 'so-dimm'];
-            for (const keyword of laptopKeywords) {
-                if (name.includes(keyword)) return false;
-            }
-
-            // If no laptop keywords found, assume it's desktop RAM
-            return true;
-        });
-
-        ramDebug.candidatesFound = rams.length;
-
-        // Fallback 1: Try without capacity filter
-        if (rams.length === 0) {
-            ramDebug.fallbackSearch = 'Removed capacity filter';
-            let allRams = await db.collection('rams').find({
-                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 }
-            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-            // Filter out laptop RAM
-            rams = allRams.filter(ram => {
-                const name = (ram.name || ram.title || '').toLowerCase();
-                const formFactor = (ram.formFactor || '').toLowerCase();
-                if (formFactor && formFactor.includes('sodimm')) return false;
-                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
-                return !laptopKeywords.some(kw => name.includes(kw));
-            });
-            ramDebug.candidatesFound = rams.length;
-        }
-
-        // Fallback 2: Try DDR4 specifically (usually more affordable)
-        if (rams.length === 0) {
-            ramDebug.fallbackSearch = 'Trying DDR4 specifically';
-
-            let allRams = await db.collection('rams').find({
-                currentPrice: { $gt: 0, $lte: ramBudget * 1.3 },
-                memoryType: { $regex: 'DDR4', $options: 'i' }
-            }).sort({ currentPrice: -1, price: -1 }).limit(50).toArray();
-
-            // Filter out laptop RAM
-            rams = allRams.filter(ram => {
-                const name = (ram.name || ram.title || '').toLowerCase();
-                const formFactor = (ram.formFactor || '').toLowerCase();
-                if (formFactor && formFactor.includes('sodimm')) return false;
-                const laptopKeywords = ['laptop', 'notebook', 'sodimm'];
-                return !laptopKeywords.some(kw => name.includes(kw));
-            });
-
-            ramDebug.candidatesFound = rams.length;
-        }
-
-        ramDebug.topCandidates = rams.slice(0, 5).map(ram => ({
-            name: ram.name || ram.title,
-            price: `$${parseFloat(ram.currentPrice || ram.price).toFixed(2)}`,
-            capacity: ram.capacity,
-            speed: ram.speed,
-            memoryType: ram.memoryType
-        }));
-
-        if (rams.length > 0) {
-            selectedParts.ram = rams[0];
-            const ramPrice = parseFloat(selectedParts.ram.currentPrice || selectedParts.ram.price);
-            totalCost += ramPrice;
-
-            // Set ramMemoryType for motherboard compatibility filtering
-            if (Array.isArray(selectedParts.ram.memoryType)) {
-                ramMemoryType = selectedParts.ram.memoryType[0];
-            } else {
-                ramMemoryType = selectedParts.ram.memoryType;
-            }
-
-            ramDebug.selected = {
-                name: selectedParts.ram.name || selectedParts.ram.title,
-                price: `$${ramPrice.toFixed(2)}`,
-                capacity: selectedParts.ram.capacity,
-                speed: selectedParts.ram.speed,
-                memoryType: selectedParts.ram.memoryType,
-                reason: ramDebug.fallbackSearch
-                    ? `Best RAM available (${ramDebug.fallbackSearch})`
-                    : `Best ${preferredCapacity} RAM within budget`
-            };
-            console.log(`Selected RAM: ${selectedParts.ram.name || selectedParts.ram.title} (${ramMemoryType})`);
-        } else {
-            ramDebug.selected = null;
-            ramDebug.reason = 'No RAM found within budget';
-        }
-
-            debugLog.selections.push(ramDebug);
-        } // End of RAM selection else block
-
-        // 4. Select Motherboard (compatible with CPU and RAM) - CRITICAL: Must always have a motherboard
-        const motherboardBudget = maxBudget * allocations.motherboard;
-        const motherboardDebug = {
-            component: 'Motherboard',
-            budget: `$${motherboardBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(motherboardBudget * 1.5).toFixed(2)} (50% buffer), RAM Type: ${ramMemoryType || 'Any'}`,
-            attempts: []
-        };
-
-        let selectedMotherboard = null;
-        let compatibleCPU = selectedParts.cpu;
-
-        // First attempt: Try to find motherboard compatible with selected CPU and RAM
-        if (compatibleCPU) {
-            const attempt1 = {
-                attemptNumber: 1,
-                strategy: 'Find motherboard compatible with CPU and RAM',
-                cpuRequirements: {
-                    chipset: compatibleCPU.chipset || 'N/A',
-                    socket: compatibleCPU.socket || 'N/A'
-                },
-                ramRequirements: {
-                    memoryType: ramMemoryType || 'N/A'
-                }
-            };
-
-            let motherboardFilter = {
-                currentPrice: { $gt: 0, $lte: motherboardBudget * 1.5 }
-            };
-
-            // CRITICAL: Filter motherboards by RAM type (RAM is now selected before motherboard)
-            if (ramMemoryType) {
-                motherboardFilter.$and = motherboardFilter.$and || [];
-                motherboardFilter.$and.push({
-                    $or: [
-                        { memoryType: { $regex: ramMemoryType, $options: 'i' } },
-                        { memory_type: { $regex: ramMemoryType, $options: 'i' } }
-                    ]
-                });
-                console.log(`🔒 Filtering motherboards for ${ramMemoryType} compatibility (RAM selected first)`);
-            }
-
-            // Try to match by chipset or socket
-            const matchFilters = [];
-            if (compatibleCPU.chipset) {
-                matchFilters.push({ chipset: compatibleCPU.chipset });
-            }
-            if (compatibleCPU.socket) {
-                matchFilters.push({ socket: compatibleCPU.socket });
-            }
-
-            if (matchFilters.length > 0) {
-                motherboardFilter.$or = matchFilters;
-            }
-
-            // For unlimited budget, get ALL compatible motherboards and prioritize DDR5 with multiple PCIe slots
-            let compatibleMotherboards;
-            if (maxBudget === 999999) {
-                // Remove price limit for unlimited budget to get all boards
-                const unlimitedFilter = { ...motherboardFilter };
-                delete unlimitedFilter.currentPrice;
-
-                compatibleMotherboards = await db.collection('motherboards').find(unlimitedFilter).toArray();
-
-                // Filter for DDR5 motherboards with multiple PCIe slots
-                const ddr5Boards = compatibleMotherboards.filter(mb => {
-                    const memType = Array.isArray(mb.memoryType) ? mb.memoryType[0] : mb.memoryType;
-                    const isDDR5 = memType && memType.toLowerCase().includes('ddr5');
-                    const pcieSlots = mb.pcieSlotCount || 0;
-                    const hasPrice = parseFloat(mb.currentPrice || mb.price) > 0;
-                    return isDDR5 && pcieSlots >= 2 && hasPrice;
-                });
-
-                if (ddr5Boards.length > 0) {
-                    // Sort by PCIe slots descending, then price descending (best/most expensive board first)
-                    ddr5Boards.sort((a, b) => {
-                        const slotsA = a.pcieSlotCount || 0;
-                        const slotsB = b.pcieSlotCount || 0;
-                        if (slotsB !== slotsA) return slotsB - slotsA;
-                        return parseFloat(b.currentPrice || b.price) - parseFloat(a.currentPrice || a.price);
-                    });
-                    compatibleMotherboards = ddr5Boards;
-                    console.log(`Unlimited budget: Found ${ddr5Boards.length} DDR5 motherboards with 2+ PCIe slots. Top choice: ${ddr5Boards[0].name || ddr5Boards[0].title} with ${ddr5Boards[0].pcieSlotCount} PCIe slots`);
-                } else {
-                    // Fallback: get any compatible boards, sorted by price descending
-                    compatibleMotherboards.sort((a, b) => parseFloat(b.currentPrice || b.price) - parseFloat(a.currentPrice || a.price));
-                }
-            } else {
-                // Standard budget: sort by lowest price first
-                compatibleMotherboards = await db.collection('motherboards').find(motherboardFilter)
-                    .sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-            }
-
-            attempt1.candidatesFound = compatibleMotherboards.length;
-            attempt1.topCandidates = compatibleMotherboards.slice(0, 3).map(mb => ({
-                name: mb.name || mb.title,
-                price: `$${parseFloat(mb.currentPrice || mb.price).toFixed(2)}`,
-                chipset: mb.chipset,
-                socket: mb.socket
-            }));
-
-            if (compatibleMotherboards.length > 0) {
-                selectedMotherboard = compatibleMotherboards[0];
-                attempt1.success = true;
-                attempt1.result = 'Found compatible motherboard';
-            } else {
-                attempt1.success = false;
-                attempt1.result = 'No compatible motherboards found';
-            }
-
-            motherboardDebug.attempts.push(attempt1);
-        }
-
-        // Second attempt: If no compatible motherboard found, find any motherboard and adjust CPU
-        if (!selectedMotherboard) {
-            console.log('No compatible motherboard found for CPU, searching for alternative...');
-
-            // Get all available motherboards in budget
-            let fallbackFilter = {
-                currentPrice: { $gt: 0, $lte: motherboardBudget * 1.5 }
-            };
-
-            // CRITICAL: Filter by RAM type (RAM is always selected before motherboard)
-            if (ramMemoryType) {
-                fallbackFilter.$and = fallbackFilter.$and || [];
-                fallbackFilter.$and.push({
-                    $or: [
-                        { memoryType: { $regex: ramMemoryType, $options: 'i' } },
-                        { memory_type: { $regex: ramMemoryType, $options: 'i' } }
-                    ]
-                });
-                console.log(`🔒 Fallback motherboard search filtering for ${ramMemoryType} (RAM selected first)`);
-            }
-
-            const allMotherboards = await db.collection('motherboards').find(fallbackFilter).sort({ currentPrice: 1, price: 1 }).toArray(); // Sort by lowest price first
-
-            if (allMotherboards.length > 0) {
-                // Try each motherboard and find a compatible CPU
-                for (const motherboard of allMotherboards) {
-                    if (motherboard.chipset || motherboard.socket) {
-                        // Find CPUs compatible with this motherboard
-                        const cpuBudget = maxBudget * allocations.cpu;
-                        let compatibleCPUs = [];
-
-                        // Build CPU filter to match chipset or socket
-                        const cpuFilter = {
-                            currentPrice: { $gt: 0, $lte: cpuBudget * 1.3 },
-                            isAvailable: { $ne: false }
-                        };
-
-                        const cpuMatchFilters = [];
-                        if (motherboard.chipset) {
-                            cpuMatchFilters.push({ chipset: motherboard.chipset });
-                        }
-                        if (motherboard.socket) {
-                            cpuMatchFilters.push({ socket: motherboard.socket });
-                        }
-
-                        if (cpuMatchFilters.length > 0) {
-                            cpuFilter.$or = cpuMatchFilters;
-                        }
-
-                        // Search all CPU collections
-                        for (const collection of cpuCollections) {
-                            const cpus = await db.collection(collection.name).find(cpuFilter).toArray();
-                            compatibleCPUs = compatibleCPUs.concat(cpus);
-                        }
-
-                        // Also check main cpus collection
-                        const mainCompatibleCpus = await db.collection('cpus').find(cpuFilter).toArray();
-                        compatibleCPUs = compatibleCPUs.concat(mainCompatibleCpus);
-
-                        if (compatibleCPUs.length > 0) {
-                            // Found compatible CPU for this motherboard
-                            compatibleCPUs.sort((a, b) => parseFloat(b.currentPrice || b.price) - parseFloat(a.currentPrice || a.price));
-
-                            selectedMotherboard = motherboard;
-
-                            // Update CPU if we had to change it
-                            if (compatibleCPUs[0]._id !== compatibleCPU._id) {
-                                // Adjust total cost
-                                if (selectedParts.cpu) {
-                                    totalCost -= parseFloat(selectedParts.cpu.currentPrice || selectedParts.cpu.price);
-                                }
-                                selectedParts.cpu = compatibleCPUs[0];
-                                const newCpuPrice = parseFloat(selectedParts.cpu.currentPrice || selectedParts.cpu.price);
-                                totalCost += newCpuPrice;
-                                console.log(`Adjusted CPU to ${selectedParts.cpu.name || selectedParts.cpu.title} for motherboard compatibility`);
-
-                                // Update CPU debug info with the new CPU
-                                const selectedPerf = selectedParts.cpu[performanceMetric];
-                                cpuDebug.selected = {
-                                    name: selectedParts.cpu.name || selectedParts.cpu.title,
-                                    price: `$${newCpuPrice.toFixed(2)}`,
-                                    manufacturer: selectedParts.cpu.manufacturer,
-                                    cores: selectedParts.cpu.cores,
-                                    singleCorePerformance: selectedParts.cpu.singleCorePerformance || 'N/A',
-                                    multiThreadPerformance: selectedParts.cpu.multiThreadPerformance || 'N/A',
-                                    reason: `Adjusted for motherboard compatibility (was: ${compatibleCPU.name || compatibleCPU.title})`
-                                };
-                            }
-
-                            break;
-                        }
-                    }
-                }
-
-                // Third attempt removed - we should NEVER select incompatible motherboard
-                // Let the validation at the end catch this and return an error
-            }
-        }
-
-        if (selectedMotherboard) {
-            selectedParts.motherboard = selectedMotherboard;
-            const mbPrice = parseFloat(selectedParts.motherboard.currentPrice || selectedParts.motherboard.price);
-            totalCost += mbPrice;
-            motherboardDebug.selected = {
-                name: selectedMotherboard.name || selectedMotherboard.title,
-                price: `$${mbPrice.toFixed(2)}`,
-                chipset: selectedMotherboard.chipset,
-                socket: selectedMotherboard.socket,
-                reason: motherboardDebug.attempts[motherboardDebug.attempts.length - 1].result
-            };
-            console.log(`Selected motherboard: ${selectedMotherboard.name || selectedMotherboard.title}`);
-        } else {
-            motherboardDebug.selected = null;
-            motherboardDebug.error = 'CRITICAL: No motherboard could be selected!';
-            console.error('CRITICAL: No motherboard could be selected!');
-        }
-
-        debugLog.selections.push(motherboardDebug);
-
-        // 5. Select Storage (CRITICAL: Always include SSD boot drive + evaluate HDD for additional storage)
-        const storageBudget = maxBudget * allocations.storage;
-        const storageDebug = {
-            component: 'Storage',
-            budget: `$${storageBudget.toFixed(2)}`,
-            searchCriteria: `Always include SSD boot drive, evaluate SSD+HDD vs single large SSD`,
-            requiredCapacity: `${storageGB}GB`,
-            attempts: []
-        };
-
-        // Helper function to parse storage capacity
-        function parseStorageCapacity(capacity) {
-            let capacityInGB = 0;
-            if (typeof capacity === 'number') {
-                capacityInGB = capacity;
-            } else if (typeof capacity === 'string') {
-                const str = capacity.trim();
-                const tbMatch = str.match(/(\d+\.?\d*)\s*TB/i);
-                const gbMatch = str.match(/(\d+\.?\d*)\s*GB/i);
-                if (tbMatch) {
-                    capacityInGB = parseFloat(tbMatch[1]) * 1000;
-                } else if (gbMatch) {
-                    capacityInGB = parseFloat(gbMatch[1]);
-                } else {
-                    const num = parseFloat(str);
-                    if (!isNaN(num)) capacityInGB = num;
-                }
-            }
-            return capacityInGB;
-        }
-
-        // Helper function to check if storage is internal (not external/portable)
-        function isInternalStorage(storage) {
-            const title = (storage.name || storage.title || '').toLowerCase();
-            const externalKeywords = ['external', 'portable', 'usb', 'backup drive', 'desktop drive'];
-            return !externalKeywords.some(keyword => title.includes(keyword));
-        }
-
-        // Get all storage devices within budget
-        const allStorages = await db.collection('storages').find({
-            currentPrice: { $gt: 0, $lte: storageBudget * 2 }
-        }).toArray();
-
-        // Filter and categorize storage
-        const storagesWithCapacity = allStorages
-            .map(storage => ({
-                ...storage,
-                capacityGB: parseStorageCapacity(storage.capacity),
-                isSSD: (storage.type || '').toLowerCase().includes('ssd'),
-                isHDD: (storage.type || '').toLowerCase().includes('hdd'),
-                isInternal: isInternalStorage(storage)
-            }))
-            .filter(s => s.capacityGB > 0 && s.isInternal);
-
-        const ssds = storagesWithCapacity.filter(s => s.isSSD).sort((a, b) => b.capacityGB - a.capacityGB);
-        const hdds = storagesWithCapacity.filter(s => s.isHDD).sort((a, b) => b.capacityGB - a.capacityGB);
-
-        console.log(`Found ${ssds.length} SSDs and ${hdds.length} HDDs in budget`);
-
-        let selectedStorageOption = null;
-        let storageCost = 0;
-
-        // Attempt 1: Single SSD meeting requirements (prioritize lowest price only)
-        const ssdsSingleSolution = ssds.filter(s => s.capacityGB >= storageGB && parseFloat(s.currentPrice || s.price) <= storageBudget * 2);
-        ssdsSingleSolution.sort((a, b) => {
-            // Sort by lowest price only (even if it has more capacity)
-            return parseFloat(a.currentPrice || a.price) - parseFloat(b.currentPrice || b.price);
-        });
-
-        const attempt1 = {
-            attemptNumber: 1,
-            strategy: 'Single SSD meeting capacity requirements (cheapest)',
-            candidatesFound: ssdsSingleSolution.length,
-            topCandidates: ssdsSingleSolution.slice(0, 3).map(s => ({
-                name: s.name || s.title,
-                capacity: `${s.capacityGB}GB`,
-                price: `$${parseFloat(s.currentPrice || s.price).toFixed(2)}`,
-                costPerGB: `$${(parseFloat(s.currentPrice || s.price) / s.capacityGB).toFixed(3)}/GB`
-            }))
-        };
-
-        let singleSSDOption = null;
-        if (ssdsSingleSolution.length > 0) {
-            singleSSDOption = {
-                drives: [ssdsSingleSolution[0]],
-                totalCapacity: ssdsSingleSolution[0].capacityGB,
-                totalCost: parseFloat(ssdsSingleSolution[0].currentPrice || ssdsSingleSolution[0].price),
-                costPerGB: parseFloat(ssdsSingleSolution[0].currentPrice || ssdsSingleSolution[0].price) / ssdsSingleSolution[0].capacityGB
-            };
-            attempt1.success = true;
-            attempt1.bestOption = {
-                name: ssdsSingleSolution[0].name || ssdsSingleSolution[0].title,
-                capacity: `${ssdsSingleSolution[0].capacityGB}GB`,
-                price: `$${singleSSDOption.totalCost.toFixed(2)}`
-            };
-        } else {
-            attempt1.success = false;
-            attempt1.reason = `No single SSD with ${storageGB}GB+ found within budget`;
-        }
-        storageDebug.attempts.push(attempt1);
-
-        // Attempt 2: SSD boot drive + HDD for additional storage
-        const bootSSDs = ssds.filter(s =>
-            s.capacityGB >= 250 &&
-            s.capacityGB <= 1000 &&
-            parseFloat(s.currentPrice || s.price) <= storageBudget * 1.5
-        ).sort((a, b) => {
-            // Prefer 500GB-1TB SSDs for boot drive
-            const scoreA = Math.abs(a.capacityGB - 500);
-            const scoreB = Math.abs(b.capacityGB - 500);
-            return scoreA - scoreB;
-        });
-
-        const attempt2 = {
-            attemptNumber: 2,
-            strategy: 'SSD boot drive (250GB-1TB) + cheapest HDD meeting capacity needs',
-            bootSSDCandidates: bootSSDs.length,
-            hddCandidates: hdds.length
-        };
-
-        let ssdHddOption = null;
-        if (bootSSDs.length > 0 && hdds.length > 0) {
-            const bootSSD = bootSSDs[0];
-            const bootSSDPrice = parseFloat(bootSSD.currentPrice || bootSSD.price);
-            const remainingBudget = storageBudget * 2 - bootSSDPrice;
-            const remainingCapacity = Math.max(0, storageGB - bootSSD.capacityGB);
-
-            // Find cheapest HDD that meets remaining capacity (prioritize lowest price only)
-            const suitableHDDs = hdds.filter(h =>
-                h.capacityGB >= remainingCapacity &&
-                parseFloat(h.currentPrice || h.price) <= remainingBudget
-            ).sort((a, b) => {
-                // Sort by lowest price only (even if it has more capacity)
-                return parseFloat(a.currentPrice || a.price) - parseFloat(b.currentPrice || b.price);
-            });
-
-            if (suitableHDDs.length > 0 || remainingCapacity <= 0) {
-                const hdd = remainingCapacity > 0 ? suitableHDDs[0] : null;
-                const hddPrice = hdd ? parseFloat(hdd.currentPrice || hdd.price) : 0;
-                const totalCapacity = bootSSD.capacityGB + (hdd ? hdd.capacityGB : 0);
-                const totalCost = bootSSDPrice + hddPrice;
-
-                ssdHddOption = {
-                    drives: hdd ? [bootSSD, hdd] : [bootSSD],
-                    totalCapacity: totalCapacity,
-                    totalCost: totalCost,
-                    costPerGB: totalCost / totalCapacity
-                };
-
-                attempt2.success = true;
-                attempt2.selected = {
-                    bootSSD: {
-                        name: bootSSD.name || bootSSD.title,
-                        capacity: `${bootSSD.capacityGB}GB`,
-                        price: `$${bootSSDPrice.toFixed(2)}`
-                    },
-                    dataHDD: hdd ? {
-                        name: hdd.name || hdd.title,
-                        capacity: `${hdd.capacityGB}GB`,
-                        price: `$${hddPrice.toFixed(2)}`
-                    } : null,
-                    totalCapacity: `${totalCapacity}GB`,
-                    totalCost: `$${totalCost.toFixed(2)}`,
-                    costPerGB: `$${ssdHddOption.costPerGB.toFixed(3)}/GB`
-                };
-            } else {
-                attempt2.success = false;
-                attempt2.reason = 'No suitable HDD found to pair with boot SSD';
-            }
-        } else {
-            attempt2.success = false;
-            attempt2.reason = bootSSDs.length === 0 ? 'No suitable boot SSDs found' : 'No HDDs available';
-        }
-        storageDebug.attempts.push(attempt2);
-
-        // Attempt 3: Multiple SSDs (when there's excess budget, prefer SSDs over HDDs)
-        const attempt3 = {
-            attemptNumber: 3,
-            strategy: 'Multiple SSDs (avoid HDDs when budget allows)',
-            candidatesFound: 0
-        };
-
-        let multiSSDOption = null;
-        // Try to find combination of 2-3 SSDs that meet capacity requirement
-        const affordableSSDs = ssds.filter(s => parseFloat(s.currentPrice || s.price) <= storageBudget * 1.5)
-            .sort((a, b) => parseFloat(a.currentPrice || a.price) - parseFloat(b.currentPrice || b.price));
-
-        if (affordableSSDs.length >= 2) {
-            // Try combinations of 2 SSDs first
-            for (let i = 0; i < affordableSSDs.length && !multiSSDOption; i++) {
-                for (let j = i + 1; j < affordableSSDs.length && !multiSSDOption; j++) {
-                    const ssd1 = affordableSSDs[i];
-                    const ssd2 = affordableSSDs[j];
-                    const totalCapacity = ssd1.capacityGB + ssd2.capacityGB;
-                    const totalCost = parseFloat(ssd1.currentPrice || ssd1.price) + parseFloat(ssd2.currentPrice || ssd2.price);
-
-                    if (totalCapacity >= storageGB && totalCost <= storageBudget * 2) {
-                        multiSSDOption = {
-                            drives: [ssd1, ssd2],
-                            totalCapacity: totalCapacity,
-                            totalCost: totalCost,
-                            costPerGB: totalCost / totalCapacity
-                        };
-                        attempt3.success = true;
-                        attempt3.candidatesFound++;
-                        break;
-                    }
-                }
-            }
-
-            // If 2 SSDs didn't work, try 3 SSDs
-            if (!multiSSDOption && affordableSSDs.length >= 3) {
-                for (let i = 0; i < affordableSSDs.length && !multiSSDOption; i++) {
-                    for (let j = i + 1; j < affordableSSDs.length && !multiSSDOption; j++) {
-                        for (let k = j + 1; k < affordableSSDs.length && !multiSSDOption; k++) {
-                            const ssd1 = affordableSSDs[i];
-                            const ssd2 = affordableSSDs[j];
-                            const ssd3 = affordableSSDs[k];
-                            const totalCapacity = ssd1.capacityGB + ssd2.capacityGB + ssd3.capacityGB;
-                            const totalCost = parseFloat(ssd1.currentPrice || ssd1.price) +
-                                            parseFloat(ssd2.currentPrice || ssd2.price) +
-                                            parseFloat(ssd3.currentPrice || ssd3.price);
-
-                            if (totalCapacity >= storageGB && totalCost <= storageBudget * 2) {
-                                multiSSDOption = {
-                                    drives: [ssd1, ssd2, ssd3],
-                                    totalCapacity: totalCapacity,
-                                    totalCost: totalCost,
-                                    costPerGB: totalCost / totalCapacity
-                                };
-                                attempt3.success = true;
-                                attempt3.candidatesFound++;
-                                break;
-                            }
-                        }
+                for (const motherboard of motherboards) {
+                    for (const minimum of [false, true]) {
+                        const build = aiBuildCreateCandidate(
+                            catalogs,
+                            gpu,
+                            cpu,
+                            motherboard,
+                            allocation,
+                            request,
+                            minimum
+                        );
+                        const validation = assembleAndValidate(build, {
+                            budget: towerBudget,
+                            unlimited: request.unlimited
+                        });
+                        if (!validation.valid) continue;
+                        candidates.push({
+                            build,
+                            validation,
+                            score: aiBuildScore(build, validation, allocation, {
+                                ...request,
+                                budget: towerBudget,
+                                cpuMaxPerformance
+                            }),
+                            capMultiplier
+                        });
                     }
                 }
             }
         }
 
-        if (multiSSDOption) {
-            attempt3.selected = {
-                drives: multiSSDOption.drives.map(d => ({
-                    name: d.name || d.title,
-                    capacity: `${d.capacityGB}GB`,
-                    price: `$${parseFloat(d.currentPrice || d.price).toFixed(2)}`
-                })),
-                totalCapacity: `${multiSSDOption.totalCapacity}GB`,
-                totalCost: `$${multiSSDOption.totalCost.toFixed(2)}`,
-                costPerGB: `$${multiSSDOption.costPerGB.toFixed(3)}/GB`
-            };
-        } else {
-            attempt3.success = false;
-            attempt3.reason = 'No suitable multi-SSD combinations found within budget';
-        }
-        storageDebug.attempts.push(attempt3);
-
-        // Compare options and select best (prefer multi-SSD when excess budget, otherwise cheapest)
-        const options = [singleSSDOption, ssdHddOption, multiSSDOption].filter(o => o !== null);
-
-        if (options.length > 0) {
-            const validOptions = options.filter(o => o.totalCapacity >= storageGB);
-
-            // Check if multi-SSD option exists and filter out HDD options
-            const ssdOnlyOptions = validOptions.filter(o => {
-                // Check if option contains any HDDs
-                return o.drives.every(d => (d.type || '').toLowerCase().includes('ssd'));
-            });
-
-            // If we have SSD-only options and there's enough budget headroom, prefer them
-            const budgetRemaining = maxBudget - totalCost;
-            const hasExcessBudget = budgetRemaining > storageBudget * 0.5; // 50% headroom
-
-            if (ssdOnlyOptions.length > 0 && hasExcessBudget) {
-                // When excess budget, prefer all-SSD solutions (avoid HDDs)
-                selectedStorageOption = ssdOnlyOptions.sort((a, b) => a.totalCost - b.totalCost)[0];
-            } else {
-                // Otherwise select cheapest option (may include HDD)
-                selectedStorageOption = validOptions.length > 0
-                    ? validOptions.sort((a, b) => a.totalCost - b.totalCost)[0]
-                    : options.sort((a, b) => b.totalCapacity - a.totalCapacity)[0];
-            }
-
-            selectedParts.storage = selectedStorageOption.drives.length === 1
-                ? selectedStorageOption.drives[0]
-                : selectedStorageOption.drives;
-
-            storageCost = selectedStorageOption.totalCost;
-            totalCost += storageCost;
-
-            // Determine configuration type
-            let configurationType = 'Single SSD';
-            let selectionReason = 'Single SSD is cheapest option meeting capacity requirement';
-
-            if (selectedStorageOption.drives.length > 1) {
-                const hasHDD = selectedStorageOption.drives.some(d => (d.type || '').toLowerCase().includes('hdd'));
-                const hasSSD = selectedStorageOption.drives.some(d => (d.type || '').toLowerCase().includes('ssd'));
-
-                if (hasHDD && hasSSD) {
-                    configurationType = 'SSD + HDD';
-                    selectionReason = 'SSD boot drive + HDD for additional storage (budget-conscious)';
-                } else if (hasSSD) {
-                    configurationType = `Multiple SSDs (${selectedStorageOption.drives.length} drives)`;
-                    selectionReason = 'Multiple SSDs preferred (excess budget, avoiding HDDs)';
-                }
-            }
-
-            storageDebug.selected = {
-                configuration: configurationType,
-                drives: selectedStorageOption.drives.map(d => ({
-                    name: d.name || d.title,
-                    type: d.type,
-                    capacity: `${d.capacityGB}GB`,
-                    price: `$${parseFloat(d.currentPrice || d.price).toFixed(2)}`
-                })),
-                totalCapacity: `${selectedStorageOption.totalCapacity}GB`,
-                totalCost: `$${storageCost.toFixed(2)}`,
-                costPerGB: `$${selectedStorageOption.costPerGB.toFixed(3)}/GB`,
-                reason: selectionReason
-            };
-
-            console.log(`Selected storage: ${selectedStorageOption.drives.length} drive(s), ${selectedStorageOption.totalCapacity}GB total, $${storageCost.toFixed(2)}`);
-        } else {
-            // Fallback: Just get the largest SSD available
-            if (ssds.length > 0) {
-                selectedParts.storage = ssds[0];
-                storageCost = parseFloat(ssds[0].currentPrice || ssds[0].price);
-                totalCost += storageCost;
-
-                storageDebug.selected = {
-                    name: ssds[0].name || ssds[0].title,
-                    type: ssds[0].type,
-                    capacity: `${ssds[0].capacityGB}GB`,
-                    price: `$${storageCost.toFixed(2)}`,
-                    warning: 'Fallback - largest SSD within budget',
-                    reason: 'No combinations meet all requirements'
-                };
-                console.log(`Fallback: Selected ${ssds[0].name || ssds[0].title}`);
-            } else {
-                storageDebug.selected = null;
-                storageDebug.error = 'CRITICAL: No suitable storage devices found!';
-                console.error('CRITICAL: No suitable storage devices found!');
-            }
-        }
-
-        debugLog.selections.push(storageDebug);
-
-        // 6. Select PSU (based on total system power requirements)
-        const psuBudget = maxBudget * allocations.psu;
-
-        // More realistic power estimation using actual component TDP values
-        const basePower = 100; // Motherboard, fans, etc.
-        let gpuPower = selectedParts.gpu ? (parseFloat(selectedParts.gpu.tdp) || getGPUTDP(selectedParts.gpu.name || selectedParts.gpu.title)) : 0;
-        let cpuPower = selectedParts.cpu ? getCPUTDP(selectedParts.cpu) : 0;
-        const ramPower = 10; // DDR5 RAM
-        // Storage can be an array or a single object, handle both cases
-        let storagePower = 5; // Default 5W
-        if (selectedParts.storage) {
-            if (Array.isArray(selectedParts.storage)) {
-                storagePower = selectedParts.storage.length * 5; // 5W per storage device
-            } else {
-                storagePower = 5; // Single storage device
-            }
-        }
-        const coolerPower = 20; // CPU cooler fans (liquid cooler uses more power)
-
-        // Ensure all power values are valid numbers (not NaN or undefined)
-        if (isNaN(gpuPower) || gpuPower === undefined) {
-            console.warn(`WARNING: gpuPower is ${gpuPower}, using default 250W`);
-            gpuPower = 250;
-        }
-        if (isNaN(cpuPower) || cpuPower === undefined) {
-            console.warn(`WARNING: cpuPower is ${cpuPower}, using default 142W`);
-            cpuPower = 142;
-        }
-
-        console.log(`\n=== Power Calculation Debug ===`);
-        console.log(`basePower: ${basePower} (type: ${typeof basePower})`);
-        console.log(`gpuPower: ${gpuPower} (type: ${typeof gpuPower})`);
-        console.log(`cpuPower: ${cpuPower} (type: ${typeof cpuPower})`);
-        console.log(`ramPower: ${ramPower} (type: ${typeof ramPower})`);
-        console.log(`storagePower: ${storagePower} (type: ${typeof storagePower})`);
-        console.log(`coolerPower: ${coolerPower} (type: ${typeof coolerPower})`);
-
-        const estimatedWattage = basePower + gpuPower + cpuPower + ramPower + storagePower + coolerPower;
-        console.log(`estimatedWattage: ${estimatedWattage} (type: ${typeof estimatedWattage})`);
-        // Add 20-30% overhead for safety
-        const recommendedWattage = Math.ceil((estimatedWattage * 1.25) / 50) * 50; // 25% overhead, round up to nearest 50W
-
-        const psuDebug = {
-            component: 'PSU',
-            budget: `$${psuBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(psuBudget * 1.5).toFixed(2)} (50% buffer), Min Wattage: ${recommendedWattage}W`,
-            powerCalculation: {
-                baseSystem: `${basePower}W`,
-                gpu: `${gpuPower}W`,
-                cpu: `${cpuPower}W`,
-                ram: `${ramPower}W`,
-                storage: `${storagePower}W`,
-                cooler: `${coolerPower}W`,
-                estimated: `${estimatedWattage}W`,
-                recommended: `${recommendedWattage}W (+100W overhead, rounded to 50W)`
-            },
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        // First, let's check what PSUs exist and log their wattage field
-        const samplePSUs = await db.collection('psus').find({ currentPrice: { $gt: 0 } }).limit(5).toArray();
-        console.log(`\n=== PSU Debug ===`);
-        console.log(`Recommended wattage: ${recommendedWattage}W`);
-        console.log(`PSU budget: $${psuBudget.toFixed(2)} (max: $${(psuBudget * 1.5).toFixed(2)})`);
-        console.log(`Sample PSUs from database (first 5):`);
-        samplePSUs.forEach((psu, idx) => {
-            console.log(`  ${idx + 1}. ${psu.name || psu.title}`);
-            console.log(`     Price: $${psu.currentPrice || psu.price}`);
-            console.log(`     Wattage field: ${psu.wattage} (type: ${typeof psu.wattage})`);
-            console.log(`     All wattage-related fields:`, {
-                wattage: psu.wattage,
-                Wattage: psu.Wattage,
-                watts: psu.watts,
-                specs_wattage: psu.specs?.wattage
-            });
-        });
-        console.log(`=== End PSU Debug ===\n`);
-
-        let psus = await db.collection('psus').find({
-            currentPrice: { $gt: 0, $lte: psuBudget * 1.5 },
-            wattage: { $gte: recommendedWattage }
-        }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray(); // Sort by lowest price first
-
-        psuDebug.candidatesFound = psus.length;
-        console.log(`Found ${psus.length} PSUs matching criteria (price <= $${(psuBudget * 1.5).toFixed(2)}, wattage >= ${recommendedWattage}W)`);
-
-        // If no PSUs found in budget, prioritize wattage over budget
-        // NEVER select a PSU below the recommended wattage
-        if (psus.length === 0) {
-            // First try: Find PSUs that meet wattage requirement, ignore budget
-            psus = await db.collection('psus').find({
-                wattage: { $gte: recommendedWattage },
-                currentPrice: { $gt: 0 }
-            }).sort({ currentPrice: 1 }).limit(10).toArray();
-
-            if (psus.length > 0) {
-                psuDebug.searchCriteria = `Cheapest PSU >= ${recommendedWattage}W (exceeds budget allocation but necessary for system stability)`;
-                psuDebug.candidatesFound = psus.length;
-            } else {
-                // Last resort: If no PSU meets exact wattage, find closest match that's still adequate
-                // Use a reasonable range (90-110% of recommended)
-                const minAcceptable = Math.floor(recommendedWattage * 0.9);
-                const maxReasonable = Math.ceil(recommendedWattage * 1.5);
-
-                psus = await db.collection('psus').find({
-                    wattage: { $gte: minAcceptable, $lte: maxReasonable },
-                    currentPrice: { $gt: 0 }
-                }).sort({ currentPrice: 1 }).limit(10).toArray();
-
-                if (psus.length > 0) {
-                    psuDebug.searchCriteria = `Cheapest PSU ${minAcceptable}W-${maxReasonable}W (closest match to ${recommendedWattage}W requirement)`;
-                    psuDebug.candidatesFound = psus.length;
-                }
-            }
-        }
-
-
-        psuDebug.topCandidates = psus.slice(0, 5).map(psu => ({
-            name: psu.name || psu.title,
-            price: `$${parseFloat(psu.currentPrice || psu.price).toFixed(2)}`,
-            wattage: `${psu.wattage}W`,
-            certification: psu.certification
-        }));
-
-        if (psus.length > 0) {
-            selectedParts.psu = psus[0];
-            const psuPrice = parseFloat(selectedParts.psu.currentPrice || selectedParts.psu.price);
-            totalCost += psuPrice;
-            psuDebug.selected = {
-                name: selectedParts.psu.name || selectedParts.psu.title,
-                price: `$${psuPrice.toFixed(2)}`,
-                wattage: `${selectedParts.psu.wattage}W`,
-                certification: selectedParts.psu.certification,
-                reason: psuDebug.searchCriteria.includes('Cheapest') ? 'Cheapest PSU (mandatory component)' : `Best PSU meeting ${recommendedWattage}W requirement`
-            };
-        } else {
-            psuDebug.selected = null;
-            psuDebug.reason = 'ERROR: No PSUs found in database';
-        }
-
-        debugLog.selections.push(psuDebug);
-
-        // 7. Select Case (MANDATORY - moved before cooler)
-        const caseBudget = maxBudget * allocations.case;
-        const caseDebug = {
-            component: 'Case',
-            budget: `$${caseBudget.toFixed(2)}`,
-            searchCriteria: `Price: $0 - $${(caseBudget * 1.5).toFixed(2)} (50% buffer)`,
-            candidatesFound: 0,
-            topCandidates: []
-        };
-
-        let cases = await db.collection('cases').find({
-            currentPrice: { $gt: 0, $lte: caseBudget * 1.5 },
-            // Exclude PSUs that might be misclassified as cases
-            wattage: { $exists: false },
-            name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
-        }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray();
-
-        // Filter cases to ensure motherboard form factor compatibility
-        if (selectedParts.motherboard && selectedParts.motherboard.formFactor) {
-            const motherboardFormFactor = selectedParts.motherboard.formFactor;
-            const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
-
-            // Check motherboard type (order matters: check more specific first)
-            const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
-            const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
-            const isMoboEATX = moboFFUpper.includes('EATX');
-            const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
-
-            const compatibleCases = cases.filter(caseItem => {
-                const caseFormFactors = caseItem.formFactor || [];
-                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
-
-                for (const caseFF of caseFormFactorArray) {
-                    const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
-
-                    // Check case type (order matters: check more specific first)
-                    const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
-                    const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
-                    const isCaseEATX = caseFFUpper.includes('EATX');
-                    const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
-
-                    // E-ATX case accepts all motherboards
-                    if (isCaseEATX) return true;
-                    // ATX case: compatible with ATX, mATX, ITX
-                    if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) return true;
-                    // mATX/Micro ATX case: compatible with mATX, ITX
-                    if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) return true;
-                    // ITX case: compatible with ITX only
-                    if (isCaseITX && isMoboITX) return true;
-                }
-
-                return false;
-            });
-
-            if (compatibleCases.length > 0) {
-                cases = compatibleCases;
-                caseDebug.searchCriteria += `, Compatible with ${motherboardFormFactor} motherboard`;
-                console.log(`Filtered to ${compatibleCases.length} cases compatible with ${motherboardFormFactor} motherboard`);
-            } else {
-                console.warn(`⚠️ No compatible cases found for ${motherboardFormFactor} motherboard in budget, expanding search...`);
-                // Set cases to empty array to trigger fallback search for compatible cases
-                cases = [];
-            }
-        }
-
-        // Filter cases by GPU length compatibility
-        if (selectedParts.gpu && selectedParts.gpu.length > 0) {
-            const gpuLength = selectedParts.gpu.length;
-            const gpuCompatibleCases = cases.filter(caseItem => {
-                const caseFormFactors = caseItem.formFactor || [];
-                const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
-
-                const isITXCase = caseFormFactorArray.some(ff => {
-                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
-                    return u.includes('ITX') && !u.includes('ATX');
-                });
-                const isMATXCase = caseFormFactorArray.some(ff => {
-                    const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
-                    return u.includes('MATX') || u.includes('MICROATX');
-                });
-
-                if (isITXCase && gpuLength > 300) return false;
-                if (isMATXCase && gpuLength > 340) return false;
-                return true;
-            });
-
-            if (gpuCompatibleCases.length > 0) {
-                cases = gpuCompatibleCases;
-                caseDebug.searchCriteria += `, GPU fits (${gpuLength}mm)`;
-                console.log(`Filtered to ${gpuCompatibleCases.length} cases that fit GPU (${gpuLength}mm)`);
-            } else {
-                console.warn(`⚠️ No cases found that fit GPU (${gpuLength}mm), skipping GPU size filter`);
-            }
-        }
-
-        caseDebug.candidatesFound = cases.length;
-
-        // If no cases found in budget, find the cheapest available (MANDATORY component)
-        if (cases.length === 0) {
-            cases = await db.collection('cases').find({
-                currentPrice: { $gt: 0 },
-                // Exclude PSUs that might be misclassified as cases
-                wattage: { $exists: false },
-                name: { $not: { $regex: 'power supply|\\bpsu\\b|watt\\b', $options: 'i' } }
-            }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-
-            // Filter for motherboard compatibility even in fallback
-            if (selectedParts.motherboard && selectedParts.motherboard.formFactor) {
-                const motherboardFormFactor = selectedParts.motherboard.formFactor;
-                const moboFFUpper = motherboardFormFactor.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
-
-                const isMoboITX = moboFFUpper.includes('ITX') && !moboFFUpper.includes('ATX');
-                const isMoboMicroATX = moboFFUpper.includes('MATX') || moboFFUpper.includes('MICROATX');
-                const isMoboEATX = moboFFUpper.includes('EATX');
-                const isMoboATX = !isMoboITX && !isMoboMicroATX && !isMoboEATX && moboFFUpper.includes('ATX');
-
-                const compatibleCases = cases.filter(caseItem => {
-                    const caseFormFactors = caseItem.formFactor || [];
-                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
-
-                    for (const caseFF of caseFormFactorArray) {
-                        const caseFFUpper = caseFF.toUpperCase().replace(/-/g, '').replace(/\s+/g, '').trim();
-
-                        const isCaseITX = caseFFUpper.includes('ITX') && !caseFFUpper.includes('ATX');
-                        const isCaseMicroATX = caseFFUpper.includes('MATX') || caseFFUpper.includes('MICROATX');
-                        const isCaseEATX = caseFFUpper.includes('EATX');
-                        const isCaseATX = !isCaseITX && !isCaseMicroATX && !isCaseEATX && caseFFUpper.includes('ATX');
-
-                        if (isCaseEATX) return true;
-                        if (isCaseATX && (isMoboATX || isMoboMicroATX || isMoboITX)) return true;
-                        if (isCaseMicroATX && (isMoboMicroATX || isMoboITX)) return true;
-                        if (isCaseITX && isMoboITX) return true;
-                    }
-
-                    return false;
-                });
-
-                if (compatibleCases.length > 0) {
-                    cases = compatibleCases;
-                    console.log(`Fallback: Found ${compatibleCases.length} compatible cases for ${motherboardFormFactor} motherboard`);
-                }
-            }
-
-            // Apply GPU size filter in fallback too
-            if (selectedParts.gpu && selectedParts.gpu.length > 0) {
-                const gpuLength = selectedParts.gpu.length;
-                const gpuCompatibleCases = cases.filter(caseItem => {
-                    const caseFormFactors = caseItem.formFactor || [];
-                    const caseFormFactorArray = Array.isArray(caseFormFactors) ? caseFormFactors : [caseFormFactors];
-
-                    const isITXCase = caseFormFactorArray.some(ff => {
-                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
-                        return u.includes('ITX') && !u.includes('ATX');
-                    });
-                    const isMATXCase = caseFormFactorArray.some(ff => {
-                        const u = ff.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
-                        return u.includes('MATX') || u.includes('MICROATX');
-                    });
-
-                    if (isITXCase && gpuLength > 300) return false;
-                    if (isMATXCase && gpuLength > 340) return false;
-                    return true;
-                });
-
-                if (gpuCompatibleCases.length > 0) {
-                    cases = gpuCompatibleCases;
-                    console.log(`Fallback: Filtered to ${gpuCompatibleCases.length} cases that fit GPU (${gpuLength}mm)`);
-                } else {
-                    console.warn(`Fallback: No cases fit GPU (${gpuLength}mm), skipping GPU size filter`);
-                }
-            }
-
-            caseDebug.searchCriteria = 'Cheapest available (budget allocation insufficient)';
-            caseDebug.candidatesFound = cases.length;
-        }
-
-        caseDebug.topCandidates = cases.slice(0, 5).map(caseItem => ({
-            name: caseItem.name || caseItem.title,
-            price: `$${parseFloat(caseItem.currentPrice || caseItem.price).toFixed(2)}`
-        }));
-
-        if (cases.length > 0) {
-            selectedParts.case = cases[0];
-            const casePrice = parseFloat(selectedParts.case.currentPrice || selectedParts.case.price);
-            totalCost += casePrice;
-            caseDebug.selected = {
-                name: selectedParts.case.name || selectedParts.case.title,
-                price: `$${casePrice.toFixed(2)}`,
-                reason: caseDebug.searchCriteria.includes('Cheapest') ? 'Cheapest case (mandatory component)' : 'Best case within budget allocation'
-            };
-        } else {
-            caseDebug.selected = null;
-            caseDebug.reason = 'ERROR: No cases found in database';
-        }
-
-        debugLog.selections.push(caseDebug);
-
-        // 8. Select Cooler (MANDATORY for K/KF/X CPUs, OPTIONAL otherwise)
-        const remainingBudgetBeforeCooler = maxBudget - totalCost;
-        const budgetUtilization = totalCost / maxBudget;
-        const coolerBudget = maxBudget * allocations.cooler;
-
-        // Check if CPU requires a cooler based on the coolerIncluded field
-        const cpuName = selectedParts.cpu ? (selectedParts.cpu.name || selectedParts.cpu.title || '') : '';
-        // CPU needs a cooler if coolerIncluded is explicitly false OR if it matches patterns known to not include coolers
-        const cpuIncludesCooler = selectedParts.cpu && selectedParts.cpu.coolerIncluded === true;
-        const cpuNeedsCooler = !cpuIncludesCooler;
-
-        // Cooler is MANDATORY if CPU doesn't include one, OPTIONAL otherwise
-        const shouldSelectCooler = cpuNeedsCooler || (budgetUtilization < 0.85 && remainingBudgetBeforeCooler > 20);
-
-        if (shouldSelectCooler) {
-            const coolerDebug = {
-                component: 'Cooler',
-                budget: `$${coolerBudget.toFixed(2)}`,
-                searchCriteria: cpuNeedsCooler ?
-                    `MANDATORY for ${cpuName} (no stock cooler) - Finding cheapest available` :
-                    `Price: $0 - $${(coolerBudget * 1.5).toFixed(2)} (50% buffer)`,
-                candidatesFound: 0,
-                topCandidates: []
-            };
-
-            let coolers;
-
-            // If CPU needs cooler (MANDATORY), get cheapest. Otherwise, get best in budget.
-            if (cpuNeedsCooler) {
-                // MANDATORY: Get cheapest cooler available
-                coolers = await db.collection('coolers').find({
-                    currentPrice: { $gt: 0 }
-                }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-                coolerDebug.searchCriteria = `MANDATORY for ${cpuName} (no stock cooler) - Finding cheapest available`;
-            } else {
-                // OPTIONAL: Get best cooler within budget allocation
-                coolers = await db.collection('coolers').find({
-                    currentPrice: { $gt: 0, $lte: coolerBudget * 1.5 }
-                }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray();
-            }
-
-            coolerDebug.candidatesFound = coolers.length;
-            coolerDebug.topCandidates = coolers.slice(0, 5).map(cooler => ({
-                name: cooler.name || cooler.title,
-                price: `$${parseFloat(cooler.currentPrice || cooler.price).toFixed(2)}`
-            }));
-
-            if (coolers.length > 0) {
-                selectedParts.cooler = coolers[0];
-                const coolerPrice = parseFloat(selectedParts.cooler.currentPrice || selectedParts.cooler.price);
-                totalCost += coolerPrice;
-                coolerDebug.selected = {
-                    name: selectedParts.cooler.name || selectedParts.cooler.title,
-                    price: `$${coolerPrice.toFixed(2)}`,
-                    reason: cpuNeedsCooler ?
-                        `MANDATORY for ${cpuName} (CPU does not include stock cooler)` :
-                        'Best cooler within budget allocation'
-                };
-            } else {
-                coolerDebug.selected = null;
-                coolerDebug.reason = 'ERROR: No coolers found in database';
-            }
-
-            debugLog.selections.push(coolerDebug);
-
-            // If cooler was MANDATORY and pushed us over budget, log a warning
-            if (cpuNeedsCooler && totalCost > maxBudget) {
-                console.log(`⚠️ WARNING: Mandatory cooler for ${cpuName} pushed budget to $${totalCost.toFixed(2)} (over $${maxBudget} budget)`);
-                console.log('   Consider: 1) Cheaper CPU, 2) Cheaper case, or 3) Less storage');
-            }
-        } else {
-            const coolerDebug = {
-                component: 'Cooler',
-                budget: `$${coolerBudget.toFixed(2)}`,
-                searchCriteria: 'Skipped - CPU includes stock cooler',
-                candidatesFound: 0,
-                topCandidates: [],
-                selected: null,
-                reason: `Skipped - ${cpuName} includes stock cooler`
-            };
-            debugLog.selections.push(coolerDebug);
-            console.log('Skipping cooler selection - CPU includes stock cooler');
-        }
-
-        // 9. Fill remaining budget with additional SSDs (aim for 90% budget utilization)
-        const targetBudgetUtilization = 0.90; // 90%
-        const targetSpend = maxBudget * targetBudgetUtilization;
-        const currentUtilization = totalCost / maxBudget;
-
-        if (currentUtilization < targetBudgetUtilization) {
-            const remainingBudgetForSSDs = maxBudget - totalCost;
-            const minSSDPrice = 50; // Don't add SSDs cheaper than $50
-
-            console.log(`\nCurrent budget utilization: ${(currentUtilization * 100).toFixed(1)}% ($${totalCost.toFixed(2)} / $${maxBudget.toFixed(2)})`);
-            console.log(`Target: 90%, trying to add SSDs with remaining $${remainingBudgetForSSDs.toFixed(2)}`);
-
-            // Get current storage configuration
-            const currentStorage = Array.isArray(selectedParts.storage) ? selectedParts.storage : (selectedParts.storage ? [selectedParts.storage] : []);
-            const additionalSSDs = [];
-
-            // Keep adding SSDs until we reach 90% budget or run out of suitable options
-            let currentBudgetForSSDs = remainingBudgetForSSDs;
-            let addedSSDs = 0;
-
-            while (currentBudgetForSSDs >= minSSDPrice && addedSSDs < 5) { // Max 5 additional SSDs
-                const affordableSSDs = await db.collection('storage').find({
-                    $and: [
-                        {
-                            $or: [
-                                { currentPrice: { $gt: minSSDPrice, $lte: currentBudgetForSSDs } },
-                                { price: { $gt: minSSDPrice, $lte: currentBudgetForSSDs } }
-                            ]
-                        },
-                        {
-                            $or: [
-                                { type: { $regex: 'SSD', $options: 'i' } },
-                                { type: { $regex: 'M\\.2', $options: 'i' } },
-                                { type: { $regex: 'NVMe', $options: 'i' } }
-                            ]
-                        }
-                    ]
-                }).sort({ currentPrice: -1, price: -1 }).limit(10).toArray(); // Largest first
-
-                if (affordableSSDs.length === 0) break;
-
-                const ssd = affordableSSDs[0];
-                const ssdPrice = parseFloat(ssd.currentPrice || ssd.price);
-
-                additionalSSDs.push(ssd);
-                currentBudgetForSSDs -= ssdPrice;
-                totalCost += ssdPrice;
-                addedSSDs++;
-
-                console.log(`Added additional SSD ${addedSSDs}: ${ssd.name || ssd.title} ($${ssdPrice.toFixed(2)})`);
-
-                // Stop if we've reached 90% or would go over budget
-                if (totalCost >= targetSpend || totalCost + minSSDPrice > maxBudget) {
-                    break;
-                }
-            }
-
-            // Update storage configuration
-            if (additionalSSDs.length > 0) {
-                const allStorage = [...currentStorage, ...additionalSSDs];
-                selectedParts.storage = allStorage;
-                console.log(`Total storage devices: ${allStorage.length}, Total budget utilization: ${((totalCost / maxBudget) * 100).toFixed(1)}%`);
-            }
-        }
-
-        // 10. Optional: Select Monitor if requested
-        if (includeMonitor) {
-            const remainingBudget = maxBudget - totalCost;
-            const monitorDebug = {
-                component: 'Monitor',
-                budget: `$${remainingBudget.toFixed(2)}`,
-                searchCriteria: maxBudget === 999999 ? '3x MSI QD-OLED 32" 4K 240Hz (Unlimited budget)' : `Price: $0 - $${remainingBudget.toFixed(2)} (Remaining budget)`,
-                candidatesFound: 0,
-                topCandidates: []
-            };
-
-            // For unlimited budget, select 3x MSI QD-OLED 32" 4K 240Hz monitors
-            if (maxBudget === 999999) {
-                const msiMonitors = await db.collection('addons').find({
-                    category: 'Monitor',
-                    $and: [
-                        {
-                            $or: [
-                                { name: { $regex: 'MSI.*QD-OLED.*32', $options: 'i' } },
-                                { title: { $regex: 'MSI.*QD-OLED.*32', $options: 'i' } }
-                            ]
-                        },
-                        {
-                            $or: [
-                                { name: { $regex: '4K.*240', $options: 'i' } },
-                                { title: { $regex: '4K.*240', $options: 'i' } }
-                            ]
-                        },
-                        {
-                            $or: [
-                                { currentPrice: { $gt: 0 } },
-                                { price: { $gt: 0 } }
-                            ]
-                        }
-                    ]
-                }).sort({ currentPrice: -1, price: -1 }).limit(1).toArray();
-
-                monitorDebug.candidatesFound = msiMonitors.length;
-
-                if (msiMonitors.length > 0) {
-                    const monitor = msiMonitors[0];
-                    // Create 3 separate addon components for the frontend
-                    selectedParts.monitor = monitor;
-                    selectedParts.addon2 = { ...monitor };  // Clone for addon2
-                    selectedParts.addon3 = { ...monitor };  // Clone for addon3
-
-                    const unitMonitorPrice = parseFloat(monitor.currentPrice || monitor.price);
-                    const totalMonitorPrice = unitMonitorPrice * 3;
-                    totalCost += totalMonitorPrice;
-
-                    monitorDebug.selected = {
-                        name: `3x ${monitor.name || monitor.title}`,
-                        price: `$${unitMonitorPrice.toFixed(2)} x3 = $${totalMonitorPrice.toFixed(2)}`,
-                        reason: 'Premium triple monitor setup for unlimited budget'
-                    };
-                    console.log(`Selected 3x MSI QD-OLED Monitor: ${monitor.name || monitor.title} - $${unitMonitorPrice.toFixed(2)} x3 = $${totalMonitorPrice.toFixed(2)}`);
-                } else {
-                    // Fallback to any monitor
-                    const monitors = await db.collection('addons').find({
-                        category: 'Monitor',
-                        $or: [
-                            { currentPrice: { $gt: 0, $lte: remainingBudget } },
-                            { price: { $gt: 0, $lte: remainingBudget } }
-                        ]
-                    }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-
-                    monitorDebug.candidatesFound = monitors.length;
-                    monitorDebug.topCandidates = monitors.slice(0, 5).map(m => ({
-                        name: m.name || m.title,
-                        price: `$${parseFloat(m.currentPrice || m.price).toFixed(2)}`
-                    }));
-
-                    if (monitors.length > 0) {
-                        selectedParts.monitor = monitors[0];
-                        const monitorPrice = parseFloat(selectedParts.monitor.currentPrice || selectedParts.monitor.price);
-                        totalCost += monitorPrice;
-                        monitorDebug.selected = {
-                            name: monitors[0].name || monitors[0].title,
-                            price: `$${monitorPrice.toFixed(2)}`,
-                            reason: 'Fallback: MSI QD-OLED not found, selected cheapest available'
-                        };
-                    } else {
-                        monitorDebug.selected = null;
-                        monitorDebug.error = 'No monitors found';
-                    }
-                }
-            } else {
-                // Standard budget: select single monitor within budget
-                const monitors = await db.collection('addons').find({
-                    category: 'Monitor',
-                    $or: [
-                        { currentPrice: { $gt: 0, $lte: remainingBudget } },
-                        { price: { $gt: 0, $lte: remainingBudget } }
-                    ]
-                }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-
-                monitorDebug.candidatesFound = monitors.length;
-                monitorDebug.topCandidates = monitors.slice(0, 5).map(m => ({
-                    name: m.name || m.title,
-                    price: `$${parseFloat(m.currentPrice || m.price).toFixed(2)}`
-                }));
-
-                if (monitors.length > 0) {
-                    selectedParts.monitor = monitors[0];
-                    const monitorPrice = parseFloat(selectedParts.monitor.currentPrice || selectedParts.monitor.price);
-                    totalCost += monitorPrice;
-                    monitorDebug.selected = {
-                        name: monitors[0].name || monitors[0].title,
-                        price: `$${monitorPrice.toFixed(2)}`,
-                        reason: 'Cheapest monitor within remaining budget'
-                    };
-                    console.log(`Selected Monitor: ${monitors[0].name || monitors[0].title} - $${monitorPrice.toFixed(2)}`);
-                } else {
-                    monitorDebug.selected = null;
-                    monitorDebug.error = 'No monitors found within remaining budget';
-                }
-            }
-
-            debugLog.selections.push(monitorDebug);
-        }
-
-        // 8. Budget Enforcement - Downgrade components if over budget
-        const budgetRetries = [];
-        let retryAttempt = 0;
-        const maxRetries = 20;
-
-        while (totalCost > maxBudget && retryAttempt < maxRetries) {
-            retryAttempt++;
-            const overBudgetAmount = totalCost - maxBudget;
-
-            const retryLog = {
-                attempt: retryAttempt,
-                overBudget: `$${overBudgetAmount.toFixed(2)}`,
-                action: '',
-                componentDowngraded: '',
-                oldPrice: '',
-                newPrice: '',
-                success: false
-            };
-
-            // Priority order for downgrading (least critical first, preserve GPU/CPU performance)
-            // IMPORTANT: Cooler is first (can be removed entirely), case/PSU are LAST (mandatory, only downgrade)
-            const downgradeOrder = performance === 'multi'
-                ? ['cooler', 'storage', 'ram', 'gpu', 'psu', 'case', 'cpu']  // Preserve CPU for multi-threaded
-                : ['cooler', 'storage', 'ram', 'cpu', 'psu', 'case', 'gpu']; // Preserve GPU for gaming
-
-            let downgraded = false;
-
-            for (const componentType of downgradeOrder) {
-                if (!selectedParts[componentType] || downgraded) continue;
-
-                const currentPrice = parseFloat(selectedParts[componentType].currentPrice || selectedParts[componentType].price);
-
-                // For first few attempts, try to find component that saves most of the overBudgetAmount
-                // For later attempts, accept any savings
-                const minSavings = retryAttempt <= 5 ? Math.max(overBudgetAmount * 0.5, 5) : 1;
-                const maxPrice = currentPrice - minSavings;
-
-                // Find a cheaper alternative - accept any price less than current
-                let cheaperComponent = null;
-
-                if (componentType === 'gpu') {
-                    // Find cheaper GPU
-                    for (const collection of gpuCollections) {
-                        const gpus = await db.collection(collection.name).find({
-                            currentPrice: { $gt: 0, $lt: maxPrice },
-                            isAvailable: { $ne: false }
-                        }).sort({ currentPrice: -1 }).limit(10).toArray();
-                        const filtered = gpus.filter(gpu => !isDesktopOrLaptop(gpu.title || gpu.name || ''));
-                        if (filtered.length > 0) {
-                            cheaperComponent = filtered[0];
-                            break;
-                        }
-                    }
-                } else if (componentType === 'cpu') {
-                    // Find cheaper CPU that's compatible with the motherboard
-                    const motherboard = selectedParts.motherboard;
-                    const cpuFilter = {
-                        currentPrice: { $gt: 0, $lt: maxPrice },
-                        isAvailable: { $ne: false }
-                    };
-
-                    // Add motherboard compatibility filter if motherboard exists
-                    if (motherboard && (motherboard.chipset || motherboard.socket)) {
-                        const cpuMatchFilters = [];
-                        if (motherboard.chipset) {
-                            cpuMatchFilters.push({ chipset: motherboard.chipset });
-                        }
-                        if (motherboard.socket) {
-                            cpuMatchFilters.push({ socket: motherboard.socket });
-                        }
-                        if (cpuMatchFilters.length > 0) {
-                            cpuFilter.$or = cpuMatchFilters;
-                        }
-                    }
-
-                    // Search all CPU collections for compatible, cheaper CPU
-                    for (const collection of cpuCollections) {
-                        const cpus = await db.collection(collection.name).find(cpuFilter)
-                            .sort({ [performanceMetric]: -1, currentPrice: -1 }).limit(10).toArray();
-                        if (cpus.length > 0) {
-                            cheaperComponent = cpus[0];
-                            break;
-                        }
-                    }
-                    // Also check main cpus collection
-                    if (!cheaperComponent) {
-                        const mainCpus = await db.collection('cpus').find(cpuFilter)
-                            .sort({ [performanceMetric]: -1, currentPrice: -1 }).limit(10).toArray();
-                        if (mainCpus.length > 0) {
-                            cheaperComponent = mainCpus[0];
-                        }
-                    }
-                } else if (componentType === 'ram') {
-                    const rams = await db.collection('rams').find({
-                        currentPrice: { $gt: 0, $lt: maxPrice }
-                    }).sort({ currentPrice: -1 }).limit(10).toArray();
-                    if (rams.length > 0) cheaperComponent = rams[0];
-                } else if (componentType === 'storage') {
-                    const storages = await db.collection('storage').find({
-                        currentPrice: { $gt: 0, $lt: maxPrice },
-                        capacity: { $gte: storageGB }
-                    }).sort({ currentPrice: -1 }).limit(10).toArray();
-                    if (storages.length > 0) cheaperComponent = storages[0];
-                } else if (componentType === 'psu') {
-                    const psus = await db.collection('psus').find({
-                        currentPrice: { $gt: 0, $lt: maxPrice },
-                        wattage: { $gte: recommendedWattage }
-                    }).sort({ currentPrice: -1 }).limit(10).toArray();
-                    if (psus.length > 0) cheaperComponent = psus[0];
-                } else if (componentType === 'cooler') {
-                    // Cooler is optional ONLY if CPU has stock cooler
-                    const cpuHasStockCooler = selectedParts.cpu && selectedParts.cpu.coolerIncluded === true;
-
-                    const coolers = await db.collection('coolers').find({
-                        currentPrice: { $gt: 0, $lt: maxPrice }
-                    }).sort({ currentPrice: -1 }).limit(10).toArray();
-
-                    if (coolers.length > 0) {
-                        cheaperComponent = coolers[0];
-                    } else if (cpuHasStockCooler) {
-                        // No cheaper cooler found - remove it only if CPU has stock cooler
-                        const oldPrice = parseFloat(selectedParts.cooler.currentPrice || selectedParts.cooler.price);
-                        delete selectedParts.cooler;
-                        totalCost -= oldPrice;
-
-                        retryLog.action = 'Remove';
-                        retryLog.componentDowngraded = 'cooler';
-                        retryLog.oldPrice = `$${oldPrice.toFixed(2)}`;
-                        retryLog.newPrice = '$0.00';
-                        retryLog.success = true;
-                        retryLog.savedAmount = `$${oldPrice.toFixed(2)}`;
-                        retryLog.note = 'CPU includes stock cooler';
-
-                        downgraded = true;
-                        console.log(`  ✓ Removed cooler (saved $${oldPrice.toFixed(2)}) - using CPU stock cooler`);
-                        break;
-                    }
-                    // If CPU doesn't have stock cooler, cooler is MANDATORY - skip to next component
-                } else if (componentType === 'case') {
-                    const cases = await db.collection('cases').find({
-                        currentPrice: { $gt: 0, $lt: maxPrice }
-                    }).sort({ currentPrice: -1 }).limit(10).toArray();
-                    if (cases.length > 0) cheaperComponent = cases[0];
-                }
-
-                if (cheaperComponent) {
-                    const newPrice = parseFloat(cheaperComponent.currentPrice || cheaperComponent.price);
-                    const oldComponent = selectedParts[componentType];
-                    const oldPrice = parseFloat(oldComponent.currentPrice || oldComponent.price);
-
-                    // Update the component
-                    selectedParts[componentType] = cheaperComponent;
-                    totalCost = totalCost - oldPrice + newPrice;
-
-                    retryLog.action = 'Downgrade';
-                    retryLog.componentDowngraded = componentType;
-                    retryLog.oldPrice = `$${oldPrice.toFixed(2)}`;
-                    retryLog.newPrice = `$${newPrice.toFixed(2)}`;
-                    retryLog.success = true;
-                    retryLog.savedAmount = `$${(oldPrice - newPrice).toFixed(2)}`;
-
-                    downgraded = true;
-                    break;
-                }
-            }
-
-            if (!downgraded) {
-                retryLog.action = 'Failed';
-                retryLog.reason = 'No cheaper alternatives found for any component';
-                budgetRetries.push(retryLog);
-                break;
-            }
-
-            budgetRetries.push(retryLog);
-        }
-
-        if (budgetRetries.length > 0) {
-            debugLog.budgetRetries = budgetRetries;
-            console.log('\n=== Budget Enforcement Retries ===');
-            budgetRetries.forEach(retry => {
-                console.log(`\nAttempt ${retry.attempt}:`);
-                console.log(`  Over budget by: ${retry.overBudget}`);
-                if (retry.success) {
-                    if (retry.action === 'Remove') {
-                        console.log(`  ✓ Removed ${retry.componentDowngraded} (saved ${retry.savedAmount}) - using CPU stock cooler`);
-                    } else {
-                        console.log(`  ✓ Downgraded ${retry.componentDowngraded}: ${retry.oldPrice} → ${retry.newPrice} (saved ${retry.savedAmount})`);
-                    }
-                } else {
-                    console.log(`  ✗ ${retry.reason}`);
-                }
-            });
-            console.log('=== End Budget Retries ===\n');
-        }
-
-        // Finalize debug log
-        debugLog.summary = {
-            totalCost: `$${totalCost.toFixed(2)}`,
-            budget: maxBudget === 999999 ? 'Unlimited' : `$${maxBudget}`,
-            underBudget: totalCost <= maxBudget,
-            componentsSelected: Object.keys(selectedParts).length,
-            budgetRetries: budgetRetries.length
-        };
-
-        // Log what's actually in selectedParts.storage
-        console.log('\n=== STORAGE DEBUG ===');
-        if (selectedParts.storage) {
-            console.log('Storage is:', Array.isArray(selectedParts.storage) ? 'ARRAY' : 'SINGLE OBJECT');
-            if (Array.isArray(selectedParts.storage)) {
-                console.log(`Storage array length: ${selectedParts.storage.length}`);
-                selectedParts.storage.forEach((drive, idx) => {
-                    console.log(`  Drive ${idx + 1}: ${drive.name || drive.title} (${drive.type}, ${drive.capacity})`);
-                });
-            } else {
-                console.log(`Single storage: ${selectedParts.storage.name || selectedParts.storage.title} (${selectedParts.storage.type}, ${selectedParts.storage.capacity})`);
-            }
-        } else {
-            console.log('NO STORAGE SELECTED!');
-        }
-        console.log('=== END STORAGE DEBUG ===\n');
-
-        // Log to console for server-side visibility
-        console.log('\n=== AI Build Debug Log ===');
-        console.log('Strategy:', debugLog.allocations.strategy);
-        console.log('Budget Allocations:', debugLog.allocations.budgetAmounts);
-        debugLog.selections.forEach((selection, index) => {
-            console.log(`\n[${index + 1}] ${selection.component}:`);
-            if (selection.selected) {
-                // Handle storage specially since it might have a drives array
-                if (selection.component === 'Storage' && selection.selected.drives) {
-                    console.log(`  ✓ Selected: ${selection.selected.drives.length} drive(s)`);
-                    selection.selected.drives.forEach((drive, idx) => {
-                        console.log(`    - Drive ${idx + 1}: ${drive.name} (${drive.capacity})`);
-                    });
-                    console.log(`  Total: ${selection.selected.totalCapacity}, ${selection.selected.totalCost}`);
-                } else {
-                    console.log(`  ✓ Selected: ${selection.selected.name || 'Unknown'}`);
-                    console.log(`  Price: ${selection.selected.price || 'Unknown'}`);
-                }
-                console.log(`  Reason: ${selection.selected.reason}`);
-            } else {
-                console.log(`  ✗ Not selected: ${selection.reason || selection.error}`);
-            }
-        });
-        console.log('\nSummary:', debugLog.summary);
-        console.log('=== End Debug Log ===\n');
-
-        // 12. Optional: Add Windows 11 license if there's spare budget
-        const remainingBudgetForWindows = maxBudget - totalCost;
-        if (remainingBudgetForWindows >= 100) { // Minimum $100 for Windows license
-            const windows11Licenses = await db.collection('addons').find({
-                $and: [
-                    {
-                        $or: [
-                            { category: 'Software' },
-                            { category: 'Operating System' }
-                        ]
-                    },
-                    {
-                        $or: [
-                            { name: { $regex: 'Windows 11', $options: 'i' } },
-                            { title: { $regex: 'Windows 11', $options: 'i' } }
-                        ]
-                    },
-                    {
-                        $or: [
-                            { currentPrice: { $gt: 0, $lte: remainingBudgetForWindows } },
-                            { price: { $gt: 0, $lte: remainingBudgetForWindows } }
-                        ]
-                    }
-                ]
-            }).sort({ currentPrice: 1, price: 1 }).limit(10).toArray();
-
-            if (windows11Licenses.length > 0) {
-                selectedParts.windows11 = windows11Licenses[0];
-                const licensePrice = parseFloat(selectedParts.windows11.currentPrice || selectedParts.windows11.price);
-                totalCost += licensePrice;
-                console.log(`Added Windows 11 license: ${selectedParts.windows11.name || selectedParts.windows11.title} - $${licensePrice.toFixed(2)}`);
-            }
-        }
-
-        // CRITICAL VALIDATION: Ensure CPU and motherboard are compatible
-        if (selectedParts.cpu && selectedParts.motherboard) {
-            const cpu = selectedParts.cpu;
-            const mb = selectedParts.motherboard;
-
-            const cpuSocket = (cpu.socket || cpu.chipset || '').toUpperCase();
-            const mbSocket = (mb.socket || '').toUpperCase();
-            const mbChipset = (mb.chipset || '').toUpperCase();
-
-            // Check if sockets/chipsets are compatible
-            // For AMD: CPU chipset (e.g., "AM5") should match motherboard socket (e.g., "AM5")
-            // For Intel: CPU socket (e.g., "LGA1700") should match motherboard socket
-            const socketsMatch = cpuSocket && (
-                mbSocket.includes(cpuSocket) ||
-                cpuSocket.includes(mbSocket) ||
-                mbChipset.includes(cpuSocket) ||
-                cpuSocket.includes(mbChipset)
+        if (candidates.length > 0) {
+            const utilizationFloor = !request.unlimited && towerBudget >= 800 ? towerBudget * 0.70 : 0;
+            const reasonablyUtilized = candidates.filter(candidate =>
+                candidate.validation.totalCost >= utilizationFloor
             );
+            const pool = reasonablyUtilized.length > 0 ? reasonablyUtilized : candidates;
+            pool.sort((a, b) =>
+                b.score - a.score ||
+                b.validation.totalCost - a.validation.totalCost
+            );
+            return pool[0];
+        }
+    }
 
-            if (!socketsMatch) {
-                console.error('==========================================');
-                console.error('CRITICAL ERROR: CPU and motherboard socket mismatch!');
-                console.error(`CPU: ${cpu.name || cpu.title}`);
-                console.error(`  - Socket: ${cpu.socket || 'N/A'}`);
-                console.error(`  - Chipset: ${cpu.chipset || 'N/A'}`);
-                console.error(`Motherboard: ${mb.name || mb.title}`);
-                console.error(`  - Socket: ${mb.socket || 'N/A'}`);
-                console.error(`  - Chipset: ${mb.chipset || 'N/A'}`);
-                console.error('==========================================');
+    return null;
+}
 
-                return res.status(500).json({
-                    error: 'Build generation failed: CPU and motherboard are incompatible',
-                    details: {
-                        cpu: cpu.name || cpu.title,
-                        cpuSocket: cpu.socket,
-                        cpuChipset: cpu.chipset,
-                        motherboard: mb.name || mb.title,
-                        motherboardSocket: mb.socket,
-                        motherboardChipset: mb.chipset
-                    }
-                });
+function aiBuildMonitorResolution(addon) {
+    const text = `${addon?.type || ''} ${addon?.resolution || ''} ${aiBuildName(addon)}`.toLowerCase();
+    if (/\b4k\b|2160p|3840\s*x\s*2160/.test(text)) return '4k';
+    if (/1440p|2560\s*x\s*1440|\bqhd\b/.test(text)) return '1440p';
+    if (/1080p|1920\s*x\s*1080|\bfhd\b/.test(text)) return '1080p';
+    return null;
+}
+
+function selectMonitor(addons, resolution) {
+    const monitors = addons.filter(addon =>
+        /monitor|display/i.test(`${addon.type || ''} ${aiBuildName(addon)}`) &&
+        aiBuildMonitorResolution(addon) === resolution
+    );
+    return [...monitors].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0] || null;
+}
+
+async function loadAiBuildCatalogs(database) {
+    const collectionNames = ['gpus', 'cpus', 'motherboards', 'rams', 'storages', 'psus', 'cases', 'coolers', 'addons'];
+    const entries = await Promise.all(collectionNames.map(async collectionName => {
+        const parts = await database.collection(collectionName).find({}).toArray();
+        return [collectionName, aiBuildUniqueParts(parts.filter(aiBuildIsAvailable))];
+    }));
+    return Object.fromEntries(entries);
+}
+
+function createAiBuildDebug(request, allocation, candidate, monitor, catalogs) {
+    const build = candidate.build;
+    const selectionLabels = {
+        cpu: 'CPU',
+        gpu: 'GPU',
+        motherboard: 'Motherboard',
+        ram: 'RAM',
+        storage: 'Storage',
+        psu: 'PSU',
+        case: 'Case',
+        cooler: 'Cooler'
+    };
+    const selections = Object.entries(selectionLabels).map(([key, label]) => {
+        const part = build[key];
+        return {
+            component: label,
+            budget: `$${allocation.amounts[key].toFixed(2)}`,
+            searchCriteria: 'Real, available, compatible parts ranked by target fit and value',
+            candidatesFound: catalogs[`${key}s`]?.length || catalogs[key === 'storage' ? 'storages' : key]?.length || 0,
+            topCandidates: part ? [{ name: aiBuildName(part), price: `$${aiBuildPrice(part).toFixed(2)}` }] : [],
+            selected: part ? {
+                name: aiBuildName(part),
+                price: `$${aiBuildPrice(part).toFixed(2)}`,
+                reason: 'Best compatible whole-build candidate within the adaptive allocation'
+            } : {
+                name: 'CPU stock cooler',
+                price: '$0.00',
+                reason: 'Selected CPU explicitly includes a stock cooler'
             }
+        };
+    });
+    if (monitor) {
+        selections.push({
+            component: 'Monitor',
+            budget: `$${aiBuildPrice(monitor).toFixed(2)}`,
+            searchCriteria: `Real monitor matching ${request.resolution}`,
+            candidatesFound: catalogs.addons.filter(addon => aiBuildMonitorResolution(addon) === request.resolution).length,
+            topCandidates: [{ name: aiBuildName(monitor), price: `$${aiBuildPrice(monitor).toFixed(2)}` }],
+            selected: {
+                name: aiBuildName(monitor),
+                price: `$${aiBuildPrice(monitor).toFixed(2)}`,
+                reason: `Matches the selected ${request.resolution} target`
+            }
+        });
+    }
 
-            console.log(`✓ Socket validation passed: CPU ${cpuSocket} compatible with MB socket ${mbSocket} / chipset ${mbChipset}`);
+    return {
+        timestamp: new Date().toISOString(),
+        userChoices: {
+            budget: request.unlimited ? 'Unlimited' : `$${request.maxBudget}`,
+            performanceType: request.performance,
+            storageRequired: `${request.storage}GB`,
+            includeMonitor: monitor ? 'Yes' : 'No',
+            resolution: request.resolution
+        },
+        allocations: {
+            strategy: `${request.performance} performance at ${request.resolution}; whole-build adaptive redistribution`,
+            percentages: allocation.weights,
+            budgetAmounts: Object.fromEntries(
+                Object.entries(allocation.amounts).map(([key, value]) => [key, `$${value.toFixed(2)}`])
+            ),
+            capMultiplier: candidate.capMultiplier
+        },
+        selections,
+        summary: {
+            totalCost: `$${candidate.validation.totalCost.toFixed(2)}`,
+            budget: request.unlimited ? 'Unlimited' : `$${request.maxBudget}`,
+            underBudget: request.unlimited || candidate.validation.totalCost <= request.maxBudget,
+            componentsSelected: Object.keys(build).length + (monitor ? 1 : 0)
+        }
+    };
+}
+
+async function handleAiBuildRequest(req, res) {
+    try {
+        if (!db) {
+            return res.status(200).json({
+                success: false,
+                error: 'Database not connected',
+                reason: 'database_unavailable'
+            });
         }
 
-        res.json({
-            success: true,
-            build: selectedParts,
-            totalCost: totalCost.toFixed(2),
-            budget: maxBudget,
-            underBudget: totalCost <= maxBudget,
-            wizardData: { budget, performance, storage, includeMonitor },
-            debug: debugLog  // Include debug information in response
-        });
+        const request = normalizeAiBuildRequest(req.body);
+        if (request.error) {
+            return res.status(200).json({
+                success: false,
+                error: request.error,
+                reason: request.reason
+            });
+        }
 
+        const catalogs = await loadAiBuildCatalogs(db);
+        const missingCatalog = ['gpus', 'cpus', 'motherboards', 'rams', 'storages', 'psus', 'cases']
+            .find(collectionName => catalogs[collectionName].length === 0);
+        if (missingCatalog) {
+            return res.status(200).json({
+                success: false,
+                error: `No available ${missingCatalog} were found`,
+                reason: `empty_${missingCatalog}`
+            });
+        }
+
+        let monitor = request.includeMonitor ? selectMonitor(catalogs.addons, request.resolution) : null;
+        let towerBudget = request.maxBudget;
+        if (monitor && !request.unlimited) {
+            const remainingAfterMonitor = request.maxBudget - aiBuildPrice(monitor);
+            if (remainingAfterMonitor < request.maxBudget * 0.70) {
+                monitor = null;
+            } else {
+                towerBudget = remainingAfterMonitor;
+            }
+        }
+
+        let allocation = allocateBudget(towerBudget, request.performance, request.resolution);
+        let candidate = buildCompatibleTower(catalogs, towerBudget, request, allocation);
+
+        if (!candidate && monitor) {
+            monitor = null;
+            towerBudget = request.maxBudget;
+            allocation = allocateBudget(towerBudget, request.performance, request.resolution);
+            candidate = buildCompatibleTower(catalogs, towerBudget, request, allocation);
+        }
+
+        if (!candidate) {
+            return res.status(200).json({
+                success: false,
+                error: 'No complete compatible build fits the requested target',
+                reason: 'no_compatible_build'
+            });
+        }
+
+        const build = { ...candidate.build };
+        if (monitor) build.monitor = monitor;
+        const finalValidation = assembleAndValidate(build, {
+            budget: request.maxBudget,
+            unlimited: request.unlimited
+        });
+        if (!finalValidation.valid) {
+            return res.status(200).json({
+                success: false,
+                error: `Build validation failed: ${finalValidation.errors.join(', ')}`,
+                reason: 'final_validation_failed'
+            });
+        }
+
+        candidate = {
+            ...candidate,
+            build,
+            validation: finalValidation
+        };
+        const actualIncludeMonitor = Boolean(monitor);
+        const debug = createAiBuildDebug(request, allocation, candidate, monitor, catalogs);
+
+        return res.json({
+            success: true,
+            build,
+            totalCost: finalValidation.totalCost.toFixed(2),
+            budget: request.maxBudget,
+            underBudget: request.unlimited || finalValidation.totalCost <= request.maxBudget,
+            wizardData: {
+                budget: request.budget,
+                performance: request.performance,
+                storage: request.storage,
+                includeMonitor: actualIncludeMonitor,
+                resolution: request.resolution
+            },
+            debug
+        });
     } catch (error) {
         console.error('Error generating AI build:', error);
-        res.status(500).json({ error: 'Failed to generate build' });
+        return res.status(200).json({
+            success: false,
+            error: 'Failed to generate build',
+            reason: 'internal_error'
+        });
     }
-});
+}
+
+// AI Part Selection API - Select parts based on wizard data
+app.post('/api/ai-build', handleAiBuildRequest);
 
 // Increment save count for components
 app.post('/api/components/increment-saves', async (req, res) => {

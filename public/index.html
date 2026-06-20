@@ -1984,7 +1984,7 @@
     <div id="budgetModal" class="budget-modal-overlay">
         <div class="budget-modal-content">
             <div class="budget-modal-header">
-                <h2><span id="wizardQuestionCounter" class="wizard-question-counter">1/4</span> PC Build Wizard</h2>
+                <h2><span id="wizardQuestionCounter" class="wizard-question-counter">1/3</span> PC Build Wizard</h2>
                 <button class="budget-modal-close" onclick="closeBudgetModal()" aria-label="Close build wizard">
                     <i class="fas fa-times"></i>
                 </button>
@@ -2000,7 +2000,7 @@
                             id="budgetInput"
                             class="budget-input"
                             placeholder="Enter your budget"
-                            min="1000"
+                            min="500"
                             max="5000"
                             step="100"
                             value="1500"
@@ -2009,7 +2009,7 @@
                     </div>
                     <div class="budget-slider-container">
                         <div class="slider-labels">
-                            <span class="slider-label-min">$1000</span>
+                            <span class="slider-label-min">$500</span>
                             <span class="slider-label-max">Unlimited</span>
                         </div>
                         <input
@@ -2079,8 +2079,31 @@
                     </div>
                 </div>
 
-                <!-- Question 4: Monitor -->
+                <!-- Question 4: Resolution -->
                 <div class="question-container" id="question4" style="display: none;">
+                    <label class="question-label">What display resolution are you targeting?</label>
+                    <p class="question-description">Higher resolutions shift more of the build budget toward graphics performance.</p>
+                    <div class="performance-options">
+                        <button class="performance-option-btn" id="resolution1080pBtn" onclick="selectResolution('1080p')">
+                            <i class="fas fa-desktop"></i>
+                            <div class="option-title">1080p</div>
+                            <div class="option-subtitle">High frame rates and best value</div>
+                        </button>
+                        <button class="performance-option-btn" id="resolution1440pBtn" onclick="selectResolution('1440p')">
+                            <i class="fas fa-display"></i>
+                            <div class="option-title">1440p</div>
+                            <div class="option-subtitle">Sharper image with strong performance</div>
+                        </button>
+                        <button class="performance-option-btn" id="resolution4kBtn" onclick="selectResolution('4k')">
+                            <i class="fas fa-tv"></i>
+                            <div class="option-title">4K</div>
+                            <div class="option-subtitle">Maximum detail for high-end builds</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Question 5: Monitor -->
+                <div class="question-container" id="question5" style="display: none;">
                     <label class="question-label">Should a monitor be included?</label>
                     <div class="performance-options">
                         <button class="performance-option-btn" id="includeMonitorBtn" onclick="selectMonitorOption('yes')">
@@ -2165,7 +2188,7 @@
                 </div>
             </div>
             <div class="budget-modal-footer">
-                <button class="budget-next-btn" onclick="acceptBuild()">
+                <button class="budget-next-btn" id="acceptBuildBtn" onclick="acceptBuild()">
                     <i class="fas fa-shopping-cart"></i> Accept Build
                 </button>
             </div>
@@ -2176,7 +2199,7 @@
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;
-            
+
             return {
                 async submit(data) {
                     // Cancel any pending request
@@ -2235,14 +2258,27 @@
             document.getElementById('buildLoadingState').style.display = 'block';
             document.getElementById('buildResultsContent').style.display = 'none';
             document.getElementById('buildErrorState').style.display = 'none';
-            
+            document.getElementById('acceptBuildBtn').style.display = 'inline-flex';
+
             try {
                 const data = await BuildRequestManager.submit(savedWizardData);
+                if (!data || data.success === false) {
+                    lastGeneratedBuild = null;
+                    document.getElementById('buildLoadingState').style.display = 'none';
+                    document.getElementById('buildResultsContent').style.display = 'none';
+                    document.getElementById('buildErrorState').style.display = 'block';
+                    document.getElementById('acceptBuildBtn').style.display = 'none';
+                    document.getElementById('buildErrorMessage').textContent =
+                        data?.error || 'No compatible build fits the selected target.';
+                    return;
+                }
                 lastGeneratedBuild = data;
                 displayBuildResults(data);
             } catch (error) {
                 document.getElementById('buildLoadingState').style.display = 'none';
+                document.getElementById('buildResultsContent').style.display = 'none';
                 document.getElementById('buildErrorState').style.display = 'block';
+                document.getElementById('acceptBuildBtn').style.display = 'none';
                 document.getElementById('buildErrorMessage').textContent = 
                     error.message || 'Failed to generate build. Please try again.';
             }
@@ -2254,7 +2290,8 @@
             budget: null,
             performance: null,
             storage: null,
-            includeMonitor: null
+            includeMonitor: null,
+            resolution: null
         };
         let lastGeneratedBuild = null; // Store the last AI-generated build
 
@@ -2342,7 +2379,13 @@
             document.getElementById('storageSlider').value = '1000';
             isUnlimited = false;
             currentQuestion = 1;
-            wizardData = { budget: null, performance: null, storage: null, includeMonitor: null };
+            wizardData = {
+                budget: null,
+                performance: null,
+                storage: null,
+                includeMonitor: null,
+                resolution: null
+            };
             document.querySelectorAll('.performance-option-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
@@ -2413,65 +2456,115 @@
             const firstInput = document.getElementById(questionId).querySelector('input, button, select');
             if (firstInput) firstInput.focus();
         }
-        function showQuestion(questionNumber) {
-            // Hide all questions
-            document.getElementById('question1').style.display = 'none';
-            document.getElementById('question2').style.display = 'none';
-            document.getElementById('question3').style.display = 'none';
-            document.getElementById('question4').style.display = 'none';
+        const WIZARD_MONITOR_MIN = 800;
 
-            // Show current question
+        function getWizardBudgetNumber() {
+            if (isUnlimited || String(wizardData.budget).toLowerCase() === 'unlimited') {
+                return Infinity;
+            }
+            return Number.parseInt(wizardData.budget, 10) || 0;
+        }
+
+        function getResolutionOptionsForBudget(budget) {
+            if (budget >= 2000) return ['1080p', '1440p', '4k'];
+            if (budget >= 1000) return ['1080p', '1440p'];
+            return ['1080p'];
+        }
+
+        function configureAdaptiveWizardQuestions() {
+            const budget = getWizardBudgetNumber();
+            const resolutionOptions = getResolutionOptionsForBudget(budget);
+            const resolutionButtons = {
+                '1080p': document.getElementById('resolution1080pBtn'),
+                '1440p': document.getElementById('resolution1440pBtn'),
+                '4k': document.getElementById('resolution4kBtn')
+            };
+
+            Object.entries(resolutionButtons).forEach(([resolution, button]) => {
+                button.style.display = resolutionOptions.includes(resolution) ? 'flex' : 'none';
+                if (!resolutionOptions.includes(resolution)) button.classList.remove('selected');
+            });
+
+            if (resolutionOptions.length === 1) {
+                wizardData.resolution = resolutionOptions[0];
+            } else if (!resolutionOptions.includes(wizardData.resolution)) {
+                wizardData.resolution = null;
+            }
+
+            if (budget < WIZARD_MONITOR_MIN) {
+                wizardData.includeMonitor = false;
+                document.getElementById('includeMonitorBtn').classList.remove('selected');
+                document.getElementById('excludeMonitorBtn').classList.add('selected');
+            } else if (wizardData.includeMonitor === false &&
+                !document.getElementById('excludeMonitorBtn').classList.contains('selected')) {
+                wizardData.includeMonitor = null;
+            }
+        }
+
+        function getWizardQuestionSequence() {
+            const budget = getWizardBudgetNumber();
+            const sequence = [1, 2, 3];
+            if (getResolutionOptionsForBudget(budget).length > 1) sequence.push(4);
+            if (budget >= WIZARD_MONITOR_MIN) sequence.push(5);
+            return sequence;
+        }
+
+        function showQuestion(questionNumber) {
+            for (let number = 1; number <= 5; number++) {
+                document.getElementById('question' + number).style.display = 'none';
+            }
+
+            const sequence = getWizardQuestionSequence();
+            const sequenceIndex = Math.max(sequence.indexOf(questionNumber), 0);
+            currentQuestion = questionNumber;
             document.getElementById('question' + questionNumber).style.display = 'block';
 
-            // Update question counter in header
             const counterElement = document.getElementById('wizardQuestionCounter');
             if (counterElement) {
-                counterElement.textContent = questionNumber + '/4';
+                counterElement.textContent = `${sequenceIndex + 1}/${sequence.length}`;
             }
 
-            // Update back button visibility
             const backBtn = document.getElementById('backBtn');
-            if (questionNumber > 1) {
-                backBtn.style.display = 'inline-flex';
-            } else {
-                backBtn.style.display = 'none';
-            }
+            backBtn.style.display = sequenceIndex > 0 ? 'inline-flex' : 'none';
 
-            // Update next button text
             const nextBtn = document.getElementById('nextBtn');
-            if (questionNumber === 4) {
+            if (sequenceIndex === sequence.length - 1) {
                 nextBtn.innerHTML = 'Finish <i class="fas fa-check"></i>';
             } else {
                 nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
             }
         }
 
+        function advanceWizardOrSubmit() {
+            const sequence = getWizardQuestionSequence();
+            const currentIndex = sequence.indexOf(currentQuestion);
+            if (currentIndex >= 0 && currentIndex < sequence.length - 1) {
+                showQuestion(sequence[currentIndex + 1]);
+            } else {
+                submitWizard();
+            }
+        }
+
         function nextQuestion() {
             if (currentQuestion === 1) {
-                // Validate budget
                 const budgetInput = document.getElementById('budgetInput');
                 const budget = isUnlimited ? 'Unlimited' : budgetInput.value;
 
-                if (!isUnlimited && (!budget || budget < 1000)) {
-                    showValidationError('question1', 'Please enter a valid budget amount (minimum $1000)');
+                if (!isUnlimited && (!budget || Number(budget) < 500)) {
+                    showValidationError('question1', 'Please enter a valid budget amount (minimum $500)');
                     return;
-
                 }
 
                 wizardData.budget = budget;
-                currentQuestion = 2;
-                showQuestion(2);
+                configureAdaptiveWizardQuestions();
+                advanceWizardOrSubmit();
             } else if (currentQuestion === 2) {
-                // Validate performance selection
                 if (!wizardData.performance) {
                     showValidationError('question2', 'Please select a performance priority');
                     return;
                 }
-
-                currentQuestion = 3;
-                showQuestion(3);
+                advanceWizardOrSubmit();
             } else if (currentQuestion === 3) {
-                // Validate storage (input is in TB, convert to GB)
                 const storageInput = document.getElementById('storageInput');
                 const storageInTB = parseFloat(storageInput.value);
 
@@ -2480,37 +2573,36 @@
                     return;
                 }
 
-                // Store in GB for consistency
                 wizardData.storage = tbToGb(storageInTB);
-
-                currentQuestion = 4;
-                showQuestion(4);
+                advanceWizardOrSubmit();
             } else if (currentQuestion === 4) {
-                // Validate monitor selection
-                if (wizardData.includeMonitor === null) {
-                    showValidationError('question4', 'Please select whether to include a monitor');
+                if (!wizardData.resolution) {
+                    showValidationError('question4', 'Please select a display resolution');
                     return;
                 }
-
-                // Submit the wizard
-                submitWizard();
+                advanceWizardOrSubmit();
+            } else if (currentQuestion === 5) {
+                if (wizardData.includeMonitor === null) {
+                    showValidationError('question5', 'Please select whether to include a monitor');
+                    return;
+                }
+                advanceWizardOrSubmit();
             }
         }
 
         function previousQuestion() {
-            if (currentQuestion > 1) {
-                currentQuestion--;
-                showQuestion(currentQuestion);
+            const sequence = getWizardQuestionSequence();
+            const currentIndex = sequence.indexOf(currentQuestion);
+            if (currentIndex > 0) {
+                showQuestion(sequence[currentIndex - 1]);
             }
         }
 
         function selectPerformance(type) {
             wizardData.performance = type;
 
-            // Remove selected class from all buttons
-            document.querySelectorAll('.performance-option-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
+            document.getElementById('singleThreadBtn').classList.remove('selected');
+            document.getElementById('multiThreadBtn').classList.remove('selected');
 
             // Add selected class to clicked button
             if (type === 'single') {
@@ -2518,6 +2610,19 @@
             } else if (type === 'multi') {
                 document.getElementById('multiThreadBtn').classList.add('selected');
             }
+        }
+
+        function selectResolution(resolution) {
+            const allowed = getResolutionOptionsForBudget(getWizardBudgetNumber());
+            if (!allowed.includes(resolution)) return;
+
+            wizardData.resolution = resolution;
+            ['1080p', '1440p', '4k'].forEach(option => {
+                document.getElementById(`resolution${option}Btn`).classList.toggle(
+                    'selected',
+                    option === resolution
+                );
+            });
         }
 
         function selectMonitorOption(option) {
@@ -2538,6 +2643,16 @@
         function displayBuildResults(data) {
             console.log('Displaying build results:', data);
 
+            if (!data || data.success === false) {
+                document.getElementById('buildLoadingState').style.display = 'none';
+                document.getElementById('buildResultsContent').style.display = 'none';
+                document.getElementById('buildErrorState').style.display = 'block';
+                document.getElementById('acceptBuildBtn').style.display = 'none';
+                document.getElementById('buildErrorMessage').textContent =
+                    data?.error || 'No compatible build fits the selected target.';
+                return;
+            }
+
             // Hide loading state
             document.getElementById('buildLoadingState').style.display = 'none';
             document.getElementById('buildResultsContent').style.display = 'block';
@@ -2545,7 +2660,11 @@
             // Update summary with safe defaults
             const budget = data.budget || 0;
             const totalCost = data.totalCost || 0;
-            const budgetDisplay = (data.wizardData && data.wizardData.budget > 5000) ? 'Unlimited' : formatCurrency(budget);
+            const wizardBudget = data.wizardData?.budget;
+            const budgetDisplay = (
+                String(wizardBudget || '').toLowerCase() === 'unlimited' ||
+                Number(wizardBudget) > 5000
+            ) ? 'Unlimited' : formatCurrency(budget);
 
             document.getElementById('buildTotalCost').textContent = formatCurrency(totalCost);
             document.getElementById('buildBudget').textContent = budgetDisplay;
