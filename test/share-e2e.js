@@ -162,6 +162,14 @@ function record(name, detail = '') {
         server = await startServerIfNeeded();
         record('server ready', `${server ? 'started-by-test' : 'already-running'} url=${baseUrl}`);
 
+        const malformedJsonResponse = await fetchWithTimeout(`${baseUrl}/api/builds`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{"cpu":'
+        });
+        assert.equal(malformedJsonResponse.status, 400);
+        record('POST /api/builds malformed JSON rejected', `status=${malformedJsonResponse.status}`);
+
         const validBuild = {
             cpu: '507f1f77bcf86cd799439011',
             gpu: { id: '507f1f77bcf86cd799439012', qty: 2 },
