@@ -15493,16 +15493,16 @@ class PartsDatabase {
             ctx.fillText('Price (USD)', 0, 0);
             ctx.restore();
 
-            const selectedTitle = selectedGpu ? (selectedGpu.title || selectedGpu.name || '') : '';
+            const selectedId = selectedGpu ? this.getPartId(selectedGpu) : null;
 
             // Draw all non-selected points first, then selected on top
             const [unselected, selected] = visiblePts.reduce(
-                ([u, s], p) => (p.gpu.title === selectedTitle || p.gpu.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                ([u, s], p) => (selectedId && this.getPartId(p.gpu) === selectedId) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
-                const isSelected = p.gpu.title === selectedTitle || p.gpu.name === selectedTitle;
+                const isSelected = selectedId && this.getPartId(p.gpu) === selectedId;
                 const incompatible = this._pointIncompatible(p);
                 const colorMode = this._gpuColorMode || 'manufacturer';
                 const pointColor = this._gpuPointColor(p, visiblePts, colorMode, isSelected);
@@ -15660,7 +15660,7 @@ class PartsDatabase {
             return;
         }
 
-        const selTitle = this._gpuTabSelectedGpu ? (this._gpuTabSelectedGpu.title || this._gpuTabSelectedGpu.name) : null;
+        const selId = this._gpuTabSelectedGpu ? this.getPartId(this._gpuTabSelectedGpu) : null;
         const rows = matches.map(({ g, price, perf }) => {
             const title = g.title || g.name || 'Graphics Card';
             const incompat = !this.isCompatibleWithBuild('gpu', g);
@@ -15677,7 +15677,7 @@ class PartsDatabase {
             const imgHTML = img
                 ? `<img src="${img}" alt="" class="mobo-row-img" loading="lazy" />`
                 : `<div class="mobo-row-img mobo-row-img-ph"><i class="fas fa-desktop"></i></div>`;
-            const sel = selTitle && (g.title === selTitle || g.name === selTitle) ? ' mobo-row-sel' : '';
+            const sel = selId && this.getPartId(g) === selId ? ' mobo-row-sel' : '';
             return `<div class="mobo-row${incompat ? ' mobo-row-incompat' : ''}${sel}" data-id="${this.getPartId(g)}">
                 ${imgHTML}
                 <div class="mobo-row-main">
@@ -16074,15 +16074,15 @@ class PartsDatabase {
             ctx.fillText('Price (USD)', 0, 0);
             ctx.restore();
 
-            const selectedTitle = selectedCpu ? (selectedCpu.title || selectedCpu.name || '') : '';
+            const selectedId = selectedCpu ? this.getPartId(selectedCpu) : null;
 
             const [unselected, selected] = this._cpuTabChartPts.reduce(
-                ([u, s], p) => (p.cpu.title === selectedTitle || p.cpu.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                ([u, s], p) => (selectedId && this.getPartId(p.cpu) === selectedId) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
-                const isSelected = p.cpu.title === selectedTitle || p.cpu.name === selectedTitle;
+                const isSelected = selectedId && this.getPartId(p.cpu) === selectedId;
                 const t = (p.valueScore - sMin) / (sMax - sMin || 1);
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
@@ -16553,15 +16553,15 @@ class PartsDatabase {
             ctx.fillText('Price (USD)', 0, 0);
             ctx.restore();
 
-            const selectedTitle = selectedCooler ? (selectedCooler.title || selectedCooler.name || '') : '';
+            const selectedId = selectedCooler ? this.getPartId(selectedCooler) : null;
 
             const [unselected, selected] = this._coolerTabChartPts.reduce(
-                ([u, s], p) => (p.cooler.title === selectedTitle || p.cooler.name === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                ([u, s], p) => (selectedId && this.getPartId(p.cooler) === selectedId) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
-                const isSelected = p.cooler.title === selectedTitle || p.cooler.name === selectedTitle;
+                const isSelected = selectedId && this.getPartId(p.cooler) === selectedId;
                 const t = (p.valueScore - sMin) / (sMax - sMin || 1);
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
@@ -17463,15 +17463,15 @@ class PartsDatabase {
             ctx.fillText('Price (USD)', 0, 0);
             ctx.restore();
 
-            const selectedTitle = selectedRam ? (selectedRam.name || selectedRam.title || '') : '';
+            const selectedId = selectedRam ? this.getPartId(selectedRam) : null;
 
             const [unselected, selected] = this._ramTabChartPts.reduce(
-                ([u, s], p) => (p.ram.name === selectedTitle || p.ram.title === selectedTitle) ? [u, [...s, p]] : [[...u, p], s],
+                ([u, s], p) => (selectedId && this.getPartId(p.ram) === selectedId) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
-                const isSelected = p.ram.name === selectedTitle || p.ram.title === selectedTitle;
+                const isSelected = selectedId && this.getPartId(p.ram) === selectedId;
                 // Color by perf score: blue = fast, red = slow
                 const t = p.perfNorm;
                 const r = Math.round(220 * (1 - t));
@@ -17907,15 +17907,15 @@ class PartsDatabase {
             ctx.fillText('Price (USD)', 0, 0);
             ctx.restore();
 
-            const selectedName = selectedPsu ? (selectedPsu.name || '') : '';
+            const selectedId = selectedPsu ? this.getPartId(selectedPsu) : null;
 
             const [unselected, selected] = this._psuTabChartPts.reduce(
-                ([u, s], p) => p.psu.name === selectedName ? [u, [...s, p]] : [[...u, p], s],
+                ([u, s], p) => (selectedId && this.getPartId(p.psu) === selectedId) ? [u, [...s, p]] : [[...u, p], s],
                 [[], []]
             );
 
             [...unselected, ...selected].forEach(p => {
-                const isSelected = p.psu.name === selectedName;
+                const isSelected = selectedId && this.getPartId(p.psu) === selectedId;
                 const t = p.effNorm;
                 const r = Math.round(220 * (1 - t));
                 const g = Math.round(40 + 160 * t);
@@ -18156,9 +18156,9 @@ class PartsDatabase {
             ctx.restore();
 
             // Points (colored by type)
-            const selTitle = this._storageSelected ? (this._storageSelected.title || this._storageSelected.name) : '';
+            const selId = this._storageSelected ? this.getPartId(this._storageSelected) : null;
             visible.forEach(p => {
-                const isSel = selTitle && (p.storage.title || p.storage.name) === selTitle;
+                const isSel = selId && this.getPartId(p.storage) === selId;
                 const color = TYPE_COLORS[p.type] || '#9ca3af';
                 if (isSel) {
                     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
