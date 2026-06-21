@@ -103,6 +103,21 @@
             <button id="newActionBtn" class="header-action-btn">
                 <i class="fas fa-magic"></i> Build a PC in 4 Questions
             </button>
+            <div class="global-search" role="search">
+                <div class="global-search-input-wrap">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input
+                        id="globalSearchInput"
+                        type="search"
+                        placeholder="Search all components"
+                        aria-label="Search all components"
+                        aria-controls="globalSearchPanel"
+                        aria-expanded="false"
+                        autocomplete="off"
+                    >
+                </div>
+                <div id="globalSearchPanel" class="global-search-panel" role="listbox" hidden></div>
+            </div>
             <p id="headerDescription">Build your custom PC by selecting components</p>
         </header>
         <nav class="main-nav">
