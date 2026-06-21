@@ -12,19 +12,23 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 12** — DISPATCHED 2026-06-20 (lane `lane/slice-12-00`, worktree
-  `.architect/wt/slice-12-00`, freeze e2fbb8e, effort xhigh). Scope = **compatibility
-  filter toggle** (P0-2: a per-tab "Compatible with my build" switch reusing the single
-  `isCompatibleWithBuild`, applied across `_renderTabList` + GPU + mobo renderers) +
-  **PSU-undersize into `isCompatibleWithBuild`** (P0-3 buildable: PSU wattage < estimated
-  draw → incompatible/greys/filters; existing 80%-headroom WARNING + GPU-length warning
-  left untouched). Gate `docs/gates/slice-12.md` (G1 parse, G2 smoke, G3
-  compat-filter-e2e F1-F4, G4 diff). JUDGE NEXT SESSION (dispatched this session →
-  can't self-grade). Builder writes raw results to `docs/lanes/slice-12-00.md`.
-  NOTE (grounding): the PSU 80%-headroom warning + GPU/ITX-mATX length warnings ALREADY
-  exist in `classifyCompatibilityIssues` (~5780-5862); S12 does NOT rebuild them.
-  Remaining P0 (→ Slice 13): empty/loading/error states, UX null-guards,
-  mobile-responsive verify.
+- Next action: **Slice 13** — remaining P0 batch: empty/loading/error states across
+  tabs, leftover UX null-guards (sticky dock / wizard build-review flags / missing
+  legacy builder filters), cold-load console-error audit, mobile-responsive verify
+  (responsive main app — server has no UA redirect, mobile.html is an orphan; verify/
+  clean, don't sync the dead file).
+- **Slice 12 (P0: compat filter toggle + PSU-undersize compatibility) — JUDGED PASS,
+  MERGED to local main (f682719), AWAITING QUINN'S GO TO PUSH.** Architect ran all
+  gates (Quinn OK'd same-session judge): G1 parse 0; G3 `compat-filter-e2e` F1-F4 PASS
+  (live `window.partsDatabase`, real data — toggle on every list tab, filter hides
+  incompatibles + restores, PSU undersize predicate null-safe, empty state error-free);
+  G2 smoke 0/0; G4 diff — shared `_compatOnly` synced across tabs, filter reuses the
+  single `isCompatibleWithBuild` in ALL 3 renderers (`_renderTabList` + GPU + mobo),
+  PSU branch additive/null-safe, existing PSU-headroom + GPU-length warnings untouched,
+  only the 4 declared files. Post-merge parse 0 + smoke 0/0. Worktree+lane branch cleaned.
+  **REMAINING: merge isn't pushed — `git push origin main` deploys to prod (Railway+
+  Render).** Grounding note: PSU 80%-headroom + GPU/ITX length warnings already lived in
+  `classifyCompatibilityIssues` (~5780-5862); S12 did NOT rebuild them.
 - **Slice 11 (P0 launch-hygiene part 1) — DONE + PUSHED to origin/main 2026-06-20
   (commit 9a305d6, `ec731e4..9a305d6`).** Prod auto-deploys via Railway+Render.
   Shipped: durable server-stored shareable builds (Lane A) + trust/legal pages +
@@ -437,6 +441,7 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Builder | slice-11-B | lane/slice-11-B dbc22e7 | self: trust 23/0, smoke 0/0 (UNJUDGED) | 3rd run (post no-halt rule) built full scope: 3 trust pages + footer + FTC disclosure + Plausible scaffold + trust-e2e. Boundary/tamper clean, checkpointed to lane branch; architect judges next session. |
 | 2026-06-20 | Architect | slice-11 | slice/11 6af356e | B: G1✓ G2✓ G3✓; integ ✓ | Quinn OK'd same-session judge. Lane B judged PASS (architect-run trust-e2e 23/0 after killing a stale :3000 server that gave a false 404; smoke 0/0; diff clean). Merged both lanes → slice/11, integration GREEN (share+trust+smoke). HELD at push awaiting Quinn's go. |
 | 2026-06-20 | Builder+Architect | slice-11p2 | c6e9044 / merged 9a305d6 | P-G1✓ P-G2✓ P-G3✓ P-G4✓ | Quinn chose "fold P2 then push". Froze micro-gate (5aa9854), dispatched 1-line fix (malformed JSON→400) + test assertion; verified malformed→400, share-e2e 10/10, smoke 0/0. Merged → slice/11 → **main + PUSHED origin/main (9a305d6)**. Prod deploy triggered. Worktrees/branches cleaned. |
+| 2026-06-20 | Builder+Architect | slice-12 | 25f3346 / merged f682719 | G1✓ G2✓ G3✓ G4✓ | Compat filter toggle + PSU-undersize compatibility. Freeze e2fbb8e, xhigh. Architect-run (Quinn OK'd same-session): parse 0, compat-filter-e2e F1-F4 (live predicate/real data), smoke 0/0, diff clean (3 renderers reuse single predicate, warnings untouched). Merged to local main (f682719); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
 
 ## Notes for next session
 
