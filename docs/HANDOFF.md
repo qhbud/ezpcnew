@@ -12,10 +12,24 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **JUDGE Slice 17 (community builds BACKEND API), then dispatch Slice 18
-  (community builds FRONTEND gallery).** Community builds is split into two SEQUENTIAL
-  slices (not parallel lanes) because the frontend genuinely needs the real API at
-  runtime to e2e: S17 = server API, S18 = gallery UI against the merged real API.
+- Next action: **JUDGE Slice 17 (community builds BACKEND API) — work is BUILT + preserved
+  on `lane/slice-17-00` (commit 048a98e), NOT merged. Then dispatch Slice 18 (community
+  builds FRONTEND gallery).** Community builds is split into two SEQUENTIAL slices because
+  the frontend needs the real API at runtime to e2e: S17 = server API, S18 = gallery UI.
+- **Slice 17 (P1: community builds BACKEND) — BUILT, AWAITING ARCHITECT VERDICT (dispatched
+  +resumed this same turn, so judging deferred per hard rule 4; HIGH-STAKES = persistence +
+  public submit endpoint → run a cross-model `codex review` before the verdict).** Builder
+  paused PHASE 0 with NO disagreements (verified contract/helpers vs real code), implemented
+  on resume: new `community_builds` collection + 4 routes (POST create→201, GET list
+  sort=newest|likes +limit/skip+total, GET :id, POST :id/like atomic $inc), reusing
+  normalizeSharedBuild/createSharedBuildId/SHARED_BUILD_ID_PATTERN; community oversized=400
+  while existing /api/builds stays 413 (verified). Builder-reported gates (NOT yet
+  architect-verified): G1 parse 0, G3 community-api-e2e C1-C4 PASS + id-scoped cleanup,
+  G2 smoke 0/0. Post-flight integrity (architect-checked): boundary clean (server.js +
+  test/community-api-e2e.js + lane report only), no gate tamper, parse 0. Gate
+  `docs/gates/slice-17.md` (frozen API contract is the shared contract for S18). Worktree
+  `.architect/wt/slice-17-00` KEPT for judgment. TO JUDGE: re-run G1/G2/G3 independently +
+  `codex review` the diff for the public-submit abuse surface, then merge to main on PASS.
 - **PUSH-GATED:** Slice 16 merged to LOCAL main (c5ec16c); origin/main is behind by the
   S16 commits. Quinn's earlier "push" approval was specific to S15 — ASK before pushing
   S16 (prod deploy via Railway+Render).
