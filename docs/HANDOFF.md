@@ -12,18 +12,23 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 13** — DISPATCHED 2026-06-20 (lane `lane/slice-13-00`, worktree
-  `.architect/wt/slice-13-00`, freeze a7cb5b7, xhigh). Scope = resilient loading/error/
-  empty states: null-safe `showLoading/hideLoading/showError/hideError` (~3667, bare
-  getElementById throws today) + consistent error states across category loaders
-  (`loadAllStorage`/`loadAllCases`/`loadAllAddons` ~2299-2366 only console.error today →
-  silent blank tab; `loadAllGPUs` ~2368 is the reference pattern). Gate
-  `docs/gates/slice-13.md` (G1 parse, G2 smoke, G3 resilience-e2e R1-R4, G4 diff).
-  JUDGE NEXT (dispatched this session). Builder writes `docs/lanes/slice-13-00.md`.
-  DE-SCOPED from S13: mobile-responsive verify → **Slice 14** (separate audit task);
-  mass null-guarding of the ~56 unrelated getElementById sites (no current crash —
-  smoke 0/0). The "leftover UX experiments" (sticky dock / wizard build-review flags)
-  from MEMORY are already shipped in prior slices; no uncommitted experiments remain.
+- Next action: **Slice 14** — mobile-responsive verify (P0-4): audit the responsive
+  main app at mobile viewports (tabs, component lists incl. case/addon + status tags,
+  wizard, compat filter, build summary), fix overflow/broken layout; server has NO UA
+  redirect → mobile users get index.html; `mobile.html` is a 3507-line ORPHAN — verify/
+  clean, do NOT sync the dead file. Likely styles-v5.css + a little index.html. After
+  that, P0 is essentially drained (remaining: P0-8 live analytics/Sentry IDs = needs
+  Quinn's accounts; P0-3 GPU-len/cooler-height clearance = Track B data-blocked).
+- **Slice 13 (P0: resilient loading/error/empty states) — JUDGED PASS, MERGED to local
+  main (1a9348a), AWAITING QUINN'S GO TO PUSH.** Architect ran all gates: G1 parse 0;
+  G3 `resilience-e2e` R1-R4 PASS (cold-load 0 errors + every tab switch safe; aborted
+  `/api/parts/storages` shows visible `#error` while CPU tab still renders + no uncaught
+  error; state helpers null-safe with elements removed; zero-item list shows readable
+  empty notice); G2 smoke 0/0; G4 diff — `showLoading/hideLoading/showError/hideError`
+  null-guarded; `loadAllStorage/loadAllCases/loadAllAddons` now show loading+error like
+  `loadAllGPUs`; happy path unchanged; only script.js + new test + lane report (+26/-4).
+  Post-merge parse 0 + smoke 0/0. Worktree+lane branch cleaned. **REMAINING: push
+  (`git push origin main` → Railway+Render prod deploy).**
 - **Slice 12 (P0: compat filter toggle + PSU-undersize compatibility) — DONE + PUSHED
   to origin/main 2026-06-20 (commit ae68295, `d15937a..ae68295`).** Prod auto-deploys
   via Railway+Render. Architect-verified green (parse 0, compat-filter-e2e F1-F4 on the
@@ -442,7 +447,8 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Builder | slice-11-B | lane/slice-11-B dbc22e7 | self: trust 23/0, smoke 0/0 (UNJUDGED) | 3rd run (post no-halt rule) built full scope: 3 trust pages + footer + FTC disclosure + Plausible scaffold + trust-e2e. Boundary/tamper clean, checkpointed to lane branch; architect judges next session. |
 | 2026-06-20 | Architect | slice-11 | slice/11 6af356e | B: G1✓ G2✓ G3✓; integ ✓ | Quinn OK'd same-session judge. Lane B judged PASS (architect-run trust-e2e 23/0 after killing a stale :3000 server that gave a false 404; smoke 0/0; diff clean). Merged both lanes → slice/11, integration GREEN (share+trust+smoke). HELD at push awaiting Quinn's go. |
 | 2026-06-20 | Builder+Architect | slice-11p2 | c6e9044 / merged 9a305d6 | P-G1✓ P-G2✓ P-G3✓ P-G4✓ | Quinn chose "fold P2 then push". Froze micro-gate (5aa9854), dispatched 1-line fix (malformed JSON→400) + test assertion; verified malformed→400, share-e2e 10/10, smoke 0/0. Merged → slice/11 → **main + PUSHED origin/main (9a305d6)**. Prod deploy triggered. Worktrees/branches cleaned. |
-| 2026-06-20 | Builder+Architect | slice-12 | 25f3346 / merged f682719 | G1✓ G2✓ G3✓ G4✓ | Compat filter toggle + PSU-undersize compatibility. Freeze e2fbb8e, xhigh. Architect-run (Quinn OK'd same-session): parse 0, compat-filter-e2e F1-F4 (live predicate/real data), smoke 0/0, diff clean (3 renderers reuse single predicate, warnings untouched). Merged to local main (f682719); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
+| 2026-06-20 | Builder+Architect | slice-12 | 25f3346 / merged f682719 | G1✓ G2✓ G3✓ G4✓ | Compat filter toggle + PSU-undersize compatibility. Freeze e2fbb8e, xhigh. Architect-run (Quinn OK'd same-session): parse 0, compat-filter-e2e F1-F4 (live predicate/real data), smoke 0/0, diff clean (3 renderers reuse single predicate, warnings untouched). Merged + **PUSHED origin/main (ae68295)**; worktree/branch cleaned. |
+| 2026-06-20 | Builder+Architect | slice-13 | dbdf19a / merged 1a9348a | G1✓ G2✓ G3✓ G4✓ | Resilient loading/error/empty states. Freeze a7cb5b7, xhigh. Architect-run: parse 0, resilience-e2e R1-R4 (cold-load clean, aborted-fetch shows error + isolates, null-safe helpers, empty notice), smoke 0/0, diff clean (+26/-4, null-safe helpers + 3 loaders consistent). Merged to local main (1a9348a); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
 
 ## Notes for next session
 
