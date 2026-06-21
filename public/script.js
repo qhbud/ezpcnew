@@ -99,6 +99,11 @@ class PartsDatabase {
         this.allCoolers = [];
         this.allStorage = [];
         this.allCases = [];
+        this.globalSearchParts = null;
+        this.globalSearchPartsPromise = null;
+        this.globalSearchVisibleResults = [];
+        this.globalSearchDebounceTimer = null;
+        this.globalSearchQueryVersion = 0;
         this.quickStartBuilds = [];
         this.quickStartBuildMap = new Map();
         this.quickStartBuildsStatus = 'idle';
@@ -218,6 +223,43 @@ class PartsDatabase {
                 if (e.key === 'Enter') {
                     this.performSearch();
                 }
+            });
+        }
+
+        const globalSearchInput = document.getElementById('globalSearchInput');
+        const globalSearchPanel = document.getElementById('globalSearchPanel');
+        if (globalSearchInput && globalSearchPanel) {
+            globalSearchInput.addEventListener('input', () => {
+                clearTimeout(this.globalSearchDebounceTimer);
+                const query = globalSearchInput.value.trim();
+                if (!query) {
+                    this.closeGlobalSearch();
+                    return;
+                }
+
+                this.globalSearchDebounceTimer = setTimeout(() => {
+                    this.runGlobalSearch(query);
+                }, 200);
+            });
+
+            globalSearchInput.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    globalSearchInput.value = '';
+                    this.closeGlobalSearch();
+                }
+            });
+
+            globalSearchPanel.addEventListener('click', event => {
+                const result = event.target.closest('.global-search-result');
+                if (!result) return;
+                const index = Number.parseInt(result.dataset.resultIndex, 10);
+                const part = this.globalSearchVisibleResults[index];
+                if (part) this.locateGlobalSearchPart(part);
+            });
+
+            document.addEventListener('click', event => {
+                if (!event.target.closest('.global-search')) this.closeGlobalSearch();
             });
         }
 
@@ -483,6 +525,339 @@ class PartsDatabase {
         this.updateBuildActions();
     }
 
+    getGlobalSearchCategoryConfig(category) {
+        const configs = {
+            cpus: { tab: 'cpu', label: 'CPU', arrays: ['_cpuAll', 'allCPUs'] },
+            motherboards: { tab: 'motherboard', label: 'Motherboard', arrays: ['_moboAll', 'allMotherboards'] },
+            gpus: { tab: 'gpu', label: 'GPU', arrays: ['_gpuRaw', 'allGPUs'] },
+            rams: { tab: 'ram', label: 'RAM', arrays: ['_ramConsumer', '_ramRaw', 'allRAM'] },
+            storages: { tab: 'storage', label: 'Storage', arrays: ['allStorage'] },
+            psus: { tab: 'psu', label: 'PSU', arrays: ['allPSUs'] },
+            cases: { tab: 'case', label: 'Case', arrays: ['allCases'] },
+            coolers: { tab: 'cooler', label: 'Cooler', arrays: ['_coolerAll', 'allCoolers'] }
+        };
+        return configs[String(category || '').toLowerCase()] || null;
+    }
+
+    getGlobalSearchName(part) {
+        return String(part?.title || part?.name || '').trim();
+    }
+
+    getGlobalSearchPrice(part) {
+        return this.getStarterPartPrice(part);
+    }
+
+    getGlobalSearchParts() {
+        if (this.globalSearchPartsPromise) return this.globalSearchPartsPromise;
+
+        this.globalSearchPartsPromise = fetch('/api/parts')
+            .then(response => {
+                if (!response.ok) throw new Error(`Global component search failed: ${response.status}`);
+                return response.json();
+            })
+            .then(parts => {
+                this.globalSearchParts = Array.isArray(parts)
+                    ? parts.filter(part => this.getGlobalSearchCategoryConfig(part.category))
+                    : [];
+                return this.globalSearchParts;
+            });
+
+        return this.globalSearchPartsPromise;
+    }
+
+    setGlobalSearchPanelMessage(message, className) {
+        const input = document.getElementById('globalSearchInput');
+        const panel = document.getElementById('globalSearchPanel');
+        if (!input || !panel) return;
+
+        panel.replaceChildren();
+        const status = document.createElement('div');
+        status.className = className;
+        status.textContent = message;
+        panel.appendChild(status);
+        panel.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+    }
+
+    async runGlobalSearch(query) {
+        const input = document.getElementById('globalSearchInput');
+        if (!input || input.value.trim() !== query) return;
+
+        const queryVersion = ++this.globalSearchQueryVersion;
+        this.setGlobalSearchPanelMessage('Searching components…', 'global-search-status');
+
+        try {
+            const parts = await this.getGlobalSearchParts();
+            if (queryVersion !== this.globalSearchQueryVersion || input.value.trim() !== query) return;
+
+            const normalizedQuery = query.toLocaleLowerCase();
+            const matches = parts
+                .filter(part => this.getGlobalSearchName(part).toLocaleLowerCase().includes(normalizedQuery))
+                .slice(0, 25);
+            this.renderGlobalSearchResults(matches, query);
+        } catch (error) {
+            if (queryVersion !== this.globalSearchQueryVersion) return;
+            this.setGlobalSearchPanelMessage('Unable to load components', 'global-search-status global-search-error');
+        }
+    }
+
+    renderGlobalSearchResults(matches, query = '') {
+        const input = document.getElementById('globalSearchInput');
+        const panel = document.getElementById('globalSearchPanel');
+        if (!input || !panel) return;
+
+        this.globalSearchVisibleResults = matches;
+        panel.replaceChildren();
+        panel.dataset.query = query;
+
+        if (!matches.length) {
+            this.setGlobalSearchPanelMessage('No components found', 'global-search-status global-search-empty');
+            return;
+        }
+
+        matches.forEach((part, index) => {
+            const config = this.getGlobalSearchCategoryConfig(part.category);
+            const result = document.createElement('button');
+            result.type = 'button';
+            result.className = 'global-search-result';
+            result.dataset.resultIndex = String(index);
+            result.setAttribute('role', 'option');
+
+            const name = document.createElement('span');
+            name.className = 'global-search-result-name';
+            name.textContent = this.getGlobalSearchName(part);
+
+            const meta = document.createElement('span');
+            meta.className = 'global-search-result-meta';
+
+            const category = document.createElement('span');
+            category.className = 'global-search-result-category';
+            category.textContent = config.label;
+
+            const price = document.createElement('span');
+            price.className = 'global-search-result-price';
+            const numericPrice = this.getGlobalSearchPrice(part);
+            price.textContent = numericPrice > 0 ? `$${numericPrice.toFixed(2)}` : '—';
+
+            meta.append(category, price);
+            result.append(name, meta);
+            panel.appendChild(result);
+        });
+
+        panel.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+    }
+
+    closeGlobalSearch() {
+        clearTimeout(this.globalSearchDebounceTimer);
+        this.globalSearchQueryVersion += 1;
+        this.globalSearchVisibleResults = [];
+
+        const input = document.getElementById('globalSearchInput');
+        const panel = document.getElementById('globalSearchPanel');
+        if (panel) {
+            panel.hidden = true;
+            panel.replaceChildren();
+            delete panel.dataset.query;
+        }
+        if (input) input.setAttribute('aria-expanded', 'false');
+    }
+
+    globalSearchPartsMatch(left, right) {
+        if (!left || !right) return false;
+        const keys = ['_id', 'asin', 'id'];
+        for (const key of keys) {
+            if (left[key] != null && right[key] != null &&
+                String(left[key]) === String(right[key])) return true;
+        }
+
+        const leftName = this.getGlobalSearchName(left).toLocaleLowerCase();
+        const rightName = this.getGlobalSearchName(right).toLocaleLowerCase();
+        return Boolean(leftName && leftName === rightName);
+    }
+
+    findLoadedGlobalSearchPart(config, searchPart) {
+        for (const property of config.arrays) {
+            const items = this[property];
+            if (!Array.isArray(items)) continue;
+            const match = items.find(item => this.globalSearchPartsMatch(item, searchPart));
+            if (match) return match;
+        }
+        return null;
+    }
+
+    findGlobalSearchResultRow(tabName, part) {
+        const resultsId = tabName === 'motherboard' ? 'moboFilterResults' : `${tabName}FilterResults`;
+        const results = document.getElementById(resultsId);
+        if (!results) return null;
+        const partId = this.getPartId(part);
+        return Array.from(results.querySelectorAll('.mobo-row'))
+            .find(row => row.dataset.id === partId) || null;
+    }
+
+    revealGlobalSearchRow(tabName, part) {
+        if (tabName === 'motherboard') {
+            this._moboFilters = {
+                socket: new Set(),
+                memory: null,
+                formFactor: new Set(),
+                wifi: null,
+                ramSlotsMin: 0,
+                m2Min: 0,
+                pcieMin: 0
+            };
+            this._renderMoboFeaturePanel(this._moboAll || this.allMotherboards || []);
+            return;
+        }
+
+        const graphState = this._graphState?.[tabName];
+        const graphFilter = this._graphFilters?.[tabName];
+        if (graphState && graphFilter) {
+            const point = graphState.allPts.find(candidate => {
+                const pointPart = candidate[graphState.itemKey] ||
+                    candidate.gpu || candidate.cpu || candidate.ram ||
+                    candidate.psu || candidate.cooler;
+                return this.globalSearchPartsMatch(pointPart, part);
+            });
+            if (point) {
+                graphFilter.brands.add(graphState.getBrand(point));
+                if (typeof graphState.getType === 'function') {
+                    graphFilter.types.add(graphState.getType(point));
+                }
+                graphFilter.minPrice = Math.min(graphFilter.minPrice, point.price);
+                graphFilter.maxPrice = Math.max(graphFilter.maxPrice, point.price);
+                this._setupGraphControls(tabName);
+            }
+        }
+
+        if (tabName === 'gpu') {
+            this._renderGpuFilterResults(this._gpuRaw || []);
+        } else if (this._tabCfg(tabName)) {
+            const categoryByTab = {
+                cpu: 'cpus',
+                ram: 'rams',
+                psu: 'psus',
+                cooler: 'coolers',
+                case: 'cases'
+            };
+            const config = this.getGlobalSearchCategoryConfig(categoryByTab[tabName]);
+            const items = config
+                ? config.arrays.flatMap(property => Array.isArray(this[property]) ? this[property] : [])
+                : undefined;
+            this._renderTabList(tabName, items);
+        }
+    }
+
+    selectGlobalSearchTabItem(tabName, part) {
+        if (tabName === 'gpu') {
+            this._gpuTabSelectedGpu = part;
+            this._renderGpuProductCard(part);
+            this._renderGpuReviews(part);
+            this._renderGpuBenchmarkChart(part);
+            if (this._drawGpuTabChart) this._drawGpuTabChart(part);
+            this._syncGpuListSelection();
+            return;
+        }
+
+        if (tabName === 'motherboard') {
+            this._moboTabSelectedMb = part;
+            this._renderMoboProductCard(part);
+            this._renderMoboReviews(part);
+            this._renderTabPriceHistory('motherboard', part);
+            return;
+        }
+
+        this._tabSelect(tabName, part);
+    }
+
+    createTemporaryGlobalSearchRow(tabName, part) {
+        const resultsId = tabName === 'motherboard' ? 'moboFilterResults' : `${tabName}FilterResults`;
+        const results = document.getElementById(resultsId);
+        if (!results) return null;
+        let list = results.querySelector('.mobo-results-list');
+        if (!list) {
+            list = document.createElement('div');
+            list.className = 'mobo-results-list';
+            results.appendChild(list);
+        }
+
+        const row = document.createElement('div');
+        row.className = 'mobo-row global-search-located global-search-temporary-row';
+        row.dataset.id = this.getPartId(part);
+
+        const main = document.createElement('div');
+        main.className = 'mobo-row-main';
+        const title = document.createElement('div');
+        title.className = 'mobo-row-title';
+        title.textContent = this.getGlobalSearchName(part);
+        main.appendChild(title);
+
+        const price = document.createElement('div');
+        price.className = 'mobo-row-price';
+        const numericPrice = this.getGlobalSearchPrice(part);
+        price.textContent = numericPrice > 0 ? `$${numericPrice.toFixed(2)}` : '—';
+
+        row.append(main, price);
+        list.prepend(row);
+        return row;
+    }
+
+    async locateGlobalSearchPart(searchPart) {
+        const config = this.getGlobalSearchCategoryConfig(searchPart.category);
+        if (!config) return;
+
+        this.closeGlobalSearch();
+        document.querySelectorAll('.global-search-located').forEach(element => {
+            element.classList.remove('global-search-located');
+        });
+        document.querySelectorAll('.global-search-temporary-row').forEach(element => element.remove());
+
+        this.switchTab(config.tab);
+        if (this.dataPromises[config.tab]) await this.dataPromises[config.tab];
+        await this.renderTabListings(config.tab);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const loadedPart = this.findLoadedGlobalSearchPart(config, searchPart);
+        const locatedPart = loadedPart || searchPart;
+
+        if (config.tab === 'storage') {
+            if (loadedPart) this._storageSelected = loadedPart;
+            this._renderStorageProductCard(locatedPart);
+            this._storageActiveTypes?.add(this._storageTypeBucket(locatedPart));
+            if (this._drawStorageChart) this._drawStorageChart();
+
+            const card = document.getElementById('storageProductCard');
+            if (card) {
+                card.classList.add('global-search-located');
+                card.dataset.globalSearchPartId = this.getPartId(searchPart);
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        let row = loadedPart ? this.findGlobalSearchResultRow(config.tab, loadedPart) : null;
+        if (loadedPart && !row) {
+            this._compatOnly = false;
+            this.revealGlobalSearchRow(config.tab, loadedPart);
+            row = this.findGlobalSearchResultRow(config.tab, loadedPart);
+        }
+
+        if (row) {
+            row.click();
+        } else if (loadedPart) {
+            this.selectGlobalSearchTabItem(config.tab, loadedPart);
+            row = this.createTemporaryGlobalSearchRow(config.tab, loadedPart);
+        } else {
+            row = this.createTemporaryGlobalSearchRow(config.tab, searchPart);
+        }
+
+        if (row) {
+            row.classList.add('global-search-located');
+            row.dataset.globalSearchPartId = this.getPartId(searchPart);
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
     getPriceHistoryCategory(componentType) {
         if (!componentType) return 'parts';
 
@@ -677,23 +1052,23 @@ class PartsDatabase {
         this.hideTabLoading(tabName);
 
         if (tabName === 'gpu') {
-            this.renderGpuListingsSection();
+            return this.renderGpuListingsSection();
         } else if (tabName === 'cpu') {
-            this.renderCpuListingsSection();
+            return this.renderCpuListingsSection();
         } else if (tabName === 'motherboard') {
-            this.renderMoboListingsSection();
+            return this.renderMoboListingsSection();
         } else if (tabName === 'ram') {
-            this.renderRamListingsSection();
+            return this.renderRamListingsSection();
         } else if (tabName === 'psu') {
-            this.renderPsuListingsSection();
+            return this.renderPsuListingsSection();
         } else if (tabName === 'cooler') {
-            this.renderCoolerListingsSection();
+            return this.renderCoolerListingsSection();
         } else if (tabName === 'case') {
-            this.renderCaseListingsSection();
+            return this.renderCaseListingsSection();
         } else if (tabName === 'storage') {
-            this.renderStorageListingsSection();
+            return this.renderStorageListingsSection();
         } else if (tabName === 'addon') {
-            this.renderAddonListingsSection();
+            return this.renderAddonListingsSection();
         }
     }
 
