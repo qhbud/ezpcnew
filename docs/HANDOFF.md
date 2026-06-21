@@ -12,11 +12,20 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **PUSH-GATED + spec next P1.** Slice 15 is merged to LOCAL main only;
-  origin/main is 4 commits behind (Slice 15 lane+merge + 2 doc-only bookkeeping).
-  Pushing deploys to prod (Railway+Render) — needs Quinn's go. After push: spec the
-  next P1 slice (candidates: global search, accounts/saved-builds, community builds,
-  multi-retailer pricing, build guides).
+- Next action: **JUDGE Slice 16 (global search), then dispatch Slice 17 (community
+  builds gallery).** Slice 15 PUSHED to origin/main 2026-06-21 (552724e → prod deploy
+  Railway+Render). Quinn approved: push (done) + do global search (S16, dispatched) +
+  community builds gallery (S17, queued — bigger, server persistence; collides with S16
+  on script.js/index.html/server.js so it runs AFTER S16 is judged, not in parallel).
+- **Slice 16 (P1: global component search) — DISPATCHED 2026-06-21** (lane
+  `lane/slice-16-00`, worktree `.architect/wt/slice-16-00`, freeze 7f27fb6, xhigh).
+  Header search box, name-substring across all 8 priced categories via ONE cached
+  `/api/parts` fetch (client-side filter), click routes through the full-data per-tab
+  path (NOT the reduced LIST_PARTS_PROJECTION search doc) to switchTab + highlight/
+  select. Gate `docs/gates/slice-16.md` (G1 parse, G2 smoke, G3 global-search-e2e 1-4,
+  G4 diff). Builder writes `docs/lanes/slice-16-00.md`. **JUDGE NEXT SESSION** (this
+  session dispatched it — hard rule 4). Builder progress JSON:
+  `.architect/wt/slice-16-00.json`.
 - **Slice 15 (P1: export part list — Markdown/Plain/BBCode) — JUDGED PASS / CONTINUE,
   MERGED to local main 2026-06-21 (lane 7ebbd8d, merge 5488d78). AWAITING QUINN'S GO TO
   PUSH.** Builder had run in the prior session (changes were uncommitted in the worktree,
