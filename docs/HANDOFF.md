@@ -12,19 +12,21 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **P0 DRAINED** — pick the next P1 (export part list, global search,
-  accounts/saved-builds, community builds, multi-retailer pricing) OR verify the
-  S11-S14 prod deploys. Remaining P0 leftovers need Quinn/data, not the loop: P0-8
-  live analytics/Sentry IDs (Quinn's accounts; Plausible scaffold shipped in S11 with
-  placeholder `ezpc.world`); P0-3 GPU-len/cooler-height clearance (Track B, data-blocked).
-- **Slice 14 (P0: mobile regression guard + remove orphan mobile.html) — JUDGED PASS,
-  MERGED to local main (4e1f568), AWAITING QUINN'S GO TO PUSH.** Recon found mobile
-  already clean (0 overflow / 0 errors at 390px); S14 locked it in + deleted dead weight.
-  Architect-ran: G1 parse 0; G3 `mobile-e2e` M1-M4 PASS (no overflow on 10 tabs + wizard
-  modal, key controls render, 0 console/page errors, `/mobile.html` 404); G2 smoke 0/0;
-  G4 diff — only `public/mobile.html` DELETED (3507 lines, confirmed unreferenced) +
-  new `test/mobile-e2e.js` + lane report. Post-merge smoke 0/0 + mobile.html 404.
-  Worktree+lane branch cleaned. **REMAINING: push (`git push origin main` → prod).**
+- Next action: **Slice 15 (P1: export part list) — DISPATCHED 2026-06-20** (lane
+  `lane/slice-15-00`, freeze be9e2c5, xhigh). First P1. Export the current build as
+  copyable text in 3 formats (Markdown table / Plain text / BBCode) with prices, total,
+  est. wattage, affiliate-tagged links (`qhezpc-20`) + FTC disclosure; copy-to-clipboard;
+  pure client-side (reuse currentBuild + serialize/clipboard/showToast/modal helpers).
+  Gate `docs/gates/slice-15.md` (G1 parse, G2 smoke, G3 export-e2e 1-4, G4 diff). JUDGE
+  NEXT. Builder writes `docs/lanes/slice-15-00.md`.
+- **P0 status: DRAINED across S11-S14 (all PUSHED to prod).** Leftovers need Quinn/data,
+  not the loop: P0-8 live analytics/Sentry IDs (Quinn's accounts; S11 Plausible scaffold
+  has placeholder `ezpc.world`); P0-3 GPU-len/cooler-height clearance (Track B, data-blocked).
+- **Slice 14 (P0: mobile guard + remove orphan mobile.html) — DONE + PUSHED to origin/main
+  (commit 461efb1, `768d6b6..461efb1`).** Recon found mobile already clean (0 overflow/0
+  errors at 390px); S14 locked it in (`test/mobile-e2e.js` M1-M4) + deleted the 3507-line
+  orphan. Architect-verified green; prod auto-deploys Railway+Render. S0-S14 all live.
+  NEXT P1 candidates: global search, accounts/saved-builds, community builds, multi-retailer.
 - **Slice 13 (P0: resilient loading/error/empty states) — JUDGED PASS, MERGED to local
   main (1a9348a), AWAITING QUINN'S GO TO PUSH.** Architect ran all gates: G1 parse 0;
   G3 `resilience-e2e` R1-R4 PASS (cold-load 0 errors + every tab switch safe; aborted
