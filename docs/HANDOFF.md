@@ -12,23 +12,24 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 13** — remaining P0 batch: empty/loading/error states across
-  tabs, leftover UX null-guards (sticky dock / wizard build-review flags / missing
-  legacy builder filters), cold-load console-error audit, mobile-responsive verify
-  (responsive main app — server has no UA redirect, mobile.html is an orphan; verify/
-  clean, don't sync the dead file).
-- **Slice 12 (P0: compat filter toggle + PSU-undersize compatibility) — JUDGED PASS,
-  MERGED to local main (f682719), AWAITING QUINN'S GO TO PUSH.** Architect ran all
-  gates (Quinn OK'd same-session judge): G1 parse 0; G3 `compat-filter-e2e` F1-F4 PASS
-  (live `window.partsDatabase`, real data — toggle on every list tab, filter hides
-  incompatibles + restores, PSU undersize predicate null-safe, empty state error-free);
-  G2 smoke 0/0; G4 diff — shared `_compatOnly` synced across tabs, filter reuses the
-  single `isCompatibleWithBuild` in ALL 3 renderers (`_renderTabList` + GPU + mobo),
-  PSU branch additive/null-safe, existing PSU-headroom + GPU-length warnings untouched,
-  only the 4 declared files. Post-merge parse 0 + smoke 0/0. Worktree+lane branch cleaned.
-  **REMAINING: merge isn't pushed — `git push origin main` deploys to prod (Railway+
-  Render).** Grounding note: PSU 80%-headroom + GPU/ITX length warnings already lived in
-  `classifyCompatibilityIssues` (~5780-5862); S12 did NOT rebuild them.
+- Next action: **Slice 13** — DISPATCHED 2026-06-20 (lane `lane/slice-13-00`, worktree
+  `.architect/wt/slice-13-00`, freeze a7cb5b7, xhigh). Scope = resilient loading/error/
+  empty states: null-safe `showLoading/hideLoading/showError/hideError` (~3667, bare
+  getElementById throws today) + consistent error states across category loaders
+  (`loadAllStorage`/`loadAllCases`/`loadAllAddons` ~2299-2366 only console.error today →
+  silent blank tab; `loadAllGPUs` ~2368 is the reference pattern). Gate
+  `docs/gates/slice-13.md` (G1 parse, G2 smoke, G3 resilience-e2e R1-R4, G4 diff).
+  JUDGE NEXT (dispatched this session). Builder writes `docs/lanes/slice-13-00.md`.
+  DE-SCOPED from S13: mobile-responsive verify → **Slice 14** (separate audit task);
+  mass null-guarding of the ~56 unrelated getElementById sites (no current crash —
+  smoke 0/0). The "leftover UX experiments" (sticky dock / wizard build-review flags)
+  from MEMORY are already shipped in prior slices; no uncommitted experiments remain.
+- **Slice 12 (P0: compat filter toggle + PSU-undersize compatibility) — DONE + PUSHED
+  to origin/main 2026-06-20 (commit ae68295, `d15937a..ae68295`).** Prod auto-deploys
+  via Railway+Render. Architect-verified green (parse 0, compat-filter-e2e F1-F4 on the
+  live predicate/real data, smoke 0/0, diff clean — shared `_compatOnly` across all 3
+  renderers reusing single `isCompatibleWithBuild`, PSU branch null-safe, existing
+  warnings untouched). Worktree+lane branch cleaned. S0–S12 all live in prod.
 - **Slice 11 (P0 launch-hygiene part 1) — DONE + PUSHED to origin/main 2026-06-20
   (commit 9a305d6, `ec731e4..9a305d6`).** Prod auto-deploys via Railway+Render.
   Shipped: durable server-stored shareable builds (Lane A) + trust/legal pages +
