@@ -426,6 +426,36 @@ class PartsDatabase {
             this.shareBuild();
         });
 
+        const exportBuildBtn = document.getElementById('exportBuildBtn');
+        if (exportBuildBtn) {
+            exportBuildBtn.addEventListener('click', () => this.openExportList());
+        }
+
+        const exportListModal = document.getElementById('exportListModal');
+        const closeExportListBtn = document.getElementById('closeExportListBtn');
+        const copyExportListBtn = document.getElementById('copyExportListBtn');
+        const exportFormatTabs = document.querySelectorAll('[data-export-format]');
+
+        if (closeExportListBtn) {
+            closeExportListBtn.addEventListener('click', () => this.closeExportList());
+        }
+        if (copyExportListBtn) {
+            copyExportListBtn.addEventListener('click', () => this.copyActiveExport());
+        }
+        exportFormatTabs.forEach(tab => {
+            tab.addEventListener('click', () => this.setExportFormat(tab.dataset.exportFormat));
+        });
+        if (exportListModal) {
+            exportListModal.addEventListener('click', event => {
+                if (event.target === exportListModal) this.closeExportList();
+            });
+        }
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && exportListModal?.style.display === 'flex') {
+                this.closeExportList();
+            }
+        });
+
         document.getElementById('addToAmazonCartBtn').addEventListener('click', () => {
             this.addToAmazonCart();
         });
@@ -6038,10 +6068,15 @@ class PartsDatabase {
     updateBuildActions() {
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
         const shareBtn = document.getElementById('shareBuildBtn');
+        const exportBtn = document.getElementById('exportBuildBtn');
         const amazonBtn = document.getElementById('addToAmazonCartBtn');
 
         if (shareBtn) {
             shareBtn.disabled = !hasComponents;
+        }
+
+        if (exportBtn) {
+            exportBtn.disabled = !hasComponents;
         }
 
         if (amazonBtn) {
@@ -6946,45 +6981,299 @@ class PartsDatabase {
         return buildData;
     }
 
+    getAmazonAssociateTag() {
+        return 'qhezpc-20';
+    }
+
+    async copyToClipboard(text) {
+        // Try modern Clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.log('Clipboard API failed, using fallback:', err);
+            }
+        }
+
+        // Fallback method for mobile browsers (especially iOS Safari)
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            const successful = document.execCommand('copy');
+            textArea.remove();
+            return successful;
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            textArea.remove();
+            return false;
+        }
+    }
+
+    getExportSlotDefinitions() {
+        return [
+            ['cpu', 'CPU'],
+            ['cooler', 'CPU Cooler'],
+            ['motherboard', 'Motherboard'],
+            ['ram', 'Memory'],
+            ['gpu', 'Graphics Card'],
+            ['storage', 'Storage'],
+            ['storage2', 'Storage 2'],
+            ['storage3', 'Storage 3'],
+            ['storage4', 'Storage 4'],
+            ['storage5', 'Storage 5'],
+            ['storage6', 'Storage 6'],
+            ['psu', 'Power Supply'],
+            ['case', 'Case'],
+            ['addon', 'Add-on'],
+            ['addon2', 'Add-on 2'],
+            ['addon3', 'Add-on 3'],
+            ['addon4', 'Add-on 4'],
+            ['addon5', 'Add-on 5'],
+            ['addon6', 'Add-on 6']
+        ];
+    }
+
+    getExportComponentPrice(component) {
+        if (!component) return null;
+        const rawPrice = component.salePrice || component.currentPrice || component.basePrice || component.price;
+        if (rawPrice === null || rawPrice === undefined || rawPrice === '') return null;
+        const price = Number.parseFloat(rawPrice);
+        return Number.isFinite(price) ? price : null;
+    }
+
+    formatExportPrice(price) {
+        return Number.isFinite(price) ? `$${price.toFixed(2)}` : 'Price unavailable';
+    }
+
+    getAffiliateComponentUrl(component) {
+        const rawUrl = component?.sourceUrl || component?.url || '';
+        if (!rawUrl) return '';
+
+        try {
+            const affiliateUrl = new URL(rawUrl, window.location.origin);
+            affiliateUrl.searchParams.set('tag', this.getAmazonAssociateTag());
+            return affiliateUrl.toString();
+        } catch (error) {
+            const hashIndex = rawUrl.indexOf('#');
+            const baseUrl = hashIndex >= 0 ? rawUrl.slice(0, hashIndex) : rawUrl;
+            const hash = hashIndex >= 0 ? rawUrl.slice(hashIndex) : '';
+            const separator = baseUrl.includes('?') ? '&' : '?';
+            return `${baseUrl}${separator}tag=${encodeURIComponent(this.getAmazonAssociateTag())}${hash}`;
+        }
+    }
+
+    getExportBuildData() {
+        const rows = this.getExportSlotDefinitions()
+            .map(([slot, label]) => {
+                const component = this.currentBuild?.[slot];
+                if (!component) return null;
+                const price = this.getExportComponentPrice(component);
+                const quantity = (slot === 'ram' || slot === 'gpu')
+                    ? Math.max(Number.parseInt(component.quantity, 10) || 1, 1)
+                    : 1;
+
+                return {
+                    slot,
+                    label,
+                    name: component.title || component.name || 'Unknown component',
+                    price,
+                    formattedPrice: this.formatExportPrice(price),
+                    quantity,
+                    link: this.getAffiliateComponentUrl(component)
+                };
+            })
+            .filter(Boolean);
+        const total = rows.reduce((sum, row) => {
+            return sum + (Number.isFinite(row.price) ? row.price * row.quantity : 0);
+        }, 0);
+        const wattage = Number(this.calculateEstimatedWattage()?.total) || 0;
+
+        return {
+            rows,
+            total,
+            formattedTotal: this.formatExportPrice(total),
+            wattage,
+            disclosure: 'As an Amazon Associate EZPC earns from qualifying purchases.'
+        };
+    }
+
+    escapeMarkdownExportText(value) {
+        return String(value)
+            .replace(/\\/g, '\\\\')
+            .replace(/\|/g, '\\|')
+            .replace(/\[/g, '\\[')
+            .replace(/\]/g, '\\]')
+            .replace(/\r?\n/g, ' ');
+    }
+
+    escapeMarkdownExportUrl(value) {
+        return String(value)
+            .replace(/\(/g, '%28')
+            .replace(/\)/g, '%29')
+            .replace(/\s/g, '%20');
+    }
+
+    escapeBBCodeExportText(value) {
+        return String(value)
+            .replace(/\[/g, '&#91;')
+            .replace(/\]/g, '&#93;')
+            .replace(/\r?\n/g, ' ');
+    }
+
+    escapeBBCodeExportUrl(value) {
+        return String(value)
+            .replace(/\[/g, '%5B')
+            .replace(/\]/g, '%5D')
+            .replace(/\s/g, '%20');
+    }
+
+    generateMarkdownExport(data = this.getExportBuildData()) {
+        const lines = [
+            '| Slot | Component | Price |',
+            '| --- | --- | ---: |'
+        ];
+
+        data.rows.forEach(row => {
+            const name = this.escapeMarkdownExportText(row.name);
+            const component = row.link
+                ? `[${name}](${this.escapeMarkdownExportUrl(row.link)})`
+                : name;
+            lines.push(`| ${this.escapeMarkdownExportText(row.label)} | ${component} | ${row.formattedPrice} |`);
+        });
+
+        lines.push(
+            '',
+            `**Total: ${data.formattedTotal}**`,
+            `**Estimated wattage: ${data.wattage}W**`,
+            '',
+            data.disclosure
+        );
+        return lines.join('\n');
+    }
+
+    generatePlainTextExport(data = this.getExportBuildData()) {
+        const labelWidth = Math.max(...data.rows.map(row => row.label.length), 'Total'.length);
+        const lines = data.rows.map(row => {
+            const name = String(row.name).replace(/\r?\n/g, ' ');
+            const link = row.link ? ` — ${row.link}` : '';
+            return `${row.label.padEnd(labelWidth)}: ${name} — ${row.formattedPrice}${link}`;
+        });
+
+        lines.push(
+            '',
+            `${'Total'.padEnd(labelWidth)}: ${data.formattedTotal}`,
+            `${'Estimated wattage'.padEnd(labelWidth)}: ${data.wattage}W`,
+            '',
+            data.disclosure
+        );
+        return lines.join('\n');
+    }
+
+    generateBBCodeExport(data = this.getExportBuildData()) {
+        const lines = ['[b]EZPC Build[/b]'];
+
+        data.rows.forEach(row => {
+            const name = this.escapeBBCodeExportText(row.name);
+            const component = row.link
+                ? `[url=${this.escapeBBCodeExportUrl(row.link)}]${name}[/url]`
+                : name;
+            lines.push(`[b]${this.escapeBBCodeExportText(row.label)}:[/b] ${component} — ${row.formattedPrice}`);
+        });
+
+        lines.push(
+            '',
+            `[b]Total:[/b] ${data.formattedTotal}`,
+            `[b]Estimated wattage:[/b] ${data.wattage}W`,
+            '',
+            data.disclosure
+        );
+        return lines.join('\n');
+    }
+
+    generateBuildExportFormats() {
+        const data = this.getExportBuildData();
+        return {
+            markdown: this.generateMarkdownExport(data),
+            plain: this.generatePlainTextExport(data),
+            bbcode: this.generateBBCodeExport(data)
+        };
+    }
+
+    openExportList() {
+        const hasComponents = Object.values(this.currentBuild || {}).some(Boolean);
+        if (!hasComponents) {
+            this.showToast('Add components first');
+            return false;
+        }
+
+        this._buildExportFormats = this.generateBuildExportFormats();
+        const modal = document.getElementById('exportListModal');
+        if (!modal) return false;
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        this.setExportFormat('markdown');
+        document.getElementById('closeExportListBtn')?.focus();
+        return true;
+    }
+
+    closeExportList() {
+        const modal = document.getElementById('exportListModal');
+        if (!modal) return;
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        document.getElementById('exportBuildBtn')?.focus();
+    }
+
+    setExportFormat(format) {
+        if (!['markdown', 'plain', 'bbcode'].includes(format)) return;
+        if (!this._buildExportFormats) {
+            this._buildExportFormats = this.generateBuildExportFormats();
+        }
+
+        this._activeBuildExportFormat = format;
+        const output = document.getElementById('exportListOutput');
+        if (output) output.value = this._buildExportFormats[format];
+
+        document.querySelectorAll('[data-export-format]').forEach(tab => {
+            const isActive = tab.dataset.exportFormat === format;
+            tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', String(isActive));
+        });
+    }
+
+    async copyActiveExport() {
+        const output = document.getElementById('exportListOutput');
+        const text = output?.value || '';
+        if (!text) {
+            this.showToast('Nothing to copy');
+            return false;
+        }
+
+        const copied = await this.copyToClipboard(text);
+        if (copied) {
+            this.showToast('Export copied to clipboard');
+            return true;
+        }
+
+        alert('Failed to copy export. Please try again.');
+        return false;
+    }
+
     async shareBuild() {
         const buildData = this.serializeBuild();
         console.log('Build data being saved:', buildData);
 
         // Increment save counts for all components
         await this.incrementComponentSaveCounts();
-
-        // Copy to clipboard with fallback for mobile browsers
-        const copyToClipboard = async (text) => {
-            // Try modern Clipboard API first
-            if (navigator.clipboard && window.isSecureContext) {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    return true;
-                } catch (err) {
-                    console.log('Clipboard API failed, using fallback:', err);
-                }
-            }
-
-            // Fallback method for mobile browsers (especially iOS Safari)
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                const successful = document.execCommand('copy');
-                textArea.remove();
-                return successful;
-            } catch (err) {
-                console.error('Fallback copy failed:', err);
-                textArea.remove();
-                return false;
-            }
-        };
 
         try {
             const response = await fetch('/api/builds', {
@@ -7002,7 +7291,7 @@ class PartsDatabase {
             }
 
             const shareURL = `${window.location.origin}${window.location.pathname}?build=${result.id}`;
-            const success = await copyToClipboard(shareURL);
+            const success = await this.copyToClipboard(shareURL);
             if (success) {
                 const componentCount = Object.keys(buildData).length;
                 this.showToast(`Share link copied to clipboard. Total: $${this.totalPrice.toFixed(2)} (${componentCount} components)`);
@@ -7058,8 +7347,7 @@ class PartsDatabase {
         const params = new URLSearchParams();
 
         // Add Amazon Associate Tag (required for add-to-cart functionality)
-        // TODO: Replace 'qhezpc-20' with your actual Amazon Associates tag
-        params.append('AssociateTag', 'qhezpc-20');
+        params.append('AssociateTag', this.getAmazonAssociateTag());
 
         cartItems.forEach((item, index) => {
             const itemNum = index + 1;
