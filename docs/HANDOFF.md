@@ -12,19 +12,19 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 14** — DISPATCHED 2026-06-20 (lane `lane/slice-14-00`, freeze
-  7395e87, high). Quinn chose option B. ARCHITECT RECON FINDING: the responsive main app
-  is ALREADY clean on mobile — at 390x844, ZERO horizontal overflow on all 11
-  tabs/views + ZERO console errors + adequate tap targets (tabs 34px, action btns 60px,
-  nav scrolls); `mobile.html` (3507 lines) referenced by NOTHING (no link/script/route,
-  server has no UA redirect). So P0-4 mobile parity is effectively SATISFIED. S14 = (1)
-  a regression-guard `test/mobile-e2e.js` (no-overflow + 0 errors + key controls across
-  tabs at 390px + `/mobile.html` 404) to lock it in, (2) DELETE the orphan `mobile.html`.
-  Gate `docs/gates/slice-14.md` (G1 parse, G2 smoke, G3 mobile-e2e 1-4, G4 diff).
-  JUDGE NEXT (dispatched this session). After S14, P0 is drained except: P0-8 live
-  analytics/Sentry IDs (needs Quinn's accounts); P0-3 GPU-len/cooler-height clearance
-  (Track B, data-blocked). → then P1 (export part list, global search, accounts,
-  community builds, multi-retailer).
+- Next action: **P0 DRAINED** — pick the next P1 (export part list, global search,
+  accounts/saved-builds, community builds, multi-retailer pricing) OR verify the
+  S11-S14 prod deploys. Remaining P0 leftovers need Quinn/data, not the loop: P0-8
+  live analytics/Sentry IDs (Quinn's accounts; Plausible scaffold shipped in S11 with
+  placeholder `ezpc.world`); P0-3 GPU-len/cooler-height clearance (Track B, data-blocked).
+- **Slice 14 (P0: mobile regression guard + remove orphan mobile.html) — JUDGED PASS,
+  MERGED to local main (4e1f568), AWAITING QUINN'S GO TO PUSH.** Recon found mobile
+  already clean (0 overflow / 0 errors at 390px); S14 locked it in + deleted dead weight.
+  Architect-ran: G1 parse 0; G3 `mobile-e2e` M1-M4 PASS (no overflow on 10 tabs + wizard
+  modal, key controls render, 0 console/page errors, `/mobile.html` 404); G2 smoke 0/0;
+  G4 diff — only `public/mobile.html` DELETED (3507 lines, confirmed unreferenced) +
+  new `test/mobile-e2e.js` + lane report. Post-merge smoke 0/0 + mobile.html 404.
+  Worktree+lane branch cleaned. **REMAINING: push (`git push origin main` → prod).**
 - **Slice 13 (P0: resilient loading/error/empty states) — JUDGED PASS, MERGED to local
   main (1a9348a), AWAITING QUINN'S GO TO PUSH.** Architect ran all gates: G1 parse 0;
   G3 `resilience-e2e` R1-R4 PASS (cold-load 0 errors + every tab switch safe; aborted
@@ -454,7 +454,8 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Architect | slice-11 | slice/11 6af356e | B: G1✓ G2✓ G3✓; integ ✓ | Quinn OK'd same-session judge. Lane B judged PASS (architect-run trust-e2e 23/0 after killing a stale :3000 server that gave a false 404; smoke 0/0; diff clean). Merged both lanes → slice/11, integration GREEN (share+trust+smoke). HELD at push awaiting Quinn's go. |
 | 2026-06-20 | Builder+Architect | slice-11p2 | c6e9044 / merged 9a305d6 | P-G1✓ P-G2✓ P-G3✓ P-G4✓ | Quinn chose "fold P2 then push". Froze micro-gate (5aa9854), dispatched 1-line fix (malformed JSON→400) + test assertion; verified malformed→400, share-e2e 10/10, smoke 0/0. Merged → slice/11 → **main + PUSHED origin/main (9a305d6)**. Prod deploy triggered. Worktrees/branches cleaned. |
 | 2026-06-20 | Builder+Architect | slice-12 | 25f3346 / merged f682719 | G1✓ G2✓ G3✓ G4✓ | Compat filter toggle + PSU-undersize compatibility. Freeze e2fbb8e, xhigh. Architect-run (Quinn OK'd same-session): parse 0, compat-filter-e2e F1-F4 (live predicate/real data), smoke 0/0, diff clean (3 renderers reuse single predicate, warnings untouched). Merged + **PUSHED origin/main (ae68295)**; worktree/branch cleaned. |
-| 2026-06-20 | Builder+Architect | slice-13 | dbdf19a / merged 1a9348a | G1✓ G2✓ G3✓ G4✓ | Resilient loading/error/empty states. Freeze a7cb5b7, xhigh. Architect-run: parse 0, resilience-e2e R1-R4 (cold-load clean, aborted-fetch shows error + isolates, null-safe helpers, empty notice), smoke 0/0, diff clean (+26/-4, null-safe helpers + 3 loaders consistent). Merged to local main (1a9348a); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
+| 2026-06-20 | Builder+Architect | slice-13 | dbdf19a / merged 1a9348a | G1✓ G2✓ G3✓ G4✓ | Resilient loading/error/empty states. Freeze a7cb5b7, xhigh. Architect-run: parse 0, resilience-e2e R1-R4 (cold-load clean, aborted-fetch shows error + isolates, null-safe helpers, empty notice), smoke 0/0, diff clean (+26/-4, null-safe helpers + 3 loaders consistent). Merged + **PUSHED origin/main (768d6b6)**; worktree/branch cleaned. |
+| 2026-06-20 | Builder+Architect | slice-14 | 44ac8cd / merged 4e1f568 | G1✓ G2✓ G3✓ G4✓ | Mobile regression guard + delete orphan mobile.html. Recon: mobile already clean. Freeze 7395e87, high. Architect-run: parse 0, mobile-e2e M1-M4 (no overflow 10 tabs+wizard, controls render, 0 errors, mobile.html 404), smoke 0/0, diff clean (deletion + new test). Merged to local main (4e1f568); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
 
 ## Notes for next session
 
