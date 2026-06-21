@@ -5684,6 +5684,37 @@ GPU Listings Section ───────────────────�
 .gpu-sort-controls { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .gpu-sort-label { font-size: 11px; color: #94a3b8; margin-right: 2px; }
 .gpu-sort-btn { padding: 3px 8px; font-size: 11px; line-height: 1.2; }
+.compat-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.compat-filter-toggle:hover { border-color: #94a3b8; }
+.compat-filter-toggle:focus-within {
+    outline: 2px solid rgba(37, 99, 235, 0.35);
+    outline-offset: 1px;
+}
+.compat-filter-toggle.active {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1d4ed8;
+}
+.compat-filter-toggle input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: #2563eb;
+}
 .gpu-row-perf {
     display: block;
     font-size: 11px;
