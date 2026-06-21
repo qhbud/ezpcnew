@@ -2297,6 +2297,8 @@ class PartsDatabase {
     }
 
     async loadAllStorage() {
+        this.showLoading();
+        this.hideError();
         try {
             const response = await fetch('/api/parts/storages');
             if (response.ok) {
@@ -2313,13 +2315,19 @@ class PartsDatabase {
                 this.refreshModalIfOpen('storage', 'storage2', 'storage3', 'storage4', 'storage5', 'storage6');
             } else {
                 console.error('Failed to load Storage:', response.status);
+                this.showError();
             }
         } catch (error) {
             console.error('Error loading Storage:', error);
+            this.showError();
+        } finally {
+            this.hideLoading();
         }
     }
 
     async loadAllCases() {
+        this.showLoading();
+        this.hideError();
         try {
             const response = await fetch('/api/parts/cases');
             if (response.ok) {
@@ -2336,13 +2344,19 @@ class PartsDatabase {
                 this.refreshModalIfOpen('case');
             } else {
                 console.error('Failed to load Cases:', response.status);
+                this.showError();
             }
         } catch (error) {
             console.error('Error loading Cases:', error);
+            this.showError();
+        } finally {
+            this.hideLoading();
         }
     }
 
     async loadAllAddons() {
+        this.showLoading();
+        this.hideError();
         try {
             const response = await fetch('/api/parts/addons');
             if (response.ok) {
@@ -2359,9 +2373,13 @@ class PartsDatabase {
                 this.refreshModalIfOpen('addon', 'addon2', 'addon3', 'addon4', 'addon5', 'addon6');
             } else {
                 console.error('Failed to load Add-ons:', response.status);
+                this.showError();
             }
         } catch (error) {
             console.error('Error loading Add-ons:', error);
+            this.showError();
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -3665,19 +3683,23 @@ class PartsDatabase {
     }
 
     showLoading() {
-        document.getElementById('loading').classList.remove('hidden');
+        const el = document.getElementById('loading');
+        if (el) el.classList.remove('hidden');
     }
 
     hideLoading() {
-        document.getElementById('loading').classList.add('hidden');
+        const el = document.getElementById('loading');
+        if (el) el.classList.add('hidden');
     }
 
     showError() {
-        document.getElementById('error').classList.remove('hidden');
+        const el = document.getElementById('error');
+        if (el) el.classList.remove('hidden');
     }
 
     hideError() {
-        document.getElementById('error').classList.add('hidden');
+        const el = document.getElementById('error');
+        if (el) el.classList.add('hidden');
     }
 
     // GPU Selector Methods
