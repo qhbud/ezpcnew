@@ -12,13 +12,24 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **Slice 15 (P1: export part list) — DISPATCHED 2026-06-20** (lane
-  `lane/slice-15-00`, freeze be9e2c5, xhigh). First P1. Export the current build as
-  copyable text in 3 formats (Markdown table / Plain text / BBCode) with prices, total,
-  est. wattage, affiliate-tagged links (`qhezpc-20`) + FTC disclosure; copy-to-clipboard;
-  pure client-side (reuse currentBuild + serialize/clipboard/showToast/modal helpers).
-  Gate `docs/gates/slice-15.md` (G1 parse, G2 smoke, G3 export-e2e 1-4, G4 diff). JUDGE
-  NEXT. Builder writes `docs/lanes/slice-15-00.md`.
+- Next action: **PUSH-GATED + spec next P1.** Slice 15 is merged to LOCAL main only;
+  origin/main is 4 commits behind (Slice 15 lane+merge + 2 doc-only bookkeeping).
+  Pushing deploys to prod (Railway+Render) — needs Quinn's go. After push: spec the
+  next P1 slice (candidates: global search, accounts/saved-builds, community builds,
+  multi-retailer pricing, build guides).
+- **Slice 15 (P1: export part list — Markdown/Plain/BBCode) — JUDGED PASS / CONTINUE,
+  MERGED to local main 2026-06-21 (lane 7ebbd8d, merge 5488d78). AWAITING QUINN'S GO TO
+  PUSH.** Builder had run in the prior session (changes were uncommitted in the worktree,
+  not lost). Architect ran ALL gates independently this session: G1 `node --check` exit 0;
+  G2 smoke `CONSOLE ERRORS: 0 / PAGE ERRORS: 0`; G3 `node test/export-e2e.js` E1-E4 PASS
+  against live local server + real parts; G4 boundary clean (only public/script.js,
+  index.html, styles-v5.css, test/export-e2e.js, docs/lanes/slice-15-00.md), no gate
+  tamper, no new dep. Verified: dedicated Markdown/BBCode escapers (|, [, ], newlines),
+  empty-build guard (toast, no throw), FTC disclosure in all 3 formats, affiliate tag
+  centralized into `getAmazonAssociateTag()` reusing existing `qhezpc-20` (also DRYs the
+  old hardcoded addToAmazonCart literal). Post-merge integration smoke + e2e re-run on
+  main: all green. Worktree + lane branch removed. Builder's only concern (PowerShell
+  `npm.ps1` exec-policy block) is environmental — `cmd.exe`/direct `node` run the test fine.
 - **P0 status: DRAINED across S11-S14 (all PUSHED to prod).** Leftovers need Quinn/data,
   not the loop: P0-8 live analytics/Sentry IDs (Quinn's accounts; S11 Plausible scaffold
   has placeholder `ezpc.world`); P0-3 GPU-len/cooler-height clearance (Track B, data-blocked).
