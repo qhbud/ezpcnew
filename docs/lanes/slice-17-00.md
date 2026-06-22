@@ -7,7 +7,7 @@
 | `server.js:249-258` | Community JSON parser |
 | `server.js:1612-1628` | Community oversized and malformed JSON responses |
 | `server.js:2761-2892` | Four community build route handlers |
-| `test/community-api-e2e.js:1-294` | Live HTTP API gate and ID-scoped cleanup |
+| `test/community-api-e2e.js:1-300` | Live HTTP API gate and ID-scoped cleanup |
 | `docs/lanes/slice-17-00.md:1-68` | Raw lane results |
 
 ## Route handler signatures
@@ -31,12 +31,12 @@ Exit code: `0`
 Exit code: `0`
 
 ```text
-SAMPLE DOCUMENT {"_id":"zenZ9SVyifBd","title":"Synthetic Community Build One","author":"API Test Author","build":{"cpu":"community-cpu-001","gpu":{"id":"community-gpu-001","qty":1},"motherboard":"community-motherboard-001","ram":{"id":"community-ram-001","qty":2}},"likes":0,"createdAt":"2026-06-21T23:19:34.613Z"}
+SAMPLE DOCUMENT {"_id":"h8IhbRjKWhFK","title":"Synthetic Community Build One","author":"API Test Author","build":{"cpu":"community-cpu-001","gpu":{"id":"community-gpu-001","qty":1},"motherboard":"community-motherboard-001","ram":{"id":"community-ram-001","qty":2}},"likes":0,"createdAt":"2026-06-22T02:35:16.394Z"}
 PASS C1 create and read round-trip
 PASS C2 list sort and pagination
 PASS C3 atomic likes reflected in read and list
 PASS C4 validation sanitization and not-found responses
-PASS CLEANUP deleted=4
+PASS CLEANUP deleted=5
 ```
 
 ## `cmd.exe /d /c "npm test"`
@@ -55,7 +55,7 @@ PAGE ERRORS: 0
 ## Sample created document
 
 ```json
-{"_id":"zenZ9SVyifBd","title":"Synthetic Community Build One","author":"API Test Author","build":{"cpu":"community-cpu-001","gpu":{"id":"community-gpu-001","qty":1},"motherboard":"community-motherboard-001","ram":{"id":"community-ram-001","qty":2}},"likes":0,"createdAt":"2026-06-21T23:19:34.613Z"}
+{"_id":"h8IhbRjKWhFK","title":"Synthetic Community Build One","author":"API Test Author","build":{"cpu":"community-cpu-001","gpu":{"id":"community-gpu-001","qty":1},"motherboard":"community-motherboard-001","ram":{"id":"community-ram-001","qty":2}},"likes":0,"createdAt":"2026-06-22T02:35:16.394Z"}
 ```
 
 ## Additional command results

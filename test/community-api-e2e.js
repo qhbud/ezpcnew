@@ -248,6 +248,12 @@ async function runCheck(id, name, check) {
             assert.doesNotMatch(sanitized.body.title, /[<>]/);
             assert.doesNotMatch(sanitized.body.author, /[<>\u0000-\u001F\u007F-\u009F]/);
 
+            const angleBracketId = await createBuild('Budget < $1000 > Build', 'API Test Author');
+            const angleBracketBuild = await jsonRequest(`/api/community/builds/${angleBracketId}`);
+            assert.equal(angleBracketBuild.response.status, 200);
+            assert.match(angleBracketBuild.body.title, /\$1000/);
+            assert.doesNotMatch(angleBracketBuild.body.title, /[<>]/);
+
             const malformedId = 'bad!';
             const nonexistentId = createdIds.has('AAAAAAAAAAAA') ? 'BBBBBBBBBBBB' : 'AAAAAAAAAAAA';
             for (const id of [malformedId, nonexistentId]) {

@@ -153,9 +153,10 @@ function sanitizeCommunityBuildText(value, maximumLength, fieldName) {
     }
 
     const sanitized = trimmed
-        .replace(/<[^>]*>/g, '')
+        .replace(/<\/?[a-zA-Z][^>]*>/g, '')
         .replace(/[<>]/g, '')
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\s+/g, ' ')
         .trim();
     if (sanitized.length === 0) {
         return { error: `${fieldName} must contain visible text` };
