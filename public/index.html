@@ -122,6 +122,7 @@
         </header>
         <nav class="main-nav">
             <button class="main-tab active" data-tab="builder"><i class="fas fa-cogs"></i> Builder</button>
+            <button class="main-tab" data-tab="community"><i class="fas fa-users"></i> Community</button>
             <button class="main-tab" data-tab="gpu"><i class="fas fa-desktop"></i> GPUs</button>
             <button class="main-tab" data-tab="cpu"><i class="fas fa-microchip"></i> CPUs</button>
             <button class="main-tab" data-tab="motherboard"><i class="fas fa-memory"></i> Motherboards</button>
@@ -132,6 +133,45 @@
             <button class="main-tab" data-tab="storage"><i class="fas fa-hdd"></i> Storage</button>
             <button class="main-tab" data-tab="addon"><i class="fas fa-plus-circle"></i> Add-ons</button>
         </nav>
+
+        <!-- Community Builds Tab Content -->
+        <div class="tab-content" id="community-tab">
+            <section class="community-builds-section" aria-labelledby="communityBuildsHeading">
+                <div class="community-builds-header">
+                    <div>
+                        <p class="community-builds-eyebrow">Completed builds from EZPC users</p>
+                        <h2 id="communityBuildsHeading">Community Builds</h2>
+                        <p>Browse ideas, like your favorites, or load a build into the builder.</p>
+                    </div>
+                    <label class="community-sort-control" for="communitySort">
+                        <span>Sort by</span>
+                        <select id="communitySort">
+                            <option value="newest">Newest</option>
+                            <option value="likes">Most liked</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div id="communityLoadingState" class="loading community-state hidden" aria-live="polite">
+                    <div class="spinner"></div>
+                    <p>Loading community builds...</p>
+                </div>
+                <div id="communityErrorState" class="error community-state hidden" role="alert">
+                    <p>Could not load community builds. Please try again.</p>
+                    <button id="communityRetryBtn" class="action-btn secondary" type="button">Try again</button>
+                </div>
+                <div id="communityEmptyState" class="no-results community-state hidden">
+                    <p>No community builds yet. Share the first one from the builder.</p>
+                </div>
+
+                <div id="communityBuildsGrid" class="community-builds-grid" aria-live="polite"></div>
+                <div class="community-load-more-row">
+                    <button id="communityLoadMoreBtn" class="action-btn secondary" type="button" hidden>
+                        <i class="fas fa-plus"></i> Load more
+                    </button>
+                </div>
+            </section>
+        </div>
 
         <!-- GPU Tab Content -->
         <div class="tab-content" id="gpu-tab">
@@ -1598,6 +1638,9 @@
                         <button id="saveBuildBtn" class="action-btn secondary">
                             <i class="fas fa-save"></i> Save Build
                         </button>
+                        <button id="submitCommunityBuildBtn" class="action-btn secondary">
+                            <i class="fas fa-users"></i> Share to Community
+                        </button>
                         <button id="addToAmazonCartBtn" class="action-btn primary">
                             <i class="fab fa-amazon"></i> Add to Amazon Cart
                         </button>
@@ -2256,7 +2299,33 @@
         </div>
     </div>
 
-    <script src="script.js?v=32"></script>
+    <!-- Community Build Submission Modal -->
+    <div id="communitySubmitModal" class="budget-modal-overlay" style="display: none;" aria-hidden="true">
+        <div class="budget-modal-content community-submit-modal" role="dialog" aria-modal="true" aria-labelledby="communitySubmitTitle">
+            <div class="budget-modal-header">
+                <h2 id="communitySubmitTitle"><i class="fas fa-users"></i> Share Build to Community</h2>
+                <button id="closeCommunitySubmitBtn" class="budget-modal-close" type="button" aria-label="Close community submission form">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="communitySubmitForm" class="budget-modal-body community-submit-form">
+                <label for="communityTitleInput">
+                    <span>Build title</span>
+                    <input id="communityTitleInput" name="title" type="text" maxlength="100" autocomplete="off">
+                </label>
+                <label for="communityAuthorInput">
+                    <span>Author</span>
+                    <input id="communityAuthorInput" name="author" type="text" maxlength="50" autocomplete="name">
+                </label>
+                <p id="communitySubmitError" class="community-submit-error" role="alert" hidden></p>
+                <button id="communitySubmitConfirmBtn" class="action-btn primary" type="submit">
+                    <i class="fas fa-paper-plane"></i> Submit build
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js?v=33"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;
