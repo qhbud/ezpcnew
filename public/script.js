@@ -120,6 +120,14 @@ class PartsDatabase {
         this.showcaseBuildsStatus = 'idle';
         this.showcaseBuildsReadyPromise = null;
         this._showcaseBuildsClickBound = false;
+        this.communityBuilds = [];
+        this.communityBuildMap = new Map();
+        this.communitySort = 'newest';
+        this.communityTotal = 0;
+        this.communityLimit = 12;
+        this.communitySkip = 0;
+        this.communityLoading = false;
+        this.communitySubmitting = false;
         this.allAddons = [];
         this.priceHistoryRequests = new Map();
         this.dataReady = {
@@ -495,6 +503,68 @@ class PartsDatabase {
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape' && exportListModal?.style.display === 'flex') {
                 this.closeExportList();
+            }
+        });
+
+        const communitySort = document.getElementById('communitySort');
+        const communityLoadMoreBtn = document.getElementById('communityLoadMoreBtn');
+        const communityRetryBtn = document.getElementById('communityRetryBtn');
+        const communityBuildsGrid = document.getElementById('communityBuildsGrid');
+        const submitCommunityBuildBtn = document.getElementById('submitCommunityBuildBtn');
+        const communitySubmitModal = document.getElementById('communitySubmitModal');
+        const closeCommunitySubmitBtn = document.getElementById('closeCommunitySubmitBtn');
+        const communitySubmitForm = document.getElementById('communitySubmitForm');
+
+        if (communitySort) {
+            communitySort.addEventListener('change', () => {
+                this.communitySort = communitySort.value === 'likes' ? 'likes' : 'newest';
+                this.loadCommunityBuilds({ reset: true });
+            });
+        }
+        if (communityLoadMoreBtn) {
+            communityLoadMoreBtn.addEventListener('click', () => this.loadCommunityBuilds());
+        }
+        if (communityRetryBtn) {
+            communityRetryBtn.addEventListener('click', () => this.loadCommunityBuilds({ reset: true }));
+        }
+        if (communityBuildsGrid) {
+            communityBuildsGrid.addEventListener('click', event => {
+                const likeButton = event.target.closest('[data-community-action="like"]');
+                if (likeButton) {
+                    event.stopPropagation();
+                    this.likeCommunityBuild(likeButton.dataset.communityBuildId, likeButton);
+                    return;
+                }
+
+                const card = event.target.closest('.community-build-card');
+                if (card) this.loadCommunityBuild(card.dataset.communityBuildId);
+            });
+            communityBuildsGrid.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                if (event.target.closest('[data-community-action="like"]')) return;
+                const card = event.target.closest('.community-build-card');
+                if (!card) return;
+                event.preventDefault();
+                this.loadCommunityBuild(card.dataset.communityBuildId);
+            });
+        }
+        if (submitCommunityBuildBtn) {
+            submitCommunityBuildBtn.addEventListener('click', () => this.openCommunitySubmit());
+        }
+        if (closeCommunitySubmitBtn) {
+            closeCommunitySubmitBtn.addEventListener('click', () => this.closeCommunitySubmit());
+        }
+        if (communitySubmitModal) {
+            communitySubmitModal.addEventListener('click', event => {
+                if (event.target === communitySubmitModal) this.closeCommunitySubmit();
+            });
+        }
+        if (communitySubmitForm) {
+            communitySubmitForm.addEventListener('submit', event => this.submitCommunityBuild(event));
+        }
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && communitySubmitModal?.style.display === 'flex') {
+                this.closeCommunitySubmit();
             }
         });
 
@@ -1094,6 +1164,10 @@ class PartsDatabase {
             return;
         }
 
+        if (tabName === 'community') {
+            return this.loadCommunityBuilds({ reset: true });
+        }
+
         if (this.dataReady[tabName]) {
             this.renderTabListings(tabName);
             return;
@@ -1111,6 +1185,318 @@ class PartsDatabase {
             });
         }
         return;
+    }
+
+    setCommunityState(state, message = '') {
+        const emptyState = document.getElementById('communityEmptyState');
+        this.hideLoading('communityLoadingState');
+        this.hideError('communityErrorState');
+        if (emptyState) emptyState.classList.add('hidden');
+
+        if (state === 'loading') {
+            this.showLoading('communityLoadingState');
+        } else if (state === 'error') {
+            this.showError('communityErrorState', message || 'Could not load community builds. Please try again.');
+        } else if (state === 'empty' && emptyState) {
+            emptyState.classList.remove('hidden');
+        }
+    }
+
+    updateCommunityControls() {
+        const loadMoreButton = document.getElementById('communityLoadMoreBtn');
+        const sortControl = document.getElementById('communitySort');
+        if (loadMoreButton) {
+            loadMoreButton.hidden = this.communityBuilds.length === 0 ||
+                this.communityBuilds.length >= this.communityTotal;
+            loadMoreButton.disabled = this.communityLoading;
+        }
+        if (sortControl) sortControl.disabled = this.communityLoading;
+    }
+
+    async loadCommunityBuilds({ reset = false } = {}) {
+        if (this.communityLoading) return false;
+
+        const grid = document.getElementById('communityBuildsGrid');
+        if (!grid) return false;
+
+        if (reset) {
+            this.communityBuilds = [];
+            this.communityBuildMap.clear();
+            this.communitySkip = 0;
+            grid.replaceChildren();
+        }
+
+        this.communityLoading = true;
+        this.setCommunityState('loading');
+        this.updateCommunityControls();
+
+        try {
+            const params = new URLSearchParams({
+                sort: this.communitySort,
+                limit: String(this.communityLimit),
+                skip: String(this.communitySkip)
+            });
+            const response = await fetch(`/api/community/builds?${params}`);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || `Community builds request failed with status ${response.status}`);
+            }
+            if (!Array.isArray(data.builds) || !Number.isFinite(Number(data.total))) {
+                throw new Error('Community builds response was invalid');
+            }
+
+            this.communityBuilds = reset
+                ? data.builds
+                : [...this.communityBuilds, ...data.builds];
+            this.communityTotal = Math.max(0, Number(data.total));
+            this.communitySkip += data.builds.length;
+            this.renderCommunityBuilds();
+            return true;
+        } catch (error) {
+            this.setCommunityState('error', error.message);
+            return false;
+        } finally {
+            this.communityLoading = false;
+            this.hideLoading('communityLoadingState');
+            this.updateCommunityControls();
+        }
+    }
+
+    getCommunityPartsSummary(buildData) {
+        const labels = {
+            cpu: 'CPU',
+            cooler: 'Cooler',
+            motherboard: 'Motherboard',
+            ram: 'RAM',
+            gpu: 'GPU',
+            storage: 'Storage',
+            storage2: 'Storage',
+            storage3: 'Storage',
+            storage4: 'Storage',
+            storage5: 'Storage',
+            storage6: 'Storage',
+            psu: 'PSU',
+            case: 'Case',
+            addon: 'Add-on',
+            addon2: 'Add-on',
+            addon3: 'Add-on',
+            addon4: 'Add-on',
+            addon5: 'Add-on',
+            addon6: 'Add-on'
+        };
+        const parts = Object.keys(buildData || {})
+            .filter(type => labels[type])
+            .map(type => labels[type]);
+        if (parts.length === 0) return 'No parts listed';
+        const visible = parts.slice(0, 4);
+        const remaining = parts.length - visible.length;
+        return remaining > 0
+            ? `${visible.join(' · ')} +${remaining} more`
+            : visible.join(' · ');
+    }
+
+    createCommunityBuildCard(communityBuild) {
+        const card = document.createElement('article');
+        card.className = 'community-build-card';
+        card.dataset.communityBuildId = String(communityBuild.id || '');
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', 'Load community build');
+
+        const heading = document.createElement('div');
+        heading.className = 'community-build-card-heading';
+
+        const title = document.createElement('h3');
+        title.className = 'community-build-title';
+        title.textContent = String(communityBuild.title || 'Untitled build');
+
+        const author = document.createElement('p');
+        author.className = 'community-build-author';
+        author.textContent = `By ${String(communityBuild.author || 'Unknown author')}`;
+        heading.append(title, author);
+
+        const parts = document.createElement('p');
+        parts.className = 'community-build-parts';
+        parts.textContent = this.getCommunityPartsSummary(communityBuild.build);
+
+        const footer = document.createElement('div');
+        footer.className = 'community-build-card-footer';
+
+        const date = document.createElement('time');
+        date.className = 'community-build-date';
+        const parsedDate = new Date(communityBuild.createdAt);
+        if (Number.isNaN(parsedDate.getTime())) {
+            date.textContent = 'Date unavailable';
+        } else {
+            date.dateTime = parsedDate.toISOString();
+            date.textContent = parsedDate.toLocaleDateString();
+        }
+
+        const likeButton = document.createElement('button');
+        likeButton.type = 'button';
+        likeButton.className = 'community-like-btn';
+        likeButton.dataset.communityAction = 'like';
+        likeButton.dataset.communityBuildId = String(communityBuild.id || '');
+        likeButton.setAttribute('aria-label', 'Like this build');
+
+        const likeIcon = document.createElement('i');
+        likeIcon.className = 'fas fa-heart';
+        likeIcon.setAttribute('aria-hidden', 'true');
+        const likeCount = document.createElement('span');
+        likeCount.className = 'community-like-count';
+        likeCount.textContent = String(Number.isFinite(Number(communityBuild.likes))
+            ? Number(communityBuild.likes)
+            : 0);
+        likeButton.append(likeIcon, likeCount);
+
+        footer.append(date, likeButton);
+        card.append(heading, parts, footer);
+        return card;
+    }
+
+    renderCommunityBuilds() {
+        const grid = document.getElementById('communityBuildsGrid');
+        if (!grid) return;
+
+        this.communityBuildMap = new Map(
+            this.communityBuilds.map(build => [String(build.id), build])
+        );
+        grid.replaceChildren();
+        this.communityBuilds.forEach(build => {
+            grid.appendChild(this.createCommunityBuildCard(build));
+        });
+
+        this.setCommunityState(this.communityBuilds.length === 0 ? 'empty' : 'ready');
+        this.updateCommunityControls();
+    }
+
+    async likeCommunityBuild(id, button) {
+        const communityBuild = this.communityBuildMap.get(String(id));
+        if (!communityBuild || button?.disabled) return false;
+
+        if (button) button.disabled = true;
+        try {
+            const response = await fetch(`/api/community/builds/${encodeURIComponent(id)}/like`, {
+                method: 'POST'
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !Number.isFinite(Number(data.likes))) {
+                throw new Error(data.error || 'Could not like this build');
+            }
+
+            communityBuild.likes = Number(data.likes);
+            const count = button?.querySelector('.community-like-count');
+            if (count) count.textContent = String(communityBuild.likes);
+            return true;
+        } catch (error) {
+            this.showToast(error.message || 'Could not like this build');
+            return false;
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
+    async loadCommunityBuild(id) {
+        const communityBuild = this.communityBuildMap.get(String(id));
+        if (!communityBuild?.build) return false;
+
+        try {
+            this.clearBuild();
+            await this.applyBuildData(communityBuild.build, {
+                sourceLabel: 'community build',
+                notify: true
+            });
+            this.switchTab('builder');
+            this.showToast(`Loaded ${String(communityBuild.title || 'community build')}`);
+            return true;
+        } catch (error) {
+            this.showToast('Could not load this community build');
+            return false;
+        }
+    }
+
+    setCommunitySubmitError(message = '') {
+        const error = document.getElementById('communitySubmitError');
+        if (!error) return;
+        error.textContent = message;
+        error.hidden = !message;
+    }
+
+    openCommunitySubmit() {
+        const build = this.serializeBuild();
+        if (Object.keys(build).length === 0) {
+            this.showToast('Add components before sharing to the community');
+            return false;
+        }
+
+        const modal = document.getElementById('communitySubmitModal');
+        const form = document.getElementById('communitySubmitForm');
+        if (!modal || !form) return false;
+
+        form.reset();
+        this.setCommunitySubmitError();
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        document.getElementById('communityTitleInput')?.focus();
+        return true;
+    }
+
+    closeCommunitySubmit() {
+        const modal = document.getElementById('communitySubmitModal');
+        if (!modal) return;
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        this.setCommunitySubmitError();
+        document.getElementById('submitCommunityBuildBtn')?.focus();
+    }
+
+    async submitCommunityBuild(event) {
+        event?.preventDefault();
+        if (this.communitySubmitting) return false;
+
+        const title = document.getElementById('communityTitleInput')?.value.trim() || '';
+        const author = document.getElementById('communityAuthorInput')?.value.trim() || '';
+        const build = this.serializeBuild();
+
+        if (!title || !author) {
+            this.setCommunitySubmitError('Enter both a build title and author.');
+            return false;
+        }
+        if (Object.keys(build).length === 0) {
+            this.setCommunitySubmitError('Add components before sharing this build.');
+            return false;
+        }
+
+        const submitButton = document.getElementById('communitySubmitConfirmBtn');
+        this.communitySubmitting = true;
+        if (submitButton) submitButton.disabled = true;
+        this.setCommunitySubmitError();
+
+        try {
+            const response = await fetch('/api/community/builds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, author, build })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !/^[A-Za-z0-9_-]{12}$/.test(String(data.id || ''))) {
+                throw new Error(data.error || 'Could not submit this build');
+            }
+
+            this.closeCommunitySubmit();
+            this.communitySort = 'newest';
+            const sortControl = document.getElementById('communitySort');
+            if (sortControl) sortControl.value = 'newest';
+            this.showToast('Build shared to the community');
+            await this.switchTab('community');
+            return true;
+        } catch (error) {
+            this.setCommunitySubmitError(error.message || 'Could not submit this build');
+            return false;
+        } finally {
+            this.communitySubmitting = false;
+            if (submitButton) submitButton.disabled = false;
+        }
     }
 
     normalizeComponentTabName(componentType) {
@@ -4087,23 +4473,28 @@ class PartsDatabase {
         }
     }
 
-    showLoading() {
-        const el = document.getElementById('loading');
+    showLoading(elementId = 'loading') {
+        const el = document.getElementById(elementId);
         if (el) el.classList.remove('hidden');
     }
 
-    hideLoading() {
-        const el = document.getElementById('loading');
+    hideLoading(elementId = 'loading') {
+        const el = document.getElementById(elementId);
         if (el) el.classList.add('hidden');
     }
 
-    showError() {
-        const el = document.getElementById('error');
-        if (el) el.classList.remove('hidden');
+    showError(elementId = 'error', message = '') {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        if (message) {
+            const messageElement = el.querySelector('p') || el;
+            messageElement.textContent = message;
+        }
+        el.classList.remove('hidden');
     }
 
-    hideError() {
-        const el = document.getElementById('error');
+    hideError(elementId = 'error') {
+        const el = document.getElementById(elementId);
         if (el) el.classList.add('hidden');
     }
 
@@ -6444,6 +6835,7 @@ class PartsDatabase {
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
         const shareBtn = document.getElementById('shareBuildBtn');
         const exportBtn = document.getElementById('exportBuildBtn');
+        const communityBtn = document.getElementById('submitCommunityBuildBtn');
         const amazonBtn = document.getElementById('addToAmazonCartBtn');
 
         if (shareBtn) {
@@ -6452,6 +6844,10 @@ class PartsDatabase {
 
         if (exportBtn) {
             exportBtn.disabled = !hasComponents;
+        }
+
+        if (communityBtn) {
+            communityBtn.disabled = !hasComponents;
         }
 
         if (amazonBtn) {
