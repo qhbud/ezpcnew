@@ -12,11 +12,30 @@
   on full CPU+GPU, full-width Performance Statistics, deduped price-history
   snapshots + hover tooltip) — architect-verified GREEN and **PUSHED to origin/main
   2026-06-15** (all of Slices 0–7).
-- Next action: **JUDGE Slice 18 (community builds FRONTEND gallery), then push.** S18
-  consumes the S17 API (now on main) + reuses serializeBuild/applyBuildData/showToast.
-- **PUSH-GATED:** Slices 16 (global search) + 17 (community backend) are on LOCAL main,
-  NOT pushed. S16 verified; S17 verified. Pushing deploys to prod (Railway+Render). Ask
-  Quinn. NOTE: S17 backend is harmless to ship before S18 (new endpoints, no UI yet).
+- Next action: **DECISION FOR QUINN** — (a) push the local-main stack S15→S18 to prod
+  (Railway+Render auto-deploy), and (b) pick the next slice: the remaining roadmap P1s
+  (accounts/saved-builds, multi-retailer pricing) were explicitly DEFERRED on 2026-06-14,
+  so the obvious queue is drained — Quinn sets direction.
+- **Slice 18 (P1: community builds FRONTEND gallery) — JUDGED PASS / CONTINUE, MERGED to
+  local main 2026-06-22 (lane 8e68ac5, merge a9943a6).** Architect ran ALL gates
+  independently against a live worktree server + real community API: G1 parse 0; G2 smoke
+  0/0; G3 community-ui-e2e UI1-UI5 PASS (submit+guards, browse+sort newest/likes, like uses
+  API-returned count + persists, card load delegates to applyBuildData, empty/error states +
+  HTML-as-text escaping) with id-scoped Mongo cleanup; G4 boundary clean (only the 5 declared
+  files — index.html/script.js/styles-v5.css + new community-ui-e2e.js + lane report;
+  server.js/models/scripts/package.json untouched), gates-tamper clean, reuses
+  serializeBuild()/applyBuildData()/showToast + Slice-13 state helpers, DOM-safe
+  createElement+textContent card render, like reads data.likes (not blind increment),
+  submit guards empty build + blank title/author, no new dep. REGRESSION clean (S12 compat
+  F1-F4, S13 resilience R1-R4, S15 export E1-E4, S16 global-search G3.1-G3.4 all PASS).
+  Not high-stakes (pure frontend over the already-cross-model-reviewed S17 backend) → no
+  extra review. Builder logged NO PHASE-0 disagreements (silent compliance noted; the S18
+  contract was tightly grounded with cited line numbers, so acceptable). Post-merge
+  integration on main: parse 0, smoke 0/0, community-ui UI1-UI5 + global-search regression
+  PASS. Worktree + lane branch removed.
+- **PUSH-GATED:** Slices 15 (export) + 16 (global search) + 17 (community backend) + 18
+  (community frontend) are ALL on LOCAL main, NOT pushed. Each independently verified.
+  Pushing `origin main` deploys to prod (Railway+Render). Ask Quinn before pushing.
 - **Slice 17 (P1: community builds BACKEND) — JUDGED PASS / CONTINUE, MERGED to local
   main 2026-06-21 (lane 048a98e + fix 0d0a28b, merge 14542a9).** Builder paused PHASE 0
   (no disagreements), implemented on resume. Architect ran ALL gates independently: G1
@@ -516,6 +535,7 @@ behind Slice 9 per Quinn ("A then B"). Run via `/architect-research` when picked
 | 2026-06-20 | Builder+Architect | slice-12 | 25f3346 / merged f682719 | G1✓ G2✓ G3✓ G4✓ | Compat filter toggle + PSU-undersize compatibility. Freeze e2fbb8e, xhigh. Architect-run (Quinn OK'd same-session): parse 0, compat-filter-e2e F1-F4 (live predicate/real data), smoke 0/0, diff clean (3 renderers reuse single predicate, warnings untouched). Merged + **PUSHED origin/main (ae68295)**; worktree/branch cleaned. |
 | 2026-06-20 | Builder+Architect | slice-13 | dbdf19a / merged 1a9348a | G1✓ G2✓ G3✓ G4✓ | Resilient loading/error/empty states. Freeze a7cb5b7, xhigh. Architect-run: parse 0, resilience-e2e R1-R4 (cold-load clean, aborted-fetch shows error + isolates, null-safe helpers, empty notice), smoke 0/0, diff clean (+26/-4, null-safe helpers + 3 loaders consistent). Merged + **PUSHED origin/main (768d6b6)**; worktree/branch cleaned. |
 | 2026-06-20 | Builder+Architect | slice-14 | 44ac8cd / merged 4e1f568 | G1✓ G2✓ G3✓ G4✓ | Mobile regression guard + delete orphan mobile.html. Recon: mobile already clean. Freeze 7395e87, high. Architect-run: parse 0, mobile-e2e M1-M4 (no overflow 10 tabs+wizard, controls render, 0 errors, mobile.html 404), smoke 0/0, diff clean (deletion + new test). Merged to local main (4e1f568); worktree/branch cleaned. **HELD at push awaiting Quinn's go.** |
+| 2026-06-22 | Architect | slice-18 | lane 8e68ac5 / merged a9943a6 | G1✓ G2✓ G3✓ G4✓ | Community builds FRONTEND gallery (dispatched prior session, judged this session). Independent gates on live worktree server + real API: parse 0; community-ui-e2e UI1-UI5 PASS + id-scoped cleanup; smoke 0/0; diff clean (5 declared files, server.js/dep untouched, reuse serializeBuild/applyBuildData/showToast, textContent escaping, like-from-API, submit guards). Regression clean (S12/S13/S15/S16). No PHASE-0 disagreements (noted). Merged local main; worktree/branch removed. **HELD at push (S15-S18 stack) awaiting Quinn.** |
 
 ## Notes for next session
 
