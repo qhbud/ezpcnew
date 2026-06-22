@@ -59,6 +59,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const LIST_PARTS_PROJECTION = { priceHistory: 0 };
 const SHARED_BUILD_BODY_LIMIT_BYTES = 16 * 1024;
+const COMMUNITY_BUILD_BODY_LIMIT_BYTES = SHARED_BUILD_BODY_LIMIT_BYTES + 1024;
 const SHARED_BUILD_ID_PATTERN = /^[A-Za-z0-9_-]{12}$/;
 const SHARED_BUILD_REFERENCE_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const SHARED_BUILD_KEYS = new Set([
@@ -136,6 +137,46 @@ function isSharedBuildPostRequest(req) {
     return req.method === 'POST' && (req.path === '/api/builds' || req.path === '/api/builds/');
 }
 
+function isCommunityBuildCreateRequest(req) {
+    return req.method === 'POST' &&
+        (req.path === '/api/community/builds' || req.path === '/api/community/builds/');
+}
+
+function sanitizeCommunityBuildText(value, maximumLength, fieldName) {
+    if (typeof value !== 'string') {
+        return { error: `${fieldName} is required` };
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || trimmed.length > maximumLength) {
+        return { error: `${fieldName} must be between 1 and ${maximumLength} characters` };
+    }
+
+    const sanitized = trimmed
+        .replace(/<\/?[a-zA-Z][^>]*>/g, '')
+        .replace(/[<>]/g, '')
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (sanitized.length === 0) {
+        return { error: `${fieldName} must contain visible text` };
+    }
+
+    return { value: sanitized };
+}
+
+function parseCommunityBuildQueryInteger(value, defaultValue) {
+    if (value === undefined) {
+        return defaultValue;
+    }
+
+    const parsed = Number.parseInt(String(value), 10);
+    if (!Number.isSafeInteger(parsed)) {
+        return defaultValue;
+    }
+    return Math.max(0, parsed);
+}
+
 // Simple in-memory cache with TTL
 class SimpleCache {
     constructor(ttl = 300000) { // Default 5 minutes
@@ -206,7 +247,11 @@ if (compression) {
     app.use(compression());
 }
 const parseSharedBuildJson = express.json({ limit: SHARED_BUILD_BODY_LIMIT_BYTES });
+const parseCommunityBuildJson = express.json({ limit: COMMUNITY_BUILD_BODY_LIMIT_BYTES });
 app.use((req, res, next) => {
+    if (isCommunityBuildCreateRequest(req)) {
+        return parseCommunityBuildJson(req, res, next);
+    }
     if (isSharedBuildPostRequest(req)) {
         return parseSharedBuildJson(req, res, next);
     }
@@ -1565,11 +1610,14 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+    if (err && err.type === 'entity.too.large' && isCommunityBuildCreateRequest(req)) {
+        return res.status(400).json({ error: 'Request body too large' });
+    }
     if (err && err.type === 'entity.too.large' && isSharedBuildPostRequest(req)) {
         return res.status(413).json({ error: 'Request body too large' });
     }
     if (
-        isSharedBuildPostRequest(req) &&
+        (isSharedBuildPostRequest(req) || isCommunityBuildCreateRequest(req)) &&
         err &&
         (
             err.type === 'entity.parse.failed' ||
@@ -2707,6 +2755,140 @@ app.get('/api/builds/:id', async (req, res) => {
     } catch (error) {
         console.error('Shared build load error:', error);
         return res.status(500).json({ error: 'Failed to load build' });
+    }
+});
+
+// Create and browse public community builds using the shared build-reference shape.
+app.post('/api/community/builds', async (req, res) => {
+    const titleResult = sanitizeCommunityBuildText(req.body?.title, 100, 'Title');
+    if (titleResult.error) {
+        return res.status(400).json({ error: titleResult.error });
+    }
+
+    const authorResult = sanitizeCommunityBuildText(req.body?.author, 50, 'Author');
+    if (authorResult.error) {
+        return res.status(400).json({ error: authorResult.error });
+    }
+
+    const normalized = normalizeSharedBuild(req.body?.build);
+    if (normalized.error || Object.keys(normalized.build).length === 0) {
+        return res.status(400).json({ error: normalized.error || 'Build must contain at least one component' });
+    }
+
+    try {
+        const database = getDatabase();
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const id = createSharedBuildId();
+            try {
+                await database.collection('community_builds').insertOne({
+                    _id: id,
+                    title: titleResult.value,
+                    author: authorResult.value,
+                    build: normalized.build,
+                    likes: 0,
+                    createdAt: new Date()
+                });
+                return res.status(201).json({ id });
+            } catch (error) {
+                if (error && error.code === 11000) {
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        return res.status(503).json({ error: 'Failed to allocate community build id' });
+    } catch (error) {
+        console.error('Community build save error:', error);
+        return res.status(500).json({ error: 'Failed to save community build' });
+    }
+});
+
+app.get('/api/community/builds', async (req, res) => {
+    const sort = req.query.sort === 'likes' ? 'likes' : 'newest';
+    const limit = Math.min(50, parseCommunityBuildQueryInteger(req.query.limit, 20));
+    const skip = parseCommunityBuildQueryInteger(req.query.skip, 0);
+    const sortSpec = sort === 'likes'
+        ? { likes: -1, createdAt: -1 }
+        : { createdAt: -1 };
+
+    try {
+        const database = getDatabase();
+        const collection = database.collection('community_builds');
+        const buildsPromise = limit === 0
+            ? Promise.resolve([])
+            : collection.find(
+                {},
+                { projection: { title: 1, author: 1, build: 1, likes: 1, createdAt: 1 } }
+            ).sort(sortSpec).skip(skip).limit(limit).toArray();
+        const [documents, total] = await Promise.all([
+            buildsPromise,
+            collection.countDocuments({})
+        ]);
+        const builds = documents.map(document => ({
+            id: document._id,
+            title: document.title,
+            author: document.author,
+            likes: document.likes,
+            createdAt: document.createdAt,
+            build: document.build
+        }));
+        return res.json({ builds, total });
+    } catch (error) {
+        console.error('Community build list error:', error);
+        return res.status(500).json({ error: 'Failed to list community builds' });
+    }
+});
+
+app.post('/api/community/builds/:id/like', async (req, res) => {
+    const { id } = req.params;
+    if (!SHARED_BUILD_ID_PATTERN.test(id)) {
+        return res.status(404).json({ error: 'Community build not found' });
+    }
+
+    try {
+        const database = getDatabase();
+        const document = await database.collection('community_builds').findOneAndUpdate(
+            { _id: id },
+            { $inc: { likes: 1 } },
+            { returnDocument: 'after', projection: { likes: 1 } }
+        );
+        if (!document) {
+            return res.status(404).json({ error: 'Community build not found' });
+        }
+        return res.json({ id, likes: document.likes });
+    } catch (error) {
+        console.error('Community build like error:', error);
+        return res.status(500).json({ error: 'Failed to like community build' });
+    }
+});
+
+app.get('/api/community/builds/:id', async (req, res) => {
+    const { id } = req.params;
+    if (!SHARED_BUILD_ID_PATTERN.test(id)) {
+        return res.status(404).json({ error: 'Community build not found' });
+    }
+
+    try {
+        const database = getDatabase();
+        const document = await database.collection('community_builds').findOne(
+            { _id: id },
+            { projection: { title: 1, author: 1, build: 1, likes: 1, createdAt: 1 } }
+        );
+        if (!document) {
+            return res.status(404).json({ error: 'Community build not found' });
+        }
+        return res.json({
+            id: document._id,
+            title: document.title,
+            author: document.author,
+            likes: document.likes,
+            createdAt: document.createdAt,
+            build: document.build
+        });
+    } catch (error) {
+        console.error('Community build load error:', error);
+        return res.status(500).json({ error: 'Failed to load community build' });
     }
 });
 
