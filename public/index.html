@@ -28,9 +28,23 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=case-addon-layout-1">
+    <link rel="stylesheet" href="styles-v5.css?v=shared-build-load-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Shared-build (?build=) links: hide the empty "Choose" slots before first
+         paint so the selected parts fade in instead of flashing Choose then swapping.
+         The app removes this class once the build is applied; an 8s fallback ensures
+         the builder is never left hidden if the script fails to load. -->
+    <script>
+        (function () {
+            if (/[?&]build=/.test(location.search)) {
+                var el = document.documentElement;
+                el.classList.add('loading-shared-build');
+                setTimeout(function () { el.classList.remove('loading-shared-build'); }, 8000);
+            }
+        })();
+    </script>
 
     <!-- Analytics placeholder: Quinn must confirm data-domain="ezpc.world" or swap providers before launch. -->
     <script defer data-domain="ezpc.world" src="https://plausible.io/js/script.js"></script>
@@ -2346,7 +2360,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=36"></script>
+    <script src="script.js?v=37"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

@@ -2020,6 +2020,28 @@ tr.incompatible td {
     gap: 24px;
 }
 
+/* Shared-build (?build=) loading state: while the selected parts are being
+   fetched, suppress the empty "Choose" buttons and show a shimmer skeleton in
+   each slot, so parts fade in rather than flashing Choose then swapping. The
+   `loading-shared-build` class is set on <html> before first paint and removed
+   by the app once the build is applied. */
+.loading-shared-build #builder-tab .component-select-btn { visibility: hidden; }
+.loading-shared-build #builder-tab .component-selector { position: relative; }
+.loading-shared-build #builder-tab .component-selector::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg, 12px);
+    background: linear-gradient(100deg, #eef2f7 30%, #f8fafc 50%, #eef2f7 70%);
+    background-size: 200% 100%;
+    animation: ezpc-slot-skeleton 1.1s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes ezpc-slot-skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 .pc-build-container > .component-selectors {
     flex: 1 1 680px;
     min-width: 0;

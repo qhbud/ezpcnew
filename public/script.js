@@ -1649,6 +1649,17 @@ class PartsDatabase {
         // Load overall stats for the header
         this.loadOverallStats();
 
+        // If this is a shared-build (?build=) link, start fetching the build map
+        // NOW, in parallel with the component data, so it's ready the moment the
+        // parts are. The empty "Choose" buttons are already hidden (head script).
+        const sharedBuildParam = this._getSharedBuildParam();
+        const sharedBuildPromise = sharedBuildParam
+            ? this._fetchSharedBuildMap(sharedBuildParam)
+            : null;
+        // Pre-attach a no-op handler so a fetch failure before we await (below)
+        // doesn't surface as an unhandledrejection; applySharedBuild still handles it.
+        if (sharedBuildPromise) sharedBuildPromise.catch(() => {});
+
         const trackLoad = (category, promise) => {
             this.dataPromises[category] = Promise.resolve(promise)
                 .catch(error => {
@@ -1674,9 +1685,10 @@ class PartsDatabase {
             trackLoad('addon', this.loadAllAddons())
         ]);
 
-        // After all data is loaded, check if there's a build to restore from URL
+        // After all data is loaded, restore the shared build (if any) and reveal
+        // the builder. Components are now loaded, so the parts paint straight in.
         this.initializeQuickStartBuilds();
-        this.loadBuildFromURL();
+        this.applySharedBuild(sharedBuildPromise);
 
         // Background-warm the two listing caches whose render needs a different
         // shape than the builder prefetch (ungrouped RAM + GPU), so those tabs
@@ -8206,47 +8218,53 @@ class PartsDatabase {
         }
     }
 
-    async loadBuildFromURL() {
-        const urlParams = new URLSearchParams(window.location.search);
-        let buildParam = urlParams.get('build');
+    // The trimmed ?build= value, or null when there is nothing to restore.
+    _getSharedBuildParam() {
+        const param = new URLSearchParams(window.location.search).get('build');
+        return param ? param.trim() : null;
+    }
 
-        if (!buildParam) {
-            return; // No build to load
+    // Resolve a ?build= value to a build map. Can be started in parallel with the
+    // component-data load so the map is ready the moment the parts are.
+    async _fetchSharedBuildMap(buildParam) {
+        if (/^[A-Za-z0-9_-]{12}$/.test(buildParam)) {
+            const response = await fetch(`/api/builds/${encodeURIComponent(buildParam)}`);
+            if (!response.ok) {
+                throw new Error(response.status === 404
+                    ? 'The shared build was not found.'
+                    : `Build request failed with status ${response.status}`);
+            }
+            return response.json();
         }
+        // Legacy links carry the complete build as standard base64.
+        const legacyBuildParam = buildParam.replace(/\s/g, '+').replace(/[^A-Za-z0-9+/=]/g, '');
+        return JSON.parse(atob(legacyBuildParam));
+    }
+
+    // Apply an already-fetched shared build, then reveal the builder. `loadInitialData`
+    // pre-fetches the map in parallel and hands it here once component data is ready,
+    // so the selected parts paint in directly instead of flashing the Choose buttons.
+    async applySharedBuild(buildMapPromise) {
+        const buildParam = this._getSharedBuildParam();
+        const done = () => document.documentElement.classList.remove('loading-shared-build');
+        if (!buildParam) { done(); return; }
 
         try {
-            buildParam = buildParam.trim();
-            let buildData;
-
-            if (/^[A-Za-z0-9_-]{12}$/.test(buildParam)) {
-                const response = await fetch(`/api/builds/${encodeURIComponent(buildParam)}`);
-                if (!response.ok) {
-                    throw new Error(response.status === 404
-                        ? 'The shared build was not found.'
-                        : `Build request failed with status ${response.status}`);
-                }
-                buildData = await response.json();
-            } else {
-                // Legacy links contain the complete build as standard base64.
-                const legacyBuildParam = buildParam
-                    .replace(/\s/g, '+')
-                    .replace(/[^A-Za-z0-9+/=]/g, '');
-                buildData = JSON.parse(atob(legacyBuildParam));
+            const buildData = await buildMapPromise;
+            if (buildData) {
+                console.log('Loading build from URL:', buildData);
+                await this.applyBuildData(buildData, { sourceLabel: 'shared link', notify: true });
             }
-
-            console.log('Loading build from URL:', buildData);
-
-            await this.applyBuildData(buildData, { sourceLabel: 'shared link', notify: true });
-
         } catch (error) {
             console.error('Error loading build from URL:', error);
             console.error('Build parameter that caused error:', buildParam);
-
             if (error.name === 'InvalidCharacterError') {
                 alert('Failed to load build from link.\n\nThe share link appears to be corrupted or incomplete.\n\nPlease make sure you copied the entire link, including all characters.');
             } else {
                 alert('Failed to load build from link. The link may be invalid or corrupted.\n\nError: ' + error.message);
             }
+        } finally {
+            done(); // always reveal the builder, even if the build failed to load
         }
     }
 
