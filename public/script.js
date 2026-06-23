@@ -8798,6 +8798,7 @@ class PartsDatabase {
         const btn = document.getElementById('funStatsBtn');
         const summaryBox = document.getElementById('buildSummaryBox');
         const priceHistoryPanel = document.getElementById('summaryPriceHistoryPanel');
+        const budgetShapePanel = document.getElementById('summaryBudgetShapePanel');
         if (!overlay) return;
 
         const wantOpen = forceClose ? false : !this._funStatsOpen;
@@ -8811,6 +8812,7 @@ class PartsDatabase {
             this._funStatsOpen = true;
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');
             if (priceHistoryPanel) priceHistoryPanel.setAttribute('aria-hidden', 'false');
+            if (budgetShapePanel) budgetShapePanel.setAttribute('aria-hidden', 'false');
             overlay.classList.add('open');
             overlay.setAttribute('aria-hidden', 'false');
             if (btn) btn.classList.add('active');
@@ -8819,6 +8821,7 @@ class PartsDatabase {
             this._funStatsOpen = false;
             if (summaryBox) summaryBox.classList.remove('fun-stats-expanded');
             if (priceHistoryPanel) priceHistoryPanel.setAttribute('aria-hidden', 'true');
+            if (budgetShapePanel) budgetShapePanel.setAttribute('aria-hidden', 'true');
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
             if (btn) btn.classList.remove('active');
