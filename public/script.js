@@ -2941,12 +2941,14 @@ class PartsDatabase {
             if (response.ok) {
                 const allData = await response.json();
 
-                // Filter out unavailable motherboards
-                this.allMotherboards = allData.filter(motherboard => {
-                    return motherboard.isAvailable !== false;
-                });
+                // The API already returns only available, priced motherboards
+                // (hasValidPrice). Don't re-filter on isAvailable here: a stale
+                // isAvailable:false (e.g. during a price-update gap) would wrongly
+                // empty the builder's motherboard picker AND drop a saved board on
+                // reload, since loadAndAddComponentById looks it up in this array.
+                this.allMotherboards = allData;
 
-                console.log(`Loaded ${this.allMotherboards.length} Motherboards (filtered out ${allData.length - this.allMotherboards.length} unavailable)`);
+                console.log(`Loaded ${this.allMotherboards.length} Motherboards`);
                 this.refreshModalIfOpen('motherboard');
                 this.populateMotherboardSelector();
                 if (this.currentTab === 'motherboard') {
@@ -7740,7 +7742,10 @@ class PartsDatabase {
     serializeBuild() {
         const buildData = {};
         Object.entries(this.currentBuild).forEach(([type, component]) => {
-            if (component !== null) {
+            // Truthy (not just !== null): an undefined slot must not throw and
+            // abort the whole save. Also require an _id so we never store a
+            // broken reference that silently drops on JSON round-trip.
+            if (component && component._id) {
                 // For RAM and GPU, save ID and quantity; otherwise just the ID.
                 if ((type === 'ram' || type === 'gpu') && component.quantity) {
                     buildData[type] = { id: component._id, qty: component.quantity };
@@ -8529,6 +8534,19 @@ class PartsDatabase {
             } else {
                 // For non-GPU components, find by ID in the already-loaded array
                 component = componentArray.find(c => c._id === componentId);
+
+                // RAM is grouped by model in `allRAM` (one representative per model),
+                // but a saved build can reference a specific non-representative kit.
+                // Fall back to the full individual RAM list so those kits still load.
+                if (!component && baseType === 'ram') {
+                    if (!Array.isArray(this._ramRaw)) {
+                        try {
+                            const ramResp = await fetch('/api/parts/rams');
+                            if (ramResp.ok) this._ramRaw = await ramResp.json();
+                        } catch (e) { /* network fallback below */ }
+                    }
+                    component = (this._ramRaw || []).find(c => c._id === componentId) || null;
+                }
             }
 
             if (component) {
