@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=funstats-sidebar-polish-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-game-estimates-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1703,10 +1703,26 @@
                                 </section>
                                 <section class="fun-stats-card fun-stats-card-fps">
                                     <div class="fun-stats-section-head">
-                                        <h5><i class="fas fa-gauge-high"></i> Estimated Average FPS</h5>
-                                        <span>Calculated</span>
+                                        <h5><i class="fas fa-gauge-high"></i> Real Game FPS Estimates</h5>
+                                        <span>High settings</span>
                                     </div>
                                     <div id="funStatsFpsPanel"></div>
+                                </section>
+                            </div>
+                            <div class="fun-stats-showcase-grid">
+                                <section class="fun-stats-card">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-sliders"></i> Performance Balance</h5>
+                                        <span>CPU + GPU</span>
+                                    </div>
+                                    <div id="funStatsBalancePanel"></div>
+                                </section>
+                                <section class="fun-stats-card">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-chart-pie"></i> Budget Shape</h5>
+                                        <span>Part spend</span>
+                                    </div>
+                                    <div id="funStatsBudgetPanel"></div>
                                 </section>
                             </div>
                             <section class="fun-stats-card">
@@ -1716,10 +1732,6 @@
                                 </div>
                                 <div id="funStatsNotes" class="fun-stats-notes"></div>
                             </section>
-                            <details class="fun-stats-advanced">
-                                <summary><i class="fas fa-chart-area"></i> Advanced part charts</summary>
-                                <div id="funStatsAdvancedCharts"></div>
-                            </details>
                         </div>
                     </div>
 
@@ -2423,7 +2435,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=43"></script>
+    <script src="script.js?v=44"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

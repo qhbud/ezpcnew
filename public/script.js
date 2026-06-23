@@ -6921,33 +6921,12 @@ class PartsDatabase {
             storage: !!this.currentBuild.storage
         });
 
-        // Only render the charts while the Fun Stats overlay is open AND the build
-        // is complete (the overlay itself controls visibility).
+        // Only render Fun Stats while the overlay is open AND the build is complete.
         if (hasAllRequired && this._funStatsOpen) {
             console.log('Showing statistics section');
-            statisticsSection.classList.remove('hidden');
+            statisticsSection.classList.add('hidden');
 
             await this.renderFunStatsOverview();
-
-            // Render GPU statistics
-            console.log('Rendering GPU chart...');
-            await this.renderBuildStatisticsChart('gpu', 'buildGpuStatisticsCanvas', this.currentBuild.gpu, false);
-
-            // Render CPU Single-Thread statistics
-            console.log('Rendering CPU Single-Thread chart...');
-            await this.renderBuildStatisticsChart('cpu', 'buildCpuSingleStatisticsCanvas', this.currentBuild.cpu, false);
-
-            // Render CPU Multi-Thread statistics
-            console.log('Rendering CPU Multi-Thread chart...');
-            await this.renderBuildStatisticsChart('cpu', 'buildCpuMultiStatisticsCanvas', this.currentBuild.cpu, true);
-
-            // Render Price Distribution Pie Chart
-            console.log('Rendering Price Distribution chart...');
-            this.renderPriceDistributionChart();
-
-            // Render Build Comparison Chart
-            console.log('Rendering Build Comparison chart...');
-            await this.renderBuildComparisonChart();
 
             // Whole-build price history (sum of every component over time).
             this._renderBuildPriceHistory();
@@ -7009,23 +6988,85 @@ class PartsDatabase {
     getFunStatsFps(metrics) {
         const gpu = Math.max(metrics.gpuScore || 0, 0.2);
         const cpu = Math.max(metrics.cpuSingle || 0, 0.35);
-        const rows = [
-            { label: 'Esports', base: { '1080p': 360, '1440p': 280, '4K': 170 }, cpuWeight: 0.42 },
-            { label: 'AAA High', base: { '1080p': 210, '1440p': 150, '4K': 92 }, cpuWeight: 0.24 },
-            { label: 'AAA Ultra', base: { '1080p': 165, '1440p': 118, '4K': 72 }, cpuWeight: 0.18 },
-            { label: 'RT Heavy', base: { '1080p': 112, '1440p': 78, '4K': 46 }, cpuWeight: 0.12 }
+        const games = [
+            {
+                label: 'Cyberpunk 2077',
+                detail: 'Ultra, no path tracing',
+                base: { '1080p': 165, '1440p': 118, '4K': 70 },
+                cpuWeight: 0.16
+            },
+            {
+                label: 'Starfield',
+                detail: 'High preset',
+                base: { '1080p': 132, '1440p': 96, '4K': 58 },
+                cpuWeight: 0.24
+            },
+            {
+                label: 'Call of Duty: Warzone',
+                detail: 'Competitive high',
+                base: { '1080p': 230, '1440p': 175, '4K': 112 },
+                cpuWeight: 0.32
+            },
+            {
+                label: 'Fortnite',
+                detail: 'Performance mode',
+                base: { '1080p': 420, '1440p': 330, '4K': 220 },
+                cpuWeight: 0.46
+            },
+            {
+                label: 'Counter-Strike 2',
+                detail: 'Competitive settings',
+                base: { '1080p': 560, '1440p': 440, '4K': 300 },
+                cpuWeight: 0.58
+            }
         ];
-        const resolutionWeight = { '1080p': 1.08, '1440p': 1, '4K': 0.92 };
-        return rows.map(row => {
+        const resolutionWeight = { '1080p': 1.05, '1440p': 1, '4K': 0.95 };
+        return games.map(game => {
             const scores = {};
-            Object.keys(row.base).forEach(res => {
-                const cpuWeight = row.cpuWeight * (res === '1080p' ? 1 : res === '1440p' ? 0.72 : 0.42);
+            Object.keys(game.base).forEach(res => {
+                const cpuWeight = game.cpuWeight * (res === '1080p' ? 1 : res === '1440p' ? 0.72 : 0.44);
                 const gpuWeight = 1 - cpuWeight;
                 const scale = ((gpu * gpuWeight) + (cpu * cpuWeight)) * resolutionWeight[res];
-                scores[res] = Math.max(18, Math.round(row.base[res] * scale));
+                const floor = res === '4K' ? 20 : 28;
+                scores[res] = Math.max(floor, Math.round(game.base[res] * scale));
             });
-            return { ...row, scores };
+            return { ...game, scores };
         });
+    }
+
+    getFunStatsBudgetData() {
+        const partSlots = [
+            ['GPU', 'gpu', '#2563eb'],
+            ['CPU', 'cpu', '#059669'],
+            ['Motherboard', 'motherboard', '#d97706'],
+            ['RAM', 'ram', '#7c3aed'],
+            ['Cooler', 'cooler', '#0891b2'],
+            ['PSU', 'psu', '#f97316'],
+            ['Case', 'case', '#db2777'],
+            ['Storage', 'storage', '#64748b']
+        ];
+        const rows = [];
+        partSlots.forEach(([label, slot, color]) => {
+            const part = this.currentBuild[slot];
+            if (!part) return;
+            const quantity = part.quantity || 1;
+            const price = this.getPartPrice(part) * quantity;
+            if (price > 0) rows.push({ label, price, color });
+        });
+        ['storage2', 'storage3', 'storage4', 'storage5', 'storage6'].forEach(slot => {
+            const part = this.currentBuild[slot];
+            const price = this.getPartPrice(part);
+            if (price > 0) rows.push({ label: 'Storage', price, color: '#94a3b8' });
+        });
+        ['addon', 'addon2', 'addon3', 'addon4', 'addon5', 'addon6'].forEach(slot => {
+            const part = this.currentBuild[slot];
+            const price = this.getPartPrice(part);
+            if (price > 0) rows.push({ label: 'Add-on', price, color: '#14b8a6' });
+        });
+        const total = rows.reduce((sum, row) => sum + row.price, 0);
+        return rows
+            .sort((a, b) => b.price - a.price)
+            .map(row => ({ ...row, pct: total ? (row.price / total) * 100 : 0 }));
     }
 
     getFunStatsNotes(metrics, averages = {}) {
@@ -7082,6 +7123,8 @@ class PartsDatabase {
         const comparePanel = document.getElementById('funStatsComparisonPanel');
         const compareSample = document.getElementById('funStatsCompareSample');
         const fpsPanel = document.getElementById('funStatsFpsPanel');
+        const balancePanel = document.getElementById('funStatsBalancePanel');
+        const budgetPanel = document.getElementById('funStatsBudgetPanel');
         const notesHost = document.getElementById('funStatsNotes');
         const issuesPanel = document.getElementById('funStatsIssuesPanel');
         const issueCount = document.getElementById('funStatsIssueCount');
@@ -7094,7 +7137,7 @@ class PartsDatabase {
         if (scoreGrid) {
             const cards = [
                 { label: 'Build strength', value: `${yourStrengthPct}%`, detail: metrics.percentile !== null ? `Top ${100 - metrics.percentile}% saved builds` : 'Local score' },
-                { label: '1440p avg FPS', value: `~${fps1440Average}`, detail: 'Across esports, AAA, ultra, RT' },
+                { label: '1440p avg FPS', value: `~${fps1440Average}`, detail: 'Across named game estimates' },
                 { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' },
                 { label: 'Power estimate', value: `${wattage}W`, detail: 'System draw estimate' }
             ];
@@ -7174,19 +7217,81 @@ class PartsDatabase {
 
         if (fpsPanel) {
             fpsPanel.innerHTML = `
-                <div class="fun-fps-table">
-                    <div class="fun-fps-head"><span>Scenario</span><span>1080p</span><span>1440p</span><span>4K</span></div>
+                <div class="fun-game-fps-list">
                     ${fpsRows.map(row => `
-                        <div class="fun-fps-row">
+                        <article class="fun-game-fps-card">
+                            <div class="fun-game-fps-title">
+                                <div>
+                                    <strong>${this._escapeHtml(row.label)}</strong>
+                                    <span>${this._escapeHtml(row.detail)}</span>
+                                </div>
+                                <b>${row.scores['1440p']} fps</b>
+                            </div>
+                            <div class="fun-game-fps-bars">
+                                ${['1080p', '1440p', '4K'].map(res => {
+                                    const fps = row.scores[res];
+                                    const pct = this.clampNumber((fps / Math.max(row.scores['1080p'], 1)) * 100, 8, 100);
+                                    return `
+                                        <div class="fun-game-fps-bar">
+                                            <span>${res}</span>
+                                            <div><i style="width:${pct}%"></i></div>
+                                            <strong>${fps}</strong>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </article>
+                    `).join('')}
+                </div>
+                <p class="fun-stats-muted">Named-game estimates are calculated from this build's CPU/GPU scores using high or competitive settings. Actual FPS varies by patch, map, drivers, upscaling, and thermals.</p>
+            `;
+        }
+
+        if (balancePanel) {
+            const balanceRows = [
+                { label: 'GPU horsepower', value: Math.round(metrics.gpuScore * 100), color: '#2563eb' },
+                { label: 'CPU gaming', value: Math.round(metrics.cpuSingle * 100), color: '#059669' },
+                { label: 'CPU multitasking', value: Math.round(metrics.cpuMulti * 100), color: '#7c3aed' },
+                { label: 'Value efficiency', value: Math.round(metrics.valueScore * 10), color: '#d97706' }
+            ].map(row => ({ ...row, value: this.clampNumber(row.value, 0, 125) }));
+            const balanceGap = Math.abs(metrics.gpuScore - metrics.cpuSingle);
+            const balanceLabel = balanceGap < 0.16 ? 'Well matched'
+                : metrics.gpuScore > metrics.cpuSingle ? 'GPU-led build'
+                : 'CPU-led build';
+            balancePanel.innerHTML = `
+                <div class="fun-balance-summary">
+                    <strong>${this._escapeHtml(balanceLabel)}</strong>
+                    <span>${this._escapeHtml(metrics.target)}</span>
+                </div>
+                <div class="fun-balance-bars">
+                    ${balanceRows.map(row => `
+                        <div class="fun-balance-row">
                             <span>${this._escapeHtml(row.label)}</span>
-                            <strong>${row.scores['1080p']}</strong>
-                            <strong>${row.scores['1440p']}</strong>
-                            <strong>${row.scores['4K']}</strong>
+                            <div><i style="width:${this.clampNumber(row.value, 4, 100)}%; background:${row.color}"></i></div>
+                            <strong>${row.value}%</strong>
                         </div>
                     `).join('')}
                 </div>
-                <p class="fun-stats-muted">Estimated average FPS from CPU/GPU scores. Real results vary by game, settings, drivers, and thermals.</p>
             `;
+        }
+
+        if (budgetPanel) {
+            const budgetRows = this.getFunStatsBudgetData();
+            budgetPanel.innerHTML = budgetRows.length
+                ? `
+                    <div class="fun-budget-stack" aria-label="Budget distribution">
+                        ${budgetRows.map(row => `<i title="${this._escapeHtml(row.label)} ${row.pct.toFixed(0)}%" style="width:${this.clampNumber(row.pct, 3, 100)}%; background:${row.color}"></i>`).join('')}
+                    </div>
+                    <div class="fun-budget-list">
+                        ${budgetRows.slice(0, 6).map(row => `
+                            <div class="fun-budget-row">
+                                <span><i style="background:${row.color}"></i>${this._escapeHtml(row.label)}</span>
+                                <strong>$${Math.round(row.price).toLocaleString()} <small>${row.pct.toFixed(0)}%</small></strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                `
+                : '<p class="fun-stats-muted">No priced parts yet.</p>';
         }
 
         if (notesHost) {
@@ -8702,13 +8807,6 @@ class PartsDatabase {
             if (required.some(t => !this.currentBuild[t])) {
                 this.showToast('Add a CPU, GPU, RAM, motherboard, PSU, case & storage to unlock fun stats.');
                 return;
-            }
-            // Relocate the Performance Statistics section into the overlay (once).
-            const statsSection = document.getElementById('buildStatisticsSection');
-            const advanced = document.getElementById('funStatsAdvancedCharts');
-            if (statsSection && advanced && statsSection.parentElement !== advanced) {
-                statsSection.classList.remove('hidden');
-                advanced.appendChild(statsSection);
             }
             this._funStatsOpen = true;
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');

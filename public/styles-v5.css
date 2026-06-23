@@ -2211,6 +2211,11 @@ tr.incompatible td {
     grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
     gap: var(--space-5);
 }
+.fun-stats-showcase-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1.1fr);
+    gap: var(--space-5);
+}
 .fun-stats-section-head {
     display: flex;
     align-items: center;
@@ -2269,34 +2274,175 @@ tr.incompatible td {
 }
 .fun-compare-bar.yours { top: 0; background: #2563eb; }
 .fun-compare-bar.average { bottom: 0; background: #94a3b8; }
-.fun-fps-table {
-    border: 1px solid #e2e8f0;
-    border-radius: var(--radius-md);
+.fun-game-fps-list {
+    display: grid;
+    gap: var(--space-3);
+}
+.fun-game-fps-card {
+    padding: var(--space-3);
+    border: 1px solid #dbe3ef;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+.fun-game-fps-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+.fun-game-fps-title strong {
+    display: block;
+    color: #0f172a;
+    font-size: 0.95rem;
+}
+.fun-game-fps-title span {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.fun-game-fps-title b {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: #1d4ed8;
+    background: #dbeafe;
+    font-size: 0.86rem;
+}
+.fun-game-fps-bars {
+    display: grid;
+    gap: 7px;
+}
+.fun-game-fps-bar {
+    display: grid;
+    grid-template-columns: 46px minmax(90px, 1fr) 44px;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+.fun-game-fps-bar div {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #e2e8f0;
+}
+.fun-game-fps-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #14b8a6);
+}
+.fun-game-fps-bar strong {
+    color: #0f172a;
+    font-size: 0.78rem;
+    text-align: right;
+}
+.fun-balance-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: #0f172a;
+}
+.fun-balance-summary strong {
+    color: #ffffff;
+    font-size: 1.12rem;
+}
+.fun-balance-summary span {
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: right;
+}
+.fun-balance-bars {
+    display: grid;
+    gap: var(--space-3);
+}
+.fun-balance-row {
+    display: grid;
+    grid-template-columns: minmax(118px, 0.9fr) minmax(140px, 1.3fr) 48px;
+    align-items: center;
+    gap: var(--space-3);
+}
+.fun-balance-row span {
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+.fun-balance-row div {
+    height: 14px;
+    border-radius: 999px;
+    background: #e2e8f0;
     overflow: hidden;
 }
-.fun-fps-head,
-.fun-fps-row {
-    display: grid;
-    grid-template-columns: minmax(92px, 1.2fr) repeat(3, minmax(54px, 0.6fr));
-    align-items: center;
-    gap: var(--space-2);
-    padding: 10px 12px;
+.fun-balance-row i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
 }
-.fun-fps-head {
-    background: #f1f5f9;
-    color: #475569;
-    font-size: 0.78rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.fun-fps-row {
-    border-top: 1px solid #e2e8f0;
-    color: #334155;
-}
-.fun-fps-row strong {
+.fun-balance-row strong {
     color: #0f172a;
-    font-size: 1rem;
+    font-size: 0.86rem;
+    text-align: right;
+}
+.fun-budget-stack {
+    display: flex;
+    height: 46px;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: #e2e8f0;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.fun-budget-stack i {
+    display: block;
+    min-width: 4px;
+    height: 100%;
+}
+.fun-budget-list {
+    display: grid;
+    gap: 10px;
+    margin-top: var(--space-4);
+}
+.fun-budget-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eef2f7;
+}
+.fun-budget-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+.fun-budget-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #334155;
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+.fun-budget-row span i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+}
+.fun-budget-row strong {
+    color: #0f172a;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.fun-budget-row small {
+    color: #64748b;
+    font-size: 0.76rem;
 }
 .fun-stats-issues-panel {
     display: grid;
@@ -2379,24 +2525,6 @@ tr.incompatible td {
     margin-top: 3px;
     color: #059669;
 }
-.fun-stats-advanced {
-    border: 1px solid #dbe3ef;
-    border-radius: var(--radius-lg);
-    background: #ffffff;
-    overflow: hidden;
-}
-.fun-stats-advanced summary {
-    cursor: pointer;
-    padding: var(--space-4);
-    font-weight: 800;
-    color: #0f172a;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-.fun-stats-advanced summary i { color: #2563eb; }
-.fun-stats-advanced[open] summary { border-bottom: 1px solid #e2e8f0; }
-#funStatsAdvancedCharts { padding: var(--space-4); }
 .build-price-history-chart { width: 100%; min-height: 190px; }
 .build-price-history-chart .gpu-price-loading { color: var(--text-muted); padding: var(--space-6); text-align: center; }
 
@@ -2457,7 +2585,8 @@ tr.incompatible td {
         grid-template-columns: 1fr;
     }
     .fun-stats-hero,
-    .fun-stats-main-grid {
+    .fun-stats-main-grid,
+    .fun-stats-showcase-grid {
         grid-template-columns: 1fr;
         flex-direction: column;
         align-items: stretch;
@@ -2473,10 +2602,20 @@ tr.incompatible td {
 @media (max-width: 640px) {
     .fun-stats-overlay-body { padding: var(--space-3); }
     .fun-stats-score-grid { grid-template-columns: 1fr; }
-    .fun-fps-head,
-    .fun-fps-row {
-        grid-template-columns: minmax(80px, 1fr) repeat(3, minmax(44px, 0.5fr));
-        font-size: 0.82rem;
+    .fun-game-fps-title {
+        flex-direction: column;
+    }
+    .fun-game-fps-title b {
+        align-self: flex-start;
+    }
+    .fun-game-fps-bar,
+    .fun-balance-row {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+    .fun-game-fps-bar strong,
+    .fun-balance-row strong {
+        text-align: left;
     }
 }
 
