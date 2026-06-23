@@ -484,6 +484,10 @@ class PartsDatabase {
             this.toggleFunStats(true);
         });
 
+        document.getElementById('funStatsCollapseHeroBtn')?.addEventListener('click', () => {
+            this.toggleFunStats(true);
+        });
+
         const exportBuildBtn = document.getElementById('exportBuildBtn');
         if (exportBuildBtn) {
             exportBuildBtn.addEventListener('click', () => this.openExportList());
@@ -6923,6 +6927,8 @@ class PartsDatabase {
             console.log('Showing statistics section');
             statisticsSection.classList.remove('hidden');
 
+            await this.renderFunStatsOverview();
+
             // Render GPU statistics
             console.log('Rendering GPU chart...');
             await this.renderBuildStatisticsChart('gpu', 'buildGpuStatisticsCanvas', this.currentBuild.gpu, false);
@@ -6956,6 +6962,202 @@ class PartsDatabase {
             statisticsSection.classList.add('hidden');
             // Stats need a complete build — close the overlay if a part was removed.
             if (this._funStatsOpen) this.toggleFunStats(true);
+        }
+    }
+
+    clampNumber(value, min, max) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return min;
+        return Math.min(max, Math.max(min, n));
+    }
+
+    getPartPrice(part) {
+        return parseFloat(part?.salePrice) ||
+            parseFloat(part?.currentPrice) ||
+            parseFloat(part?.basePrice) ||
+            parseFloat(part?.price) ||
+            0;
+    }
+
+    getFunStatsMetrics(averages = {}) {
+        const gpuScore = this.currentBuild.gpu ? (this.getGpuPerformance(this.currentBuild.gpu) || 0) : 0;
+        const cpuSingle = this.currentBuild.cpu ? (this.getCpuPerformance(this.currentBuild.cpu) || 0) : 0;
+        const cpuMulti = this.currentBuild.cpu ? (this.getCpuMultiThreadPerformance(this.currentBuild.cpu) || 0) : 0;
+        const strength = this.clampNumber((gpuScore * 0.55) + (cpuSingle * 0.30) + (Math.min(cpuMulti, 1.4) * 0.15), 0, 1.25);
+        const avgStrength = averages.count
+            ? this.clampNumber(((averages.avgGpu || 0) * 0.55) + ((averages.avgCpuSingle || 0) * 0.30) + (Math.min(averages.avgCpuMulti || 0, 1.4) * 0.15), 0, 1.25)
+            : 0;
+        const valueScore = this.totalPrice > 0
+            ? this.clampNumber((strength / Math.max(this.totalPrice / 2200, 0.35)) * 7.2, 1, 10)
+            : 0;
+        const percentile = averages.count >= 2
+            ? Math.round(this.clampNumber(50 + ((strength - avgStrength) * 120), 2, 98))
+            : null;
+
+        const tier = strength >= 0.92 ? 'Enthusiast'
+            : strength >= 0.74 ? 'High-end'
+            : strength >= 0.55 ? 'Mainstream'
+            : 'Entry';
+        const target = strength >= 0.92 ? '4K-ready / elite 1440p'
+            : strength >= 0.74 ? 'excellent 1440p'
+            : strength >= 0.55 ? 'strong 1080p / light 1440p'
+            : 'starter 1080p';
+
+        return { gpuScore, cpuSingle, cpuMulti, strength, avgStrength, valueScore, percentile, tier, target };
+    }
+
+    getFunStatsFps(metrics) {
+        const gpu = Math.max(metrics.gpuScore || 0, 0.2);
+        const cpu = Math.max(metrics.cpuSingle || 0, 0.35);
+        const rows = [
+            { label: 'Esports', base: { '1080p': 360, '1440p': 280, '4K': 170 }, cpuWeight: 0.42 },
+            { label: 'AAA High', base: { '1080p': 210, '1440p': 150, '4K': 92 }, cpuWeight: 0.24 },
+            { label: 'AAA Ultra', base: { '1080p': 165, '1440p': 118, '4K': 72 }, cpuWeight: 0.18 },
+            { label: 'RT Heavy', base: { '1080p': 112, '1440p': 78, '4K': 46 }, cpuWeight: 0.12 }
+        ];
+        const resolutionWeight = { '1080p': 1.08, '1440p': 1, '4K': 0.92 };
+        return rows.map(row => {
+            const scores = {};
+            Object.keys(row.base).forEach(res => {
+                const cpuWeight = row.cpuWeight * (res === '1080p' ? 1 : res === '1440p' ? 0.72 : 0.42);
+                const gpuWeight = 1 - cpuWeight;
+                const scale = ((gpu * gpuWeight) + (cpu * cpuWeight)) * resolutionWeight[res];
+                scores[res] = Math.max(18, Math.round(row.base[res] * scale));
+            });
+            return { ...row, scores };
+        });
+    }
+
+    getFunStatsNotes(metrics, averages = {}) {
+        const notes = [];
+        const gpuPct = Math.round(metrics.gpuScore * 100);
+        const cpuPct = Math.round(metrics.cpuSingle * 100);
+        const gpuSpend = this.getPartPrice(this.currentBuild.gpu);
+        const cpuSpend = this.getPartPrice(this.currentBuild.cpu);
+        const pricedTotal = this.totalPrice || 0;
+
+        notes.push(`${metrics.tier} class: this build is best described as ${metrics.target}.`);
+        if (metrics.percentile !== null) {
+            notes.push(`It lands around the ${metrics.percentile}th percentile versus saved EZPC builds by blended CPU/GPU strength.`);
+        }
+        if (gpuSpend && pricedTotal) {
+            const gpuShare = Math.round((gpuSpend / pricedTotal) * 100);
+            notes.push(`GPU share is ${gpuShare}% of the budget, which ${gpuShare >= 35 ? 'puts money where gaming performance usually matters most' : 'keeps graphics spend conservative'}.`);
+        }
+        if (Math.abs(metrics.gpuScore - metrics.cpuSingle) < 0.16) {
+            notes.push(`CPU/GPU balance looks clean (${cpuPct}% CPU gaming score, ${gpuPct}% GPU score).`);
+        } else if (metrics.gpuScore > metrics.cpuSingle) {
+            notes.push(`The GPU is stronger than the CPU on paper, so very high-FPS 1080p games may lean CPU-limited.`);
+        } else {
+            notes.push(`The CPU has extra headroom relative to the GPU, useful for upgrades or CPU-heavy games.`);
+        }
+        if (averages.avgPrice && pricedTotal) {
+            const diff = Math.round(((pricedTotal - averages.avgPrice) / averages.avgPrice) * 100);
+            notes.push(diff >= 0
+                ? `It costs about ${diff}% more than the saved-build average.`
+                : `It costs about ${Math.abs(diff)}% less than the saved-build average.`);
+        } else if (cpuSpend) {
+            notes.push(`CPU spend is ${Math.round((cpuSpend / pricedTotal) * 100)}% of the build, which is useful context for future tuning.`);
+        }
+        return notes.slice(0, 5);
+    }
+
+    async renderFunStatsOverview() {
+        let averages = { count: 0 };
+        try {
+            const res = await fetch('/api/builds/averages');
+            if (res.ok) averages = await res.json();
+        } catch (e) { /* comparison falls back to local-only */ }
+
+        const metrics = this.getFunStatsMetrics(averages);
+        const fpsRows = this.getFunStatsFps(metrics);
+        const fps1440Average = Math.round(fpsRows.reduce((sum, row) => sum + row.scores['1440p'], 0) / fpsRows.length);
+        const wattage = this.calculateEstimatedWattage ? this.calculateEstimatedWattage().total || 0 : this.estimateSystemPower();
+        const avgStrengthPct = Math.round((metrics.avgStrength || 0) * 100);
+        const yourStrengthPct = Math.round(metrics.strength * 100);
+
+        const tierLabel = document.getElementById('funStatsTierLabel');
+        const tierNote = document.getElementById('funStatsTierNote');
+        const scoreGrid = document.getElementById('funStatsScoreGrid');
+        const comparePanel = document.getElementById('funStatsComparisonPanel');
+        const compareSample = document.getElementById('funStatsCompareSample');
+        const fpsPanel = document.getElementById('funStatsFpsPanel');
+        const notesHost = document.getElementById('funStatsNotes');
+
+        if (tierLabel) tierLabel.textContent = `${metrics.tier} ${metrics.target}`;
+        if (tierNote) tierNote.textContent = metrics.percentile !== null
+            ? `Stronger than roughly ${metrics.percentile}% of saved EZPC builds.`
+            : 'Save more builds to make the comparison sharper.';
+
+        if (scoreGrid) {
+            const cards = [
+                { label: 'Build strength', value: `${yourStrengthPct}%`, detail: metrics.percentile !== null ? `Top ${100 - metrics.percentile}% saved builds` : 'Local score' },
+                { label: '1440p avg FPS', value: `~${fps1440Average}`, detail: 'Across esports, AAA, ultra, RT' },
+                { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' },
+                { label: 'Power estimate', value: `${wattage}W`, detail: 'System draw estimate' }
+            ];
+            scoreGrid.innerHTML = cards.map(card => `
+                <article class="fun-stat-kpi">
+                    <span>${this._escapeHtml(card.label)}</span>
+                    <strong>${this._escapeHtml(card.value)}</strong>
+                    <small>${this._escapeHtml(card.detail)}</small>
+                </article>
+            `).join('');
+        }
+
+        if (compareSample) {
+            compareSample.textContent = averages.count ? `${averages.count.toLocaleString()} saved builds` : 'Need saved builds';
+        }
+
+        if (comparePanel) {
+            const rows = [
+                { label: 'Blended strength', yours: yourStrengthPct, avg: avgStrengthPct, suffix: '%' },
+                { label: 'GPU strength', yours: Math.round(metrics.gpuScore * 100), avg: Math.round((averages.avgGpu || 0) * 100), suffix: '%' },
+                { label: 'CPU gaming', yours: Math.round(metrics.cpuSingle * 100), avg: Math.round((averages.avgCpuSingle || 0) * 100), suffix: '%' },
+                { label: 'Total price', yours: Math.round(this.totalPrice || 0), avg: Math.round(averages.avgPrice || 0), prefix: '$' }
+            ];
+            comparePanel.innerHTML = rows.map(row => {
+                const max = Math.max(row.yours, row.avg, row.label === 'Total price' ? 1 : 100);
+                const yourPct = this.clampNumber((row.yours / max) * 100, 2, 100);
+                const avgPct = row.avg ? this.clampNumber((row.avg / max) * 100, 2, 100) : 0;
+                const fmt = value => `${row.prefix || ''}${value.toLocaleString()}${row.suffix || ''}`;
+                return `
+                    <div class="fun-compare-row">
+                        <div class="fun-compare-label">
+                            <span>${this._escapeHtml(row.label)}</span>
+                            <strong>${this._escapeHtml(fmt(row.yours))}</strong>
+                        </div>
+                        <div class="fun-compare-bars">
+                            <span class="fun-compare-bar yours" style="width:${yourPct}%"></span>
+                            <span class="fun-compare-bar average" style="width:${avgPct}%"></span>
+                        </div>
+                        <small>Average ${this._escapeHtml(fmt(row.avg || 0))}</small>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        if (fpsPanel) {
+            fpsPanel.innerHTML = `
+                <div class="fun-fps-table">
+                    <div class="fun-fps-head"><span>Scenario</span><span>1080p</span><span>1440p</span><span>4K</span></div>
+                    ${fpsRows.map(row => `
+                        <div class="fun-fps-row">
+                            <span>${this._escapeHtml(row.label)}</span>
+                            <strong>${row.scores['1080p']}</strong>
+                            <strong>${row.scores['1440p']}</strong>
+                            <strong>${row.scores['4K']}</strong>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="fun-stats-muted">Estimated average FPS from CPU/GPU scores. Real results vary by game, settings, drivers, and thermals.</p>
+            `;
+        }
+
+        if (notesHost) {
+            notesHost.innerHTML = this.getFunStatsNotes(metrics, averages)
+                .map(note => `<p><i class="fas fa-check-circle"></i>${this._escapeHtml(note)}</p>`)
+                .join('');
         }
     }
 
@@ -8466,10 +8668,10 @@ class PartsDatabase {
             }
             // Relocate the Performance Statistics section into the overlay (once).
             const statsSection = document.getElementById('buildStatisticsSection');
-            const body = document.getElementById('funStatsOverlayBody');
-            if (statsSection && body && statsSection.parentElement !== body) {
+            const advanced = document.getElementById('funStatsAdvancedCharts');
+            if (statsSection && advanced && statsSection.parentElement !== advanced) {
                 statsSection.classList.remove('hidden');
-                body.appendChild(statsSection);
+                advanced.appendChild(statsSection);
             }
             this._funStatsOpen = true;
             overlay.classList.add('open');
