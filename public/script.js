@@ -468,12 +468,16 @@ class PartsDatabase {
         });
 
         // Build action buttons
-        document.getElementById('clearBuildBtn').addEventListener('click', () => {
+        document.getElementById('clearBuildBtn')?.addEventListener('click', () => {
             this.clearBuild();
         });
 
-        document.getElementById('shareBuildBtn').addEventListener('click', () => {
+        document.getElementById('shareBuildBtn')?.addEventListener('click', () => {
             this.shareBuild();
+        });
+
+        document.getElementById('funStatsBtn')?.addEventListener('click', () => {
+            this.toggleFunStats();
         });
 
         const exportBuildBtn = document.getElementById('exportBuildBtn');
@@ -580,13 +584,21 @@ class PartsDatabase {
         const savedList = document.getElementById('savedBuildsList');
         if (savedList) {
             savedList.addEventListener('click', (e) => {
+                // Delete button takes priority; otherwise clicking the row loads it.
                 const btn = e.target.closest('.saved-build-btn');
-                if (!btn) return;
-                const id = btn.getAttribute('data-id');
-                const action = btn.getAttribute('data-action');
-                if (action === 'load') this.loadSavedBuild(id);
-                else if (action === 'rename') this.renameSavedBuild(id);
-                else if (action === 'delete') this.deleteSavedBuild(id);
+                if (btn && btn.getAttribute('data-action') === 'delete') {
+                    this.deleteSavedBuild(btn.getAttribute('data-id'));
+                    return;
+                }
+                const item = e.target.closest('.saved-build-item');
+                if (item) this.loadSavedBuild(item.getAttribute('data-id'));
+            });
+            savedList.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                const item = e.target.closest('.saved-build-item');
+                if (!item) return;
+                e.preventDefault();
+                this.loadSavedBuild(item.getAttribute('data-id'));
             });
         }
         this.renderSavedBuilds();
@@ -6851,9 +6863,14 @@ class PartsDatabase {
         const exportBtn = document.getElementById('exportBuildBtn');
         const communityBtn = document.getElementById('submitCommunityBuildBtn');
         const amazonBtn = document.getElementById('addToAmazonCartBtn');
+        const funStatsBtn = document.getElementById('funStatsBtn');
 
         if (shareBtn) {
             shareBtn.disabled = !hasComponents;
+        }
+
+        if (funStatsBtn) {
+            funStatsBtn.disabled = !hasComponents;
         }
 
         if (exportBtn) {
@@ -6896,7 +6913,9 @@ class PartsDatabase {
             storage: !!this.currentBuild.storage
         });
 
-        if (hasAllRequired) {
+        // Gate the panel behind the "Fun Stats" button: only show it when the build
+        // is complete AND the user has opted in (toggleFunStats sets the flag).
+        if (hasAllRequired && this._funStatsRevealed) {
             console.log('Showing statistics section');
             statisticsSection.classList.remove('hidden');
 
@@ -8081,8 +8100,10 @@ class PartsDatabase {
             const shareURL = `${window.location.origin}${window.location.pathname}?build=${result.id}`;
             const success = await this.copyToClipboard(shareURL);
             if (success) {
+                // Copying a link also saves the build to "My Builds".
+                this.saveCurrentBuildSilently();
                 const componentCount = Object.keys(buildData).length;
-                this.showToast(`Share link copied to clipboard. Total: $${this.totalPrice.toFixed(2)} (${componentCount} components)`);
+                this.showToast(`Link copied & build saved — $${this.totalPrice.toFixed(2)} (${componentCount} parts)`);
             } else {
                 alert('Failed to copy link. Please try again.');
             }
@@ -8389,12 +8410,64 @@ class PartsDatabase {
         this.showToast(`Saved "${name}"`);
     }
 
+    // Auto-name a build from its CPU + GPU for silent saves (Copy Link).
+    _autoBuildName() {
+        const short = s => String(s || '').replace(/\s+Desktop Processor.*$/i, '').trim();
+        const gpu = this.currentBuild.gpu;
+        const cpu = this.currentBuild.cpu;
+        const gpuName = gpu && (gpu.gpuModel || short(gpu.name || gpu.title));
+        const cpuName = cpu && short(cpu.name || cpu.title);
+        const parts = [cpuName, gpuName].filter(Boolean);
+        const name = parts.join(' + ').slice(0, 60);
+        return name || `My Build ${new Date().toLocaleDateString()}`;
+    }
+
+    // Persist the current build to "My Builds" without prompting (used by Copy Link).
+    // De-dupes against an identical saved build so repeated clicks don't pile up.
+    saveCurrentBuildSilently() {
+        const buildData = this.serializeBuild();
+        if (Object.keys(buildData).length === 0) return null;
+        const builds = this.getSavedBuilds();
+        const signature = JSON.stringify(buildData);
+        const existingIdx = builds.findIndex(b => JSON.stringify(b.build) === signature);
+        const entry = {
+            id: existingIdx >= 0 ? builds[existingIdx].id : `b_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name: existingIdx >= 0 ? builds[existingIdx].name : this._autoBuildName(),
+            createdAt: Date.now(),
+            total: this.totalPrice || 0,
+            count: Object.keys(buildData).length,
+            build: buildData
+        };
+        if (existingIdx >= 0) builds.splice(existingIdx, 1);
+        builds.unshift(entry);
+        this.setSavedBuilds(builds);
+        this.renderSavedBuilds();
+        return entry;
+    }
+
     async loadSavedBuild(id) {
         const entry = this.getSavedBuilds().find(b => b.id === id);
         if (!entry) return;
         this.clearBuild();
         await this.applyBuildData(entry.build, { sourceLabel: `saved build "${entry.name}"`, notify: true });
         this.showToast(`Loaded "${entry.name}"`);
+    }
+
+    // "Fun Stats" button: reveal/hide the Performance Statistics panel on demand.
+    toggleFunStats() {
+        const required = ['gpu', 'cpu', 'ram', 'psu', 'motherboard', 'case', 'storage'];
+        if (required.some(t => !this.currentBuild[t])) {
+            this.showToast('Add a CPU, GPU, RAM, motherboard, PSU, case & storage to unlock fun stats.');
+            return;
+        }
+        this._funStatsRevealed = !this._funStatsRevealed;
+        const btn = document.getElementById('funStatsBtn');
+        if (btn) btn.classList.toggle('active', this._funStatsRevealed);
+        Promise.resolve(this.updateBuildStatistics()).then(() => {
+            if (this._funStatsRevealed) {
+                document.getElementById('buildStatisticsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
     }
 
     deleteSavedBuild(id) {
@@ -8423,22 +8496,20 @@ class PartsDatabase {
         const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const builds = this.getSavedBuilds();
         if (builds.length === 0) {
-            container.innerHTML = '<p class="saved-builds-empty">No saved builds yet. Build something and hit Save.</p>';
+            container.innerHTML = '<p class="saved-builds-empty">No saved builds yet. Hit Copy Link and your build is saved here.</p>';
             return;
         }
         container.innerHTML = builds.map(b => {
             const date = new Date(b.createdAt).toLocaleDateString();
             const total = (typeof b.total === 'number') ? `$${b.total.toFixed(2)}` : '';
             return `
-            <div class="saved-build-item" data-id="${b.id}">
+            <div class="saved-build-item" data-id="${b.id}" role="button" tabindex="0" title="Load this build">
                 <div class="saved-build-info">
                     <span class="saved-build-name">${esc(b.name)}</span>
                     <span class="saved-build-meta">${b.count || 0} parts${total ? ' · ' + total : ''} · ${date}</span>
                 </div>
                 <div class="saved-build-actions">
-                    <button class="saved-build-btn load" data-action="load" data-id="${b.id}" title="Load build"><i class="fas fa-folder-open"></i></button>
-                    <button class="saved-build-btn rename" data-action="rename" data-id="${b.id}" title="Rename"><i class="fas fa-pen"></i></button>
-                    <button class="saved-build-btn delete" data-action="delete" data-id="${b.id}" title="Delete"><i class="fas fa-trash"></i></button>
+                    <button class="saved-build-btn delete" data-action="delete" data-id="${b.id}" title="Delete" aria-label="Delete build"><i class="fas fa-trash"></i></button>
                 </div>
             </div>`;
         }).join('');

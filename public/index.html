@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=shared-build-load-1">
+    <link rel="stylesheet" href="styles-v5.css?v=build-actions-cleanup-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1640,20 +1640,11 @@
 
                     <!-- Action Buttons -->
                     <div class="build-actions">
-                        <button id="clearBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-trash"></i> Clear Build
-                        </button>
                         <button id="shareBuildBtn" class="action-btn primary">
                             <i class="fas fa-link"></i> Copy Link
                         </button>
-                        <button id="exportBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-file-export"></i> Export List
-                        </button>
-                        <button id="saveBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-save"></i> Save Build
-                        </button>
-                        <button id="submitCommunityBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-users"></i> Share to Community
+                        <button id="funStatsBtn" class="action-btn secondary">
+                            <i class="fas fa-chart-simple"></i> Fun Stats
                         </button>
                         <button id="addToAmazonCartBtn" class="action-btn primary">
                             <i class="fab fa-amazon"></i> Add to Amazon Cart
@@ -1664,7 +1655,7 @@
                     <div class="saved-builds-section">
                         <h4 class="saved-builds-heading"><i class="fas fa-folder"></i> My Builds</h4>
                         <div id="savedBuildsList" class="saved-builds-list">
-                            <p class="saved-builds-empty">No saved builds yet. Build something and hit Save.</p>
+                            <p class="saved-builds-empty">No saved builds yet. Hit Copy Link and your build is saved here.</p>
                         </div>
                     </div>
 
@@ -2360,7 +2351,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=37"></script>
+    <script src="script.js?v=38"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

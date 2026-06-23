@@ -2176,6 +2176,53 @@ tr.incompatible td {
     border-color: var(--text-muted);
 }
 
+/* Fun Stats button while its panel is open */
+.action-btn.secondary.active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+}
+
+/* My Builds: the whole row loads the build on click; delete sits at the right. */
+.saved-build-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-2);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.saved-build-item:hover,
+.saved-build-item:focus-visible {
+    background: var(--bg-secondary);
+    border-color: var(--brand);
+    outline: none;
+}
+.saved-build-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.saved-build-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.saved-build-meta { font-size: 0.78rem; color: var(--text-muted); }
+.saved-build-actions { flex-shrink: 0; }
+.saved-build-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: var(--radius-md, 8px);
+    transition: color 0.15s ease, background 0.15s ease;
+}
+.saved-build-btn.delete:hover { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
+
 /* Amazon Button Styling */
 #addToAmazonCartBtn {
     background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
