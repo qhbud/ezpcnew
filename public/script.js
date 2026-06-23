@@ -19093,12 +19093,12 @@ class PartsDatabase {
         canvas.width = width;
         canvas.height = height;
 
-        // X: watts per dollar   Y: price   Color: efficiency tier
+        // X: wattage (W)   Y: price   Color: efficiency tier
         const pts = [];
         psus.forEach(p => {
             const watts = p.wattage || 0;
             const price = parseFloat(p.salePrice || p.currentPrice || p.basePrice || p.price) || 0;
-            if (watts && price > 0) pts.push({ psu: p, wattsPerDollar: watts / price, price, effScore: this._getPsuEfficiencyScore(p) });
+            if (watts && price > 0) pts.push({ psu: p, watts, wattsPerDollar: watts / price, price, effScore: this._getPsuEfficiencyScore(p) });
         });
 
         if (!pts.length) {
@@ -19112,8 +19112,8 @@ class PartsDatabase {
         const cw = width - pad.left - pad.right;
         const ch = height - pad.top - pad.bottom;
 
-        const maxX = Math.max(...pts.map(p => p.wattsPerDollar));
-        const minX = 0;
+        const maxX = Math.ceil(Math.max(...pts.map(p => p.watts)) / 100) * 100;
+        const minX = Math.floor(Math.min(...pts.map(p => p.watts)) / 100) * 100;
         const maxP = Math.max(...pts.map(p => p.price));
         const minP = Math.min(...pts.map(p => p.price));
         const step = Math.ceil((maxP - minP) / 5 / 50) * 50 || 50;
@@ -19124,7 +19124,7 @@ class PartsDatabase {
         const effMax = Math.max(...pts.map(p => p.effScore));
 
         pts.forEach(p => {
-            p.cx = pad.left + ((p.wattsPerDollar - minX) / (maxX - minX || 1)) * cw;
+            p.cx = pad.left + ((p.watts - minX) / (maxX - minX || 1)) * cw;
             p.cy = height - pad.bottom - ((p.price - rMin) / (rMax - rMin || 1)) * ch;
             p.valueScore = p.wattsPerDollar;
             p.effNorm = (p.effScore - effMin) / (effMax - effMin || 1);
@@ -19154,7 +19154,7 @@ class PartsDatabase {
                 ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, height - pad.bottom); ctx.stroke();
                 ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
                 ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-                ctx.fillText(val.toFixed(1) + 'W/$', x, height - pad.bottom + 6);
+                ctx.fillText(Math.round(val) + 'W', x, height - pad.bottom + 6);
             }
 
             ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 2;
@@ -19164,7 +19164,7 @@ class PartsDatabase {
 
             ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-            ctx.fillText('Watts per Dollar', pad.left + cw / 2, height - 4);
+            ctx.fillText('Wattage (W)', pad.left + cw / 2, height - 4);
             ctx.save();
             ctx.translate(14, pad.top + ch / 2);
             ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'top';
