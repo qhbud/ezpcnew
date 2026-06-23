@@ -1,5 +1,5 @@
 const { connectToDatabase, getDatabase } = require('../config/database');
-const { RiverSearchPriceDetector } = require('./riverSearchPriceDetection');
+const { RiverSearchPriceDetector, isProxyInfrastructureError } = require('./riverSearchPriceDetection');
 const colors = require('colors');
 const fs = require('fs').promises;
 const path = require('path');
@@ -28,6 +28,7 @@ class AllComponentPriceUpdater {
         this.collectionStats = {}; // Store stats per collection
         this.paused = false;
         this.cancelled = false;
+        this.fatalError = null;
         this.currentCollection = null;
         this.currentIndex = 0;
         this.originalSleepSettings = null;
@@ -516,6 +517,13 @@ class AllComponentPriceUpdater {
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
             } catch (error) {
+                if (isProxyInfrastructureError(error)) {
+                    this.fatalError = error;
+                    console.log(`❌ PROXY INFRASTRUCTURE ERROR: ${error.message}`.red.bold);
+                    console.log('   Stopping before writing null prices or unavailable history for a proxy outage.'.yellow);
+                    throw error;
+                }
+
                 // Only catastrophic errors (code crashes, network failures) count as failures
                 console.log(`❌ CRITICAL ERROR: ${error.message}`.red.bold);
 
@@ -589,6 +597,11 @@ class AllComponentPriceUpdater {
                     console.log('\n⚠️  Update cancelled. Progress has been saved.\n'.yellow);
                     break;
                 }
+                if (isProxyInfrastructureError(error)) {
+                    this.fatalError = error;
+                    console.log(`\n❌ Proxy infrastructure failure while retrying ${collectionName}; aborting run.\n`.red.bold);
+                    throw error;
+                }
                 console.log(`\n❌ Error retrying failed components in ${collectionName}: ${error.message}\n`.red);
             }
         }
@@ -613,6 +626,11 @@ class AllComponentPriceUpdater {
                 if (error.message === 'Cancelled by user') {
                     console.log('\n⚠️  Update cancelled. Progress has been saved.\n'.yellow);
                     break;
+                }
+                if (isProxyInfrastructureError(error)) {
+                    this.fatalError = error;
+                    console.log(`\n❌ Proxy infrastructure failure while updating ${collectionName}; aborting run.\n`.red.bold);
+                    throw error;
                 }
                 console.log(`\n❌ Error updating ${collectionName}: ${error.message}\n`.red);
             }
@@ -738,13 +756,14 @@ async function main() {
         await updater.updateAll();
     } catch (error) {
         if (error.message !== 'Cancelled by user') {
+            updater.fatalError = error;
             console.error('❌ Fatal error:'.red, error);
         }
     } finally {
         await updater.cleanup();
 
         // Exit with appropriate code
-        const exitCode = updater.cancelled ? 130 : 0;
+        const exitCode = updater.cancelled ? 130 : (updater.fatalError ? 1 : 0);
         process.exit(exitCode);
     }
 }

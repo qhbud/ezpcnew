@@ -28,6 +28,35 @@ function rsGetProxyConfig() {
   };
 }
 
+function rsRedactProxyServer(server) {
+  if (!server) return '';
+  try {
+    const parsed = new URL(server);
+    return `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`;
+  } catch {
+    return server.replace(/\/\/[^:@/]+:[^@/]+@/, '//***:***@');
+  }
+}
+
+function isProxyInfrastructureError(error) {
+  const message = typeof error === 'string'
+    ? error
+    : `${error && error.code ? error.code : ''} ${error && error.message ? error.message : ''}`;
+
+  return [
+    'ERR_TUNNEL_CONNECTION_FAILED',
+    'ERR_PROXY_CONNECTION_FAILED',
+    'ERR_NO_SUPPORTED_PROXIES',
+    'SCRAPER_PROXY_TUNNEL_FAILED',
+    'net::ERR_SOCKS_CONNECTION_FAILED',
+    'Proxy Authentication Required',
+    '407',
+    'proxy tunnel failed',
+    'tunnel connection failed',
+    'proxy connection failed'
+  ].some(needle => message.toLowerCase().includes(needle.toLowerCase()));
+}
+
 class RiverSearchPriceDetector {
   constructor() {
     this.browser = null;
@@ -58,7 +87,7 @@ class RiverSearchPriceDetector {
     ];
     if (proxy) {
       args.push(`--proxy-server=${proxy.server}`);
-      console.log(`🌐 RiverSearch routing via proxy ${proxy.server}`.cyan);
+      console.log(`🌐 RiverSearch routing via proxy ${rsRedactProxyServer(proxy.server)}`.cyan);
     }
 
     this.browser = await puppeteer.launch({ headless: 'new', args });
@@ -588,6 +617,7 @@ class RiverSearchPriceDetector {
 
     } catch (error) {
       console.error(`❌ RiverSearch error: ${error.message}`);
+      const isProxyError = isProxyInfrastructureError(error);
 
       // Check if this is a browser connection error (system sleep/wake)
       const connectionErrors = [
@@ -619,6 +649,21 @@ class RiverSearchPriceDetector {
         }
       }
 
+      if (isProxyError) {
+        if (retryCount < maxRetries) {
+          const waitTime = Math.pow(2, retryCount) * 3000;
+          console.log(`🌐 Proxy tunnel failed; rotating browser/proxy session before retry ${retryCount + 1}/${maxRetries}...`.yellow);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          await this.reinitialize();
+          return this.detectPrice(url, retryCount + 1);
+        }
+
+        const proxyFailure = new Error(`Proxy tunnel failed after ${maxRetries + 1} attempts: ${error.message}`);
+        proxyFailure.code = 'SCRAPER_PROXY_TUNNEL_FAILED';
+        proxyFailure.cause = error;
+        throw proxyFailure;
+      }
+
       // Retry logic with exponential backoff
       if (retryCount < maxRetries) {
         const waitTime = Math.pow(2, retryCount) * 3000; // 3s, 6s, 12s
@@ -643,4 +688,4 @@ class RiverSearchPriceDetector {
   }
 }
 
-module.exports = { RiverSearchPriceDetector };
+module.exports = { RiverSearchPriceDetector, isProxyInfrastructureError, rsGetProxyConfig, rsRedactProxyServer };

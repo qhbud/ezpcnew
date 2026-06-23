@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false      # one collection failing must NOT cancel the others
-      max-parallel: 5       # cap concurrent jobs (politeness + runner usage)
+      max-parallel: 2       # avoid exhausting residential proxy tunnel/session limits
       matrix:
         collection: [cpus, gpus, motherboards, rams, storages, psus, cases, coolers, addons]
     steps:
@@ -89,6 +89,13 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DB_NAME: pcbuilder
         run: node scripts/ciCheckFreshness.js --collection=${{ matrix.collection }} --window-hours=24
+
+      - name: Pre-flight — residential proxy tunnel
+        env:
+          INGEST_PROXY_SERVER: ${{ secrets.INGEST_PROXY_SERVER }}
+          INGEST_PROXY_USERNAME: ${{ secrets.INGEST_PROXY_USERNAME }}
+          INGEST_PROXY_PASSWORD: ${{ secrets.INGEST_PROXY_PASSWORD }}
+        run: node scripts/ciCheckProxy.js --require-proxy --timeout-ms=30000
 
       - name: Run price update for ${{ matrix.collection }}
         env:
