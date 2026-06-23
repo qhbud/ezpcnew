@@ -16,6 +16,7 @@
 //   node scripts/sweepUnavailableComponents.js                 # sweep + log + write
 //   node scripts/sweepUnavailableComponents.js --dry-run       # report only, no writes
 //   node scripts/sweepUnavailableComponents.js --min-consecutive=3
+//   node scripts/sweepUnavailableComponents.js --force-catastrophic
 //   node scripts/sweepUnavailableComponents.js --report        # print recent log, no sweep
 //
 // DB target follows MONGODB_URI (defaults to .env.atlas = Atlas). Override with
@@ -29,6 +30,7 @@ const { MongoClient } = require('mongodb');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const REPORT_ONLY = process.argv.includes('--report');
+const FORCE_CATASTROPHIC = process.argv.includes('--force-catastrophic');
 const MIN_CONSECUTIVE = (() => {
     const a = process.argv.find(x => x.startsWith('--min-consecutive='));
     const n = a ? parseInt(a.split('=')[1], 10) : 2;
@@ -37,6 +39,8 @@ const MIN_CONSECUTIVE = (() => {
 
 const LOG_COLLECTION = 'price_update_log';
 const LOG_FILE = path.join(__dirname, '..', 'logs', 'availability-log.jsonl');
+const MAX_HIDE_FRACTION = 0.25;
+const MIN_CATASTROPHIC_HIDE_COUNT = 10;
 
 const realPrice = v => { const n = parseFloat(v); return !isNaN(n) && n > 0; };
 
@@ -66,6 +70,11 @@ function isComponentCollection(name) {
 
 function todayStamp() {
     return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+}
+
+function catastrophicLoss(stats) {
+    if (!stats.scanned || stats.newlyHidden < MIN_CATASTROPHIC_HIDE_COUNT) return false;
+    return stats.newlyHidden / stats.scanned > MAX_HIDE_FRACTION;
 }
 
 async function printReport(db) {
@@ -130,6 +139,15 @@ async function printReport(db) {
                     stats.visible++;
                     if (wasHidden) { stats.restored++; toRestore.push(doc._id); }
                 }
+            }
+
+            if (!DRY_RUN && !FORCE_CATASTROPHIC && catastrophicLoss(stats)) {
+                const pct = ((stats.newlyHidden / stats.scanned) * 100).toFixed(1);
+                throw new Error(
+                    `Availability sweep refused to hide ${stats.newlyHidden}/${stats.scanned} ` +
+                    `${name} docs (${pct}%). This looks like a scraper/proxy outage, not real ` +
+                    `catalog loss. Re-run with --force-catastrophic only after confirming.`
+                );
             }
 
             if (!DRY_RUN) {

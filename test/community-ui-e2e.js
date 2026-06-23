@@ -188,7 +188,12 @@ async function runCheck(id, name, check) {
             serializedBuild = assembled.serialized;
             assert.ok(Object.keys(serializedBuild).length > 0);
 
-            await page.click('#submitCommunityBuildBtn');
+            await page.evaluate(() => window.partsDatabase.switchTab('builder'));
+            await page.waitForSelector('#builder-tab.active #submitCommunityBuildBtn');
+            await page.$eval('#submitCommunityBuildBtn', element =>
+                element.scrollIntoView({ block: 'end', inline: 'nearest' })
+            );
+            await page.$eval('#submitCommunityBuildBtn', element => element.click());
             await page.waitForSelector('#communitySubmitModal[aria-hidden="false"]');
             await page.type('#communityAuthorInput', `UI Author ${unique}`);
             await page.click('#communitySubmitConfirmBtn');
@@ -330,13 +335,18 @@ async function runCheck(id, name, check) {
             await page.waitForSelector(
                 `.community-build-card[data-community-build-id="${newestApiId}"] .community-like-btn`
             );
+            await page.$eval(
+                `.community-build-card[data-community-build-id="${newestApiId}"] .community-like-btn`,
+                element => element.scrollIntoView({ block: 'end', inline: 'nearest' })
+            );
             const likeResponsePromise = page.waitForResponse(response => {
                 const url = new URL(response.url());
                 return response.request().method() === 'POST' &&
                     url.pathname === `/api/community/builds/${newestApiId}/like`;
             }, { timeout: 10000 });
-            await page.click(
-                `.community-build-card[data-community-build-id="${newestApiId}"] .community-like-btn`
+            await page.$eval(
+                `.community-build-card[data-community-build-id="${newestApiId}"] .community-like-btn`,
+                element => element.click()
             );
             const likeResponse = await likeResponsePromise;
             assert.equal(likeResponse.status(), 200);
@@ -379,8 +389,13 @@ async function runCheck(id, name, check) {
                 db.updateBuildActions();
             }, makeEmptyBuild());
 
-            await page.click(
-                `.community-build-card[data-community-build-id="${newestApiId}"] .community-build-title`
+            await page.$eval(
+                `.community-build-card[data-community-build-id="${newestApiId}"] .community-build-title`,
+                element => element.scrollIntoView({ block: 'end', inline: 'nearest' })
+            );
+            await page.$eval(
+                `.community-build-card[data-community-build-id="${newestApiId}"] .community-build-title`,
+                element => element.click()
             );
             await page.waitForFunction(() => {
                 const db = window.partsDatabase;
