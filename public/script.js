@@ -12751,7 +12751,7 @@ class PartsDatabase {
                 ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
                     <div class="detail-image-container ${!isCompatible ? 'incompatible-build-component' : ''}" style="position: relative;">
                         ${imageUrl ?
-                            `<img src="${imageUrl}" alt="${name}" class="detail-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-microchip\\' style=\\'font-size: 48px; color: #ddd;\\'></i></div>';">` :
+                            `<img src="${imageUrl}" alt="${name}" class="detail-image" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-microchip')">` :
                             `<div class="detail-image-placeholder"><i class="fas fa-microchip" style="font-size: 48px; color: #ddd;"></i></div>`
                         }
                         ${!isCompatible ? `
@@ -12959,7 +12959,7 @@ class PartsDatabase {
                 </div>
                 <div class="detail-image-container">
                     ${imageUrl ?
-                        `<img src="${imageUrl}" alt="${coolerName}" class="detail-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-snowflake\\' style=\\'font-size: 48px; color: #ddd;\\'></i></div>';">` :
+                        `<img src="${imageUrl}" alt="${coolerName}" class="detail-image" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-snowflake')">` :
                         `<div class="detail-image-placeholder"><i class="fas fa-snowflake" style="font-size: 48px; color: #ddd;"></i></div>`
                     }
                     <div class="image-manufacturer-badge">${cpu.manufacturer || ''}</div>
@@ -13981,7 +13981,7 @@ class PartsDatabase {
             <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isCompatible ? 'incompatible-component' : ''}">
                 <div class="detail-image-container ${!isCompatible ? 'incompatible-component' : ''}">
                     ${imageUrl ? `
-                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-microchip\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
+                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-microchip')">
                     ` : `
                         <div class="detail-image-placeholder" style="display: flex; align-items: center; justify-content: center; height: 200px; background: #f8f9fa; border-radius: 8px;">
                             <i class="fas fa-microchip" style="font-size: 64px; color: #ccc;"></i>
@@ -20858,7 +20858,7 @@ class PartsDatabase {
             html += `
                 <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isCpuCompatible ? 'incompatible-component' : ''}">
                     <div class="detail-image-container ${!isCpuCompatible ? 'incompatible-component' : ''}">
-                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
+                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-image')">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
                         ${!isCpuCompatible ? `
                             <div class="image-incompatibility-overlay">
@@ -20992,7 +20992,7 @@ class PartsDatabase {
             html += `
                 <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">
                     <div class="detail-image-container">
-                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
+                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-image')">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
                         ${vram ? `
                             <div class="image-vram-overlay">
@@ -21103,7 +21103,7 @@ class PartsDatabase {
             html += `
                 <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link ${!isRamCompatible ? 'incompatible-component' : ''}">
                     <div class="detail-image-container ${!isRamCompatible ? 'incompatible-component' : ''}">
-                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
+                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-image')">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
                         ${!isRamCompatible ? `
                             <div class="image-incompatibility-overlay">
@@ -21191,7 +21191,7 @@ class PartsDatabase {
             html += `
                 <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">
                     <div class="detail-image-container">
-                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size: 48px; color: #ccc;\\'></i></div>'">
+                        <img src="${imageUrl}" alt="${name}" class="detail-image" data-tooltip-text="${name}" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-image')">
                         <div class="image-manufacturer-badge" style="background: linear-gradient(135deg, ${manufacturerColor} 0%, ${manufacturerColor.replace('0.95', '0.85')} 100%);">${manufacturer}</div>
                         <div class="image-vram-overlay">
                             <div class="overlay-vram-text">${storageType} ${capacity}${interfaceType ? ' - ' + interfaceType : ''}</div>
@@ -21928,3 +21928,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     });
 });
+
+// Amazon CDN component images sometimes fail to load on the first request
+// (transient / rate-limited). Retry a couple of times with backoff + a cache-
+// busting param before falling back to the category placeholder icon, instead
+// of giving up on the very first error (the old inline onerror handlers did).
+function ezpcImgFallback(img, iconClass) {
+    try {
+        const max = 2;
+        const tries = (parseInt(img.dataset.retry || '0', 10)) + 1;
+        if (tries <= max) {
+            img.dataset.retry = String(tries);
+            const base = img.dataset.baseSrc || (img.dataset.baseSrc = img.src.split('#')[0].split('?')[0]);
+            setTimeout(() => { img.src = base + '?r=' + tries; }, 350 * tries);
+            return;
+        }
+        const parent = img.parentElement;
+        if (parent) {
+            img.style.display = 'none';
+            parent.innerHTML = '<div class="detail-image-placeholder"><i class="fas ' +
+                (iconClass || 'fa-image') + '" style="font-size: 48px; color: #ddd;"></i></div>';
+        }
+    } catch (e) { /* never let an image error handler throw */ }
+}
