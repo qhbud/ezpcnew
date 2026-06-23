@@ -16132,6 +16132,113 @@ class PartsDatabase {
         return C[kind];
     }
 
+    // ── Build-aware facet panel for the case & add-on tabs ──
+    // Gives those tabs the same right-column "filter panel + list" shape as the
+    // motherboard page. Chip groups are derived from the items, pre-set from the
+    // current build where it makes sense, and filter the generic tab list below.
+    _caseFormFactorToken(c) {
+        const raw = Array.isArray(c.formFactor) ? c.formFactor.join(' ') : (c.formFactor || c.specifications?.formFactor || '');
+        const s = String(raw).toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+        if (!s) return null;
+        if (s.includes('EATX')) return 'E-ATX';
+        if (s.includes('MATX') || s.includes('MICROATX')) return 'Micro-ATX';
+        if (s.includes('ITX')) return 'Mini-ITX';
+        if (s.includes('ATX')) return 'ATX';
+        return null;
+    }
+    _addonTypeToken(a) {
+        const t = a.addonType || a.type || a.category;
+        return t && !/^add[- ]?ons?$/i.test(String(t)) ? String(t) : null;
+    }
+    _tabFacetCfg(kind) {
+        if (kind === 'case') return {
+            facets: [{
+                label: 'Form Factor', key: 'ff',
+                order: ['Mini-ITX', 'Micro-ATX', 'ATX', 'E-ATX'],
+                value: c => { const t = this._caseFormFactorToken(c); return t ? [t] : []; },
+                // Pre-select the case sizes that house the selected motherboard.
+                buildDefault: opts => {
+                    const mb = this.currentBuild?.motherboard;
+                    if (!mb) return new Set();
+                    return new Set(opts.filter(o => this._moboFitsCase(mb.formFactor, o)));
+                },
+                reqNote: () => {
+                    const mb = this.currentBuild?.motherboard;
+                    const ff = mb && (Array.isArray(mb.formFactor) ? mb.formFactor[0] : mb.formFactor);
+                    return ff ? `<span class="mobo-req"><i class="fas fa-link"></i> board is ${this._escapeHtml(String(ff))}</span>` : '';
+                }
+            }]
+        };
+        if (kind === 'addon') return {
+            facets: [{ label: 'Type', key: 'type', value: a => { const t = this._addonTypeToken(a); return t ? [t] : []; } }]
+        };
+        return null;
+    }
+    // Render the facet chips for a tab, then hand the filtered items to the list.
+    _renderTabFacetPanel(kind, items) {
+        const cfg = this._tabFacetCfg(kind);
+        const panel = document.getElementById(`${kind}FeatureFilters`);
+        if (!cfg || !panel) { this._renderTabList(kind, items); return; }
+
+        // Distinct options per facet, derived from the items.
+        const optionArr = {};
+        cfg.facets.forEach(fc => {
+            const set = new Set();
+            items.forEach(it => fc.value(it).forEach(v => set.add(v)));
+            let arr = [...set];
+            if (fc.order) arr.sort((a, b) => { const ia = fc.order.indexOf(a), ib = fc.order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+            else arr.sort((a, b) => a.localeCompare(b));
+            optionArr[fc.key] = arr;
+        });
+
+        // Build-aware defaults, re-derived only when the build changes.
+        this._tabFacets = this._tabFacets || {};
+        this._tabFacetSig = this._tabFacetSig || {};
+        const sig = this._buildSignature ? this._buildSignature() : '';
+        if (!this._tabFacets[kind] || this._tabFacetSig[kind] !== sig) {
+            const state = {};
+            cfg.facets.forEach(fc => state[fc.key] = fc.buildDefault ? fc.buildDefault(optionArr[fc.key]) : new Set());
+            this._tabFacets[kind] = state;
+            this._tabFacetSig[kind] = sig;
+        }
+        const state = this._tabFacets[kind];
+
+        const hasDefault = cfg.facets.some(fc => state[fc.key].size);
+        const rows = cfg.facets.map(fc => {
+            const opts = optionArr[fc.key];
+            if (!opts.length) return '';
+            const req = fc.reqNote ? fc.reqNote() : '';
+            const chips = opts.map(o =>
+                `<button type="button" class="gc-chip mobo-cat-chip${state[fc.key].has(o) ? ' active' : ''}" data-facet="${fc.key}" data-val="${this._escapeHtml(String(o))}">${this._escapeHtml(String(o))}</button>`
+            ).join('');
+            return `<div class="gc-row"><span class="gc-label">${fc.label}</span>${req}<div class="gc-chips">${chips}</div></div>`;
+        }).join('');
+
+        panel.innerHTML =
+            (hasDefault ? `<div class="mobo-filter-hint"><i class="fas fa-magic"></i> Pre-filtered to fit your build. Click a filter to broaden.</div>` : '') + rows;
+
+        const apply = () => this._renderTabList(kind, items.filter(it => this._tabFacetMatch(kind, it)));
+        panel.querySelectorAll('.mobo-cat-chip').forEach(chip => chip.addEventListener('click', () => {
+            const k = chip.dataset.facet, v = chip.dataset.val;
+            if (state[k].has(v)) state[k].delete(v); else state[k].add(v);
+            chip.classList.toggle('active', state[k].has(v));
+            apply();
+        }));
+
+        apply();
+    }
+    _tabFacetMatch(kind, item) {
+        const cfg = this._tabFacetCfg(kind);
+        const state = this._tabFacets?.[kind];
+        if (!cfg || !state) return true;
+        return cfg.facets.every(fc => {
+            const sel = state[fc.key];
+            if (!sel || !sel.size) return true;
+            const vals = fc.value(item);
+            return vals.length ? vals.some(v => sel.has(v)) : false;
+        });
+    }
+
     // Select a part from the list or scatter: updates card/reviews/section, the
     // scatter highlight, the price history, and the list row highlight together.
     _tabSelect(kind, item) {
@@ -19307,7 +19414,7 @@ class PartsDatabase {
                 if (best) this._renderCaseProductCard(best);
                 this._casePickSig = sig;
             }
-            this._renderTabList('case', items); // selectable list (no graph)
+            this._renderTabFacetPanel('case', items); // facet panel + selectable list
             this._caseListingsRendered = true;
         } catch (e) {
             console.error('Case listings error:', e);
@@ -19538,7 +19645,7 @@ class PartsDatabase {
                 const best = this._pickBestValueGeneric(items);
                 if (best) this._renderAddonProductCard(best);
             }
-            this._renderTabList('addon', items); // selectable list (no graph)
+            this._renderTabFacetPanel('addon', items); // type filter + selectable list
             this._addonListingsRendered = true;
         } catch (e) {
             console.error('Add-on listings error:', e);

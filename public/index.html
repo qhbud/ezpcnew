@@ -1939,9 +1939,10 @@
                         </div>
                     </div>
 
-                    <!-- Right: Sortable case list + price history -->
+                    <!-- Right: Feature filters (pre-set to your build) + matching cases -->
                     <div class="gpu-listing-right">
-                        <div class="gpu-chart-header"><i class="fas fa-box"></i> Browse Cases</div>
+                        <div class="gpu-chart-header"><i class="fas fa-sliders-h"></i> Find a Compatible Case</div>
+                        <div id="caseFeatureFilters" class="graph-controls mobo-feature-filters"></div>
                         <div id="caseFilterResults" class="mobo-filter-results"></div>
                         <div id="casePriceHistorySection" class="gpu-price-history-section"></div>
                     </div>
@@ -2037,9 +2038,10 @@
                         </div>
                     </div>
 
-                    <!-- Right: Sortable add-on list + price history -->
+                    <!-- Right: Type filters + add-on list -->
                     <div class="gpu-listing-right">
-                        <div class="gpu-chart-header"><i class="fas fa-plus-circle"></i> Browse Add-ons</div>
+                        <div class="gpu-chart-header"><i class="fas fa-sliders-h"></i> Find an Add-on</div>
+                        <div id="addonFeatureFilters" class="graph-controls mobo-feature-filters"></div>
                         <div id="addonFilterResults" class="mobo-filter-results"></div>
                         <div id="addonPriceHistorySection" class="gpu-price-history-section"></div>
                     </div>
@@ -2344,7 +2346,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=35"></script>
+    <script src="script.js?v=36"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;
