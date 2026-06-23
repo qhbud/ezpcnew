@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=build-actions-cleanup-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-overlay-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1624,6 +1624,22 @@
                         </div>
                     </div>
 
+                    <!-- Fun Stats overlay: expands over the component list when the
+                         "Fun Stats" sidebar button is pressed; press again to collapse. -->
+                    <div id="funStatsOverlay" class="fun-stats-overlay" aria-hidden="true">
+                        <div class="fun-stats-overlay-head">
+                            <h3><i class="fas fa-chart-simple"></i> Build Stats</h3>
+                            <button id="funStatsCloseBtn" class="fun-stats-close" aria-label="Close stats"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="fun-stats-overlay-body" id="funStatsOverlayBody">
+                            <div class="fun-stats-card">
+                                <h5 class="stats-chart-title"><i class="fas fa-chart-line"></i> Total Build Price History</h5>
+                                <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
+                            </div>
+                            <!-- The Performance Statistics section is moved in here on first open. -->
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="build-summary-box">
@@ -2351,7 +2367,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=39"></script>
+    <script src="script.js?v=40"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

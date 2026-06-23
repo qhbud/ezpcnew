@@ -480,6 +480,10 @@ class PartsDatabase {
             this.toggleFunStats();
         });
 
+        document.getElementById('funStatsCloseBtn')?.addEventListener('click', () => {
+            this.toggleFunStats(true);
+        });
+
         const exportBuildBtn = document.getElementById('exportBuildBtn');
         if (exportBuildBtn) {
             exportBuildBtn.addEventListener('click', () => this.openExportList());
@@ -6913,17 +6917,11 @@ class PartsDatabase {
             storage: !!this.currentBuild.storage
         });
 
-        // Gate the panel behind the "Fun Stats" button: only show it when the build
-        // is complete AND the user has opted in (toggleFunStats sets the flag).
-        if (hasAllRequired && this._funStatsRevealed) {
+        // Only render the charts while the Fun Stats overlay is open AND the build
+        // is complete (the overlay itself controls visibility).
+        if (hasAllRequired && this._funStatsOpen) {
             console.log('Showing statistics section');
             statisticsSection.classList.remove('hidden');
-
-            // Hide contact info from build box, show in stats box
-            const buildBoxContactInfo = document.getElementById('buildBoxContactInfo');
-            const statsBoxContactInfo = document.getElementById('statsBoxContactInfo');
-            if (buildBoxContactInfo) buildBoxContactInfo.style.display = 'none';
-            if (statsBoxContactInfo) statsBoxContactInfo.style.display = 'block';
 
             // Render GPU statistics
             console.log('Rendering GPU chart...');
@@ -6945,6 +6943,9 @@ class PartsDatabase {
             console.log('Rendering Build Comparison chart...');
             await this.renderBuildComparisonChart();
 
+            // Whole-build price history (sum of every component over time).
+            this._renderBuildPriceHistory();
+
             // Save this build as a snapshot (once per unique totalPrice to avoid spam)
             const snapshotKey = `snapshot_${Math.round(this.totalPrice)}`;
             if (!sessionStorage.getItem(snapshotKey)) {
@@ -6952,14 +6953,9 @@ class PartsDatabase {
                 this.submitBuildSnapshot();
             }
         } else {
-            console.log('Hiding statistics section - not all components selected');
             statisticsSection.classList.add('hidden');
-
-            // Show contact info in build box, hide from stats box
-            const buildBoxContactInfo = document.getElementById('buildBoxContactInfo');
-            const statsBoxContactInfo = document.getElementById('statsBoxContactInfo');
-            if (buildBoxContactInfo) buildBoxContactInfo.style.display = 'block';
-            if (statsBoxContactInfo) statsBoxContactInfo.style.display = 'none';
+            // Stats need a complete build — close the overlay if a part was removed.
+            if (this._funStatsOpen) this.toggleFunStats(true);
         }
     }
 
@@ -8453,21 +8449,101 @@ class PartsDatabase {
         this.showToast(`Loaded "${entry.name}"`);
     }
 
-    // "Fun Stats" button: reveal/hide the Performance Statistics panel on demand.
-    toggleFunStats() {
-        const required = ['gpu', 'cpu', 'ram', 'psu', 'motherboard', 'case', 'storage'];
-        if (required.some(t => !this.currentBuild[t])) {
-            this.showToast('Add a CPU, GPU, RAM, motherboard, PSU, case & storage to unlock fun stats.');
-            return;
-        }
-        this._funStatsRevealed = !this._funStatsRevealed;
+    // "Fun Stats" button: expand a stats overlay over the component list (animated);
+    // press again, or the X, to collapse it. Pass forceClose=true to only close.
+    toggleFunStats(forceClose = false) {
+        const overlay = document.getElementById('funStatsOverlay');
         const btn = document.getElementById('funStatsBtn');
-        if (btn) btn.classList.toggle('active', this._funStatsRevealed);
-        Promise.resolve(this.updateBuildStatistics()).then(() => {
-            if (this._funStatsRevealed) {
-                document.getElementById('buildStatisticsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!overlay) return;
+
+        const wantOpen = forceClose ? false : !this._funStatsOpen;
+
+        if (wantOpen) {
+            const required = ['gpu', 'cpu', 'ram', 'psu', 'motherboard', 'case', 'storage'];
+            if (required.some(t => !this.currentBuild[t])) {
+                this.showToast('Add a CPU, GPU, RAM, motherboard, PSU, case & storage to unlock fun stats.');
+                return;
             }
+            // Relocate the Performance Statistics section into the overlay (once).
+            const statsSection = document.getElementById('buildStatisticsSection');
+            const body = document.getElementById('funStatsOverlayBody');
+            if (statsSection && body && statsSection.parentElement !== body) {
+                statsSection.classList.remove('hidden');
+                body.appendChild(statsSection);
+            }
+            this._funStatsOpen = true;
+            overlay.classList.add('open');
+            overlay.setAttribute('aria-hidden', 'false');
+            if (btn) btn.classList.add('active');
+            this.updateBuildStatistics(); // renders charts + build price history while open
+        } else {
+            this._funStatsOpen = false;
+            overlay.classList.remove('open');
+            overlay.setAttribute('aria-hidden', 'true');
+            if (btn) btn.classList.remove('active');
+        }
+    }
+
+    // Render a price-history graph for the WHOLE build (sum of every component's
+    // price over time) into the Fun Stats overlay.
+    async _renderBuildPriceHistory() {
+        const host = document.getElementById('buildPriceHistoryChart');
+        if (!host) return;
+        host.innerHTML = '<div class="gpu-price-loading">Loading build price history…</div>';
+        const token = (this._buildSignature ? this._buildSignature() : '') + ':' + Date.now();
+        this._buildPriceToken = token;
+        const { series, totalBase, totalCurrent } = await this._buildWholeBuildPriceSeries();
+        if (this._buildPriceToken !== token) return; // superseded by a newer render
+        const width = Math.max(Math.round(host.clientWidth) || 620, 320);
+        host.innerHTML = this._buildPriceHistorySvg(series, totalBase, totalCurrent, width);
+        this._wirePriceHistoryHover(host);
+    }
+
+    // Sum each component's price history into a single combined daily series.
+    async _buildWholeBuildPriceSeries() {
+        const entries = Object.entries(this.currentBuild).filter(([, c]) => c);
+        let totalBase = 0, totalCurrent = 0;
+        const seriesList = [];
+        for (const [type, comp] of entries) {
+            const baseType = type.replace(/\d+$/, '');
+            const qty = (baseType === 'ram' || baseType === 'gpu') ? (comp.quantity || 1) : 1;
+            const base = parseFloat(comp.basePrice || comp.price || comp.currentPrice) || 0;
+            const sale = parseFloat(comp.salePrice || comp.currentPrice || comp.basePrice || comp.price) || 0;
+            totalBase += base * qty;
+            totalCurrent += sale * qty;
+            let saved = [];
+            try { saved = await this.ensurePriceHistory(comp, baseType); } catch (e) { saved = []; }
+            const hist = this.generatePriceHistory(base, sale, saved)
+                .filter(p => p && p.date && p.price > 0)
+                .map(p => ({ t: p.date.getTime(), price: p.price * qty }))
+                .sort((a, b) => a.t - b.t);
+            if (hist.length) seriesList.push(hist);
+        }
+        if (!seriesList.length) {
+            return { series: totalCurrent > 0 ? [{ date: new Date(), price: totalCurrent }] : [], totalBase, totalCurrent };
+        }
+        // Union of all timestamps; sum each series' as-of value at each (step fn).
+        let allT = [...new Set(seriesList.flatMap(s => s.map(p => p.t)))].sort((a, b) => a - b);
+        if (allT.length > 60) { // keep the SVG light
+            const step = Math.ceil(allT.length / 60);
+            allT = allT.filter((_, i) => i % step === 0 || i === allT.length - 1);
+        }
+        const combined = allT.map(t => {
+            let sum = 0;
+            for (const s of seriesList) {
+                let val = s[0].price; // before a series starts, use its earliest known price
+                for (const p of s) { if (p.t <= t) val = p.price; else break; }
+                sum += val;
+            }
+            return { date: new Date(t), price: Math.round(sum * 100) / 100 };
         });
+        // Collapse consecutive equal totals (keep first + last).
+        const changed = [];
+        combined.forEach((p, i) => {
+            const prev = changed[changed.length - 1];
+            if (!prev || prev.price !== p.price || i === combined.length - 1) changed.push(p);
+        });
+        return { series: changed, totalBase, totalCurrent };
     }
 
     deleteSavedBuild(id) {

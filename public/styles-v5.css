@@ -2045,6 +2045,106 @@ tr.incompatible td {
 .pc-build-container > .component-selectors {
     flex: 1 1 680px;
     min-width: 0;
+    position: relative; /* positioning context for the Fun Stats overlay */
+}
+
+/* ── Fun Stats overlay ─────────────────────────────────────────────
+   Pops out over the component selectors when "Fun Stats" is pressed and
+   animates in from the top-right (near the button). Press again / hit the
+   X to collapse. */
+.fun-stats-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+    opacity: 0;
+    transform: scale(0.95);
+    transform-origin: top right;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.26s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.28s;
+}
+.fun-stats-overlay.open {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    visibility: visible;
+    transition: opacity 0.26s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fun-stats-overlay-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--bg-tertiary);
+    flex-shrink: 0;
+}
+.fun-stats-overlay-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.fun-stats-overlay-head h3 i { color: var(--brand); }
+.fun-stats-close {
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+.fun-stats-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.fun-stats-overlay-body {
+    overflow-y: auto;
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+.fun-stats-card {
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    background: var(--bg-primary);
+}
+.build-price-history-chart { width: 100%; min-height: 240px; }
+.build-price-history-chart .gpu-price-loading { color: var(--text-muted); padding: var(--space-6); text-align: center; }
+
+/* The Performance Statistics box is relocated inside the overlay; strip its
+   standalone-card chrome so it sits cleanly in the overlay body. */
+.fun-stats-overlay #buildStatisticsSection {
+    position: static;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    overflow: visible;
+}
+.fun-stats-overlay #buildStatisticsSection.hidden { display: block; }
+.fun-stats-overlay #buildStatisticsSection .build-summary-header {
+    position: static;
+    margin: 0 0 var(--space-4);
+    padding: 0 0 var(--space-3);
+    top: auto;
 }
 
 /* Performance Statistics spans the FULL builder-tab width on its own row (it
