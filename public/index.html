@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=mobo-filters-5">
+    <link rel="stylesheet" href="styles-v5.css?v=case-addon-layout-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1924,6 +1924,8 @@
         <div class="tab-content" id="case-tab">
             <div class="gpu-listings-section" id="caseListingsSection">
                 <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card -->
                     <div class="gpu-listing-left">
                         <div class="gpu-listing-header">
                             <div class="gpu-listing-stars">
@@ -1935,26 +1937,33 @@
                         <div class="gpu-product-card" id="caseProductCard">
                             <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value case…</div>
                         </div>
+                    </div>
+
+                    <!-- Right: Sortable case list + price history -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-box"></i> Browse Cases</div>
                         <div id="caseFilterResults" class="mobo-filter-results"></div>
                         <div id="casePriceHistorySection" class="gpu-price-history-section"></div>
                     </div>
-                    <div class="gpu-listing-right">
-                        <div class="cg-intro">
-                            <h2><i class="fas fa-box"></i> Case Guide</h2>
-                            <p>Pick the right case and your whole build comes together — wrong case and you're fighting clearance, airflow, and cable routing all night.</p>
-                        </div>
-                        <section class="cg-section">
-                            <h3>What to Look For</h3>
-                            <ul>
-                                <li><strong>Form factor</strong> — must match your motherboard (ATX, mATX, ITX). An ATX case fits smaller boards; an ITX case will not fit larger ones.</li>
-                                <li><strong>GPU clearance</strong> — modern flagship GPUs are 320–360mm long. Always check the case's max GPU length spec.</li>
-                                <li><strong>CPU cooler clearance</strong> — tower air coolers need 160mm+ vertical clearance; AIO radiators need front or top mounting points.</li>
-                                <li><strong>Airflow</strong> — mesh fronts beat tempered-glass fronts for cooling. Look for cases with at least 3 fan mounts.</li>
-                                <li><strong>Cable management</strong> — depth behind the motherboard tray (20mm+) makes tucking cables easy and keeps the build clean.</li>
-                            </ul>
-                        </section>
-                    </div>
+
                 </div>
+            </div>
+
+            <div class="component-guide">
+                <div class="cg-intro">
+                    <h2><i class="fas fa-box"></i> Case Guide</h2>
+                    <p>Pick the right case and your whole build comes together — wrong case and you're fighting clearance, airflow, and cable routing all night.</p>
+                </div>
+                <section class="cg-section">
+                    <h3>What to Look For</h3>
+                    <ul>
+                        <li><strong>Form factor</strong> — must match your motherboard (ATX, mATX, ITX). An ATX case fits smaller boards; an ITX case will not fit larger ones.</li>
+                        <li><strong>GPU clearance</strong> — modern flagship GPUs are 320–360mm long. Always check the case's max GPU length spec.</li>
+                        <li><strong>CPU cooler clearance</strong> — tower air coolers need 160mm+ vertical clearance; AIO radiators need front or top mounting points.</li>
+                        <li><strong>Airflow</strong> — mesh fronts beat tempered-glass fronts for cooling. Look for cases with at least 3 fan mounts.</li>
+                        <li><strong>Cable management</strong> — depth behind the motherboard tray (20mm+) makes tucking cables easy and keeps the build clean.</li>
+                    </ul>
+                </section>
             </div>
         </div>
 
@@ -2005,6 +2014,7 @@
                             <li><strong>2 TB+</strong> — if you keep many games installed, edit video, or work with large datasets.</li>
                         </ul>
                     </section>
+                </div>
             </div>
         </div>
 
@@ -2012,6 +2022,8 @@
         <div class="tab-content" id="addon-tab">
             <div class="gpu-listings-section" id="addonListingsSection">
                 <div class="gpu-listings-two-col">
+
+                    <!-- Left: Best Value card -->
                     <div class="gpu-listing-left">
                         <div class="gpu-listing-header">
                             <div class="gpu-listing-stars">
@@ -2023,26 +2035,33 @@
                         <div class="gpu-product-card" id="addonProductCard">
                             <div class="gpu-card-loading"><i class="fas fa-spinner fa-spin"></i> Loading best value add-on…</div>
                         </div>
+                    </div>
+
+                    <!-- Right: Sortable add-on list + price history -->
+                    <div class="gpu-listing-right">
+                        <div class="gpu-chart-header"><i class="fas fa-plus-circle"></i> Browse Add-ons</div>
                         <div id="addonFilterResults" class="mobo-filter-results"></div>
                         <div id="addonPriceHistorySection" class="gpu-price-history-section"></div>
                     </div>
-                    <div class="gpu-listing-right">
-                        <div class="cg-intro">
-                            <h2><i class="fas fa-plus-circle"></i> Add-on Guide</h2>
-                            <p>Add-ons are the optional extras that round out a build — fans, capture cards, Wi-Fi adapters, RGB controllers, sound cards.</p>
-                        </div>
-                        <section class="cg-section">
-                            <h3>Common Add-ons</h3>
-                            <ul>
-                                <li><strong>Extra case fans</strong> — most cases ship with 1–2 fans. Add intakes (front) and exhausts (rear/top) for better thermals.</li>
-                                <li><strong>Wi-Fi / Bluetooth card</strong> — many cheaper motherboards skip wireless. A PCIe Wi-Fi 6/6E card is a $25 fix.</li>
-                                <li><strong>Capture card</strong> — for streamers using a two-PC setup or recording from a console.</li>
-                                <li><strong>Sound card / DAC</strong> — only worth it if you have high-impedance headphones or notice onboard audio noise.</li>
-                                <li><strong>RGB controller / hub</strong> — useful when you have more fans than the motherboard has headers, or you want unified RGB sync.</li>
-                            </ul>
-                        </section>
-                    </div>
+
                 </div>
+            </div>
+
+            <div class="component-guide">
+                <div class="cg-intro">
+                    <h2><i class="fas fa-plus-circle"></i> Add-on Guide</h2>
+                    <p>Add-ons are the optional extras that round out a build — fans, capture cards, Wi-Fi adapters, RGB controllers, sound cards.</p>
+                </div>
+                <section class="cg-section">
+                    <h3>Common Add-ons</h3>
+                    <ul>
+                        <li><strong>Extra case fans</strong> — most cases ship with 1–2 fans. Add intakes (front) and exhausts (rear/top) for better thermals.</li>
+                        <li><strong>Wi-Fi / Bluetooth card</strong> — many cheaper motherboards skip wireless. A PCIe Wi-Fi 6/6E card is a $25 fix.</li>
+                        <li><strong>Capture card</strong> — for streamers using a two-PC setup or recording from a console.</li>
+                        <li><strong>Sound card / DAC</strong> — only worth it if you have high-impedance headphones or notice onboard audio noise.</li>
+                        <li><strong>RGB controller / hub</strong> — useful when you have more fans than the motherboard has headers, or you want unified RGB sync.</li>
+                    </ul>
+                </section>
             </div>
         </div>
 

@@ -2046,6 +2046,9 @@ tr.incompatible td {
         min-width: 0 !important;
         position: static !important;
     }
+    .build-summary-header {
+        position: static;
+    }
 }
 
 /* Build Summary Box */
@@ -2055,17 +2058,20 @@ tr.incompatible td {
     border-top: 3px solid #2563eb;
     border-radius: var(--radius-xl);
     padding: var(--space-6);
-    position: sticky;
-    top: 16px;
     width: clamp(340px, 28vw, 420px);
     min-width: 340px;
     flex-shrink: 0;
 }
 
 .build-summary-header {
-    margin-bottom: var(--space-5);
-    padding-bottom: var(--space-5);
+    margin: calc(var(--space-6) * -1) calc(var(--space-6) * -1) var(--space-5);
+    padding: var(--space-6) var(--space-6) var(--space-5);
     border-bottom: 1px solid var(--bg-tertiary);
+    background: var(--bg-primary);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    position: sticky;
+    top: 170px;
+    z-index: 5;
 }
 
 .total-price-display {
