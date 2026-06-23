@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=funstats-summary-merge-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-sidebar-polish-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1685,6 +1685,13 @@
                                     Back to build
                                 </button>
                             </section>
+                            <section class="fun-stats-card fun-stats-issues-card">
+                                <div class="fun-stats-section-head">
+                                    <h5><i class="fas fa-triangle-exclamation"></i> Build Issues</h5>
+                                    <span id="funStatsIssueCount">Checking</span>
+                                </div>
+                                <div id="funStatsIssuesPanel" class="fun-stats-issues-panel"></div>
+                            </section>
                             <div class="fun-stats-score-grid" id="funStatsScoreGrid"></div>
                             <div class="fun-stats-main-grid">
                                 <section class="fun-stats-card fun-stats-card-compare">
@@ -2416,7 +2423,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=42"></script>
+    <script src="script.js?v=43"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

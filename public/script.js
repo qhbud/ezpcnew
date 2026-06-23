@@ -7083,6 +7083,8 @@ class PartsDatabase {
         const compareSample = document.getElementById('funStatsCompareSample');
         const fpsPanel = document.getElementById('funStatsFpsPanel');
         const notesHost = document.getElementById('funStatsNotes');
+        const issuesPanel = document.getElementById('funStatsIssuesPanel');
+        const issueCount = document.getElementById('funStatsIssueCount');
 
         if (tierLabel) tierLabel.textContent = `${metrics.tier} ${metrics.target}`;
         if (tierNote) tierNote.textContent = metrics.percentile !== null
@@ -7135,6 +7137,39 @@ class PartsDatabase {
                     </div>
                 `;
             }).join('');
+        }
+
+        if (issuesPanel) {
+            const issueSummary = this.classifyCompatibilityIssues
+                ? this.classifyCompatibilityIssues(this.currentBuild, { total: wattage })
+                : { problems: [], warnings: [] };
+            const problems = issueSummary.problems || [];
+            const warnings = issueSummary.warnings || [];
+            const totalIssues = problems.length + warnings.length;
+
+            if (issueCount) {
+                issueCount.textContent = totalIssues === 0
+                    ? 'Clear'
+                    : `${problems.length ? `${problems.length} problem${problems.length === 1 ? '' : 's'}` : ''}${problems.length && warnings.length ? ', ' : ''}${warnings.length ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : ''}`;
+            }
+
+            const renderIssue = (issue, type) => `
+                <article class="fun-stats-issue fun-stats-issue-${type}">
+                    <i class="fas ${type === 'problem' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}"></i>
+                    <div>
+                        <strong>${this._escapeHtml(issue.title)}</strong>
+                        <span>${this._escapeHtml(issue.detail)}</span>
+                    </div>
+                </article>
+            `;
+
+            issuesPanel.classList.toggle('has-issues', totalIssues > 0);
+            issuesPanel.innerHTML = totalIssues === 0
+                ? '<div class="fun-stats-issue-clear"><i class="fas fa-check-circle"></i><span>No compatibility issues detected for this build.</span></div>'
+                : `
+                    ${problems.map(issue => renderIssue(issue, 'problem')).join('')}
+                    ${warnings.map(issue => renderIssue(issue, 'warning')).join('')}
+                `;
         }
 
         if (fpsPanel) {
