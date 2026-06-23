@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=funstats-report-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-summary-merge-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1624,8 +1624,47 @@
                         </div>
                     </div>
 
-                    <!-- Fun Stats overlay: expands over the component list when the
-                         "Fun Stats" sidebar button is pressed; press again to collapse. -->
+                </div>
+
+                <div id="buildSummaryBox" class="build-summary-box">
+                    <!-- Total Price Section -->
+                    <div class="build-summary-header">
+                        <div class="build-total-section">
+                            <h3><i class="fas fa-desktop"></i> Your PC Build</h3>
+                            <div class="summary-expanded-top">
+                                <div class="total-price-display">
+                                    <span class="total-label">Total Price:</span>
+                                    <span class="total-amount">$<span id="totalPrice">0.00</span></span>
+                                </div>
+                                <div id="summaryPriceHistoryPanel" class="summary-price-history-panel" aria-hidden="true">
+                                    <div class="summary-price-history-head">
+                                        <span><i class="fas fa-chart-line"></i> Build Price History</span>
+                                        <small>Whole build</small>
+                                    </div>
+                                    <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="build-actions">
+                        <button id="shareBuildBtn" class="action-btn primary">
+                            <i class="fas fa-link"></i> Copy Link
+                        </button>
+                        <button id="submitCommunityBuildBtn" class="action-btn secondary">
+                            <i class="fas fa-users"></i> Share to Community
+                        </button>
+                        <button id="funStatsBtn" class="action-btn secondary">
+                            <i class="fas fa-chart-simple"></i> Fun Stats
+                        </button>
+                        <button id="addToAmazonCartBtn" class="action-btn primary">
+                            <i class="fab fa-amazon"></i> Add to Amazon Cart
+                        </button>
+                    </div>
+
+                    <!-- Fun Stats: the build summary card expands over the component list,
+                         then this panel opens inside the same card. -->
                     <div id="funStatsOverlay" class="fun-stats-overlay" aria-hidden="true">
                         <div class="fun-stats-overlay-head">
                             <div>
@@ -1670,48 +1709,11 @@
                                 </div>
                                 <div id="funStatsNotes" class="fun-stats-notes"></div>
                             </section>
-                            <div class="fun-stats-card">
-                                <div class="fun-stats-section-head">
-                                    <h5><i class="fas fa-chart-line"></i> Total Build Price History</h5>
-                                    <span>Whole build</span>
-                                </div>
-                                <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
-                            </div>
                             <details class="fun-stats-advanced">
                                 <summary><i class="fas fa-chart-area"></i> Advanced part charts</summary>
                                 <div id="funStatsAdvancedCharts"></div>
                             </details>
                         </div>
-                    </div>
-
-                </div>
-
-                <div class="build-summary-box">
-                    <!-- Total Price Section -->
-                    <div class="build-summary-header">
-                        <div class="build-total-section">
-                            <h3><i class="fas fa-desktop"></i> Your PC Build</h3>
-                            <div class="total-price-display">
-                                <span class="total-label">Total Price:</span>
-                                <span class="total-amount">$<span id="totalPrice">0.00</span></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="build-actions">
-                        <button id="shareBuildBtn" class="action-btn primary">
-                            <i class="fas fa-link"></i> Copy Link
-                        </button>
-                        <button id="submitCommunityBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-users"></i> Share to Community
-                        </button>
-                        <button id="funStatsBtn" class="action-btn secondary">
-                            <i class="fas fa-chart-simple"></i> Fun Stats
-                        </button>
-                        <button id="addToAmazonCartBtn" class="action-btn primary">
-                            <i class="fab fa-amazon"></i> Add to Amazon Cart
-                        </button>
                     </div>
 
                     <!-- Saved Builds (My Builds) -->
@@ -2414,7 +2416,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=41"></script>
+    <script src="script.js?v=42"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

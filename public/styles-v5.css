@@ -2018,6 +2018,7 @@ tr.incompatible td {
     flex-direction: row;
     align-items: flex-start;
     gap: 24px;
+    position: relative;
 }
 
 /* Shared-build (?build=) loading state: while the selected parts are being
@@ -2045,38 +2046,31 @@ tr.incompatible td {
 .pc-build-container > .component-selectors {
     flex: 1 1 680px;
     min-width: 0;
-    position: relative; /* positioning context for the Fun Stats overlay */
+    position: relative;
 }
 
-/* ── Fun Stats overlay ─────────────────────────────────────────────
-   Pops out over the component selectors when "Fun Stats" is pressed and
-   animates in from the top-right (near the button). Press again / hit the
-   X to collapse. */
+/* ── Fun Stats expanded build summary ─────────────────────────────
+   The right-side summary card grows over the component selectors. Total price
+   stays in the summary header, with build price history beside it while open. */
 .fun-stats-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 30;
     display: flex;
     flex-direction: column;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-top: 4px solid #2563eb;
-    border-radius: var(--radius-xl);
-    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.24);
     overflow: hidden;
+    max-height: 0;
     opacity: 0;
-    transform: translateX(34px) scale(0.96);
+    transform: translateY(18px) scale(0.985);
     transform-origin: top right;
     pointer-events: none;
     visibility: hidden;
-    transition: opacity 0.22s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.34s;
+    transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.34s;
 }
 .fun-stats-overlay.open {
+    max-height: 2000px;
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
     pointer-events: auto;
     visibility: visible;
-    transition: opacity 0.22s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .fun-stats-overlay-head {
     display: flex;
@@ -2085,7 +2079,7 @@ tr.incompatible td {
     gap: var(--space-4);
     padding: var(--space-5) var(--space-6);
     border-bottom: 1px solid #dbe3ef;
-    background: #ffffff;
+    background: #f8fafc;
     flex-shrink: 0;
 }
 .fun-stats-eyebrow {
@@ -2342,12 +2336,12 @@ tr.incompatible td {
 .fun-stats-advanced summary i { color: #2563eb; }
 .fun-stats-advanced[open] summary { border-bottom: 1px solid #e2e8f0; }
 #funStatsAdvancedCharts { padding: var(--space-4); }
-.build-price-history-chart { width: 100%; min-height: 240px; }
+.build-price-history-chart { width: 100%; min-height: 190px; }
 .build-price-history-chart .gpu-price-loading { color: var(--text-muted); padding: var(--space-6); text-align: center; }
 
 /* The Performance Statistics box is relocated inside the overlay; strip its
    standalone-card chrome so it sits cleanly in the overlay body. */
-.fun-stats-overlay #buildStatisticsSection {
+.build-summary-box.fun-stats-expanded #buildStatisticsSection {
     position: static;
     width: 100%;
     max-width: none;
@@ -2359,8 +2353,8 @@ tr.incompatible td {
     background: transparent;
     overflow: visible;
 }
-.fun-stats-overlay #buildStatisticsSection.hidden { display: block; }
-.fun-stats-overlay #buildStatisticsSection .build-summary-header {
+.build-summary-box.fun-stats-expanded #buildStatisticsSection.hidden { display: block; }
+.build-summary-box.fun-stats-expanded #buildStatisticsSection .build-summary-header {
     position: static;
     margin: 0 0 var(--space-4);
     padding: 0 0 var(--space-3);
@@ -2391,15 +2385,15 @@ tr.incompatible td {
     .build-summary-header {
         position: static;
     }
-    .fun-stats-overlay {
+    .build-summary-box.fun-stats-expanded {
         position: fixed !important;
-        inset: var(--space-3);
-        z-index: 10000;
-        transform: translateY(18px) scale(0.98);
+        inset: var(--space-3) !important;
+        width: auto !important;
         max-height: calc(100vh - (var(--space-3) * 2));
+        z-index: 10000;
     }
-    .fun-stats-overlay.open {
-        transform: translateY(0) scale(1);
+    .build-summary-box.fun-stats-expanded .summary-expanded-top {
+        grid-template-columns: 1fr;
     }
     .fun-stats-hero,
     .fun-stats-main-grid {
@@ -2435,6 +2429,29 @@ tr.incompatible td {
     width: clamp(340px, 28vw, 420px);
     min-width: 340px;
     flex-shrink: 0;
+    transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.build-summary-box.fun-stats-expanded {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    width: 100%;
+    min-width: 0;
+    max-height: calc(100vh - 175px);
+    z-index: 45;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.26);
+    animation: funSummaryExpand 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes funSummaryExpand {
+    from { transform: translateX(22px) scale(0.985); opacity: 0.94; }
+    to { transform: translateX(0) scale(1); opacity: 1; }
 }
 
 .build-summary-header {
@@ -2446,6 +2463,127 @@ tr.incompatible td {
     position: sticky;
     top: 170px;
     z-index: 5;
+}
+
+.build-summary-box.fun-stats-expanded .build-summary-header {
+    position: static;
+    top: auto;
+    flex-shrink: 0;
+    margin-bottom: 0;
+}
+
+.summary-expanded-top {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+}
+
+.build-summary-box.fun-stats-expanded .summary-expanded-top {
+    grid-template-columns: minmax(260px, 0.42fr) minmax(360px, 1fr);
+    align-items: stretch;
+}
+
+.summary-price-history-panel {
+    display: none;
+    min-height: 164px;
+    padding: var(--space-4);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: var(--radius-lg);
+    background: #f8fafc;
+}
+
+.build-summary-box.fun-stats-expanded .summary-price-history-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.summary-price-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: #0f172a;
+    font-size: 0.86rem;
+    font-weight: 800;
+    margin-bottom: var(--space-2);
+}
+
+.summary-price-history-head span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.summary-price-history-head i { color: #2563eb; }
+
+.summary-price-history-head small {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.summary-price-history-panel .build-price-history-chart {
+    flex: 1;
+    min-height: 122px;
+}
+
+.build-summary-box.fun-stats-expanded .total-price-display {
+    min-height: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+}
+
+.build-summary-box.fun-stats-expanded .total-amount {
+    font-size: clamp(2.1rem, 4vw, 3.4rem);
+    line-height: 1;
+}
+
+.build-summary-box.fun-stats-expanded .build-actions,
+.build-summary-box.fun-stats-expanded > .saved-builds-section,
+.build-summary-box.fun-stats-expanded > .compatibility-section,
+.build-summary-box.fun-stats-expanded > .build-contact-info {
+    display: none;
+}
+
+.build-summary-box.fun-stats-expanded .fun-stats-overlay {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.build-summary-box.fun-stats-expanded .fun-stats-overlay-body {
+    min-height: 0;
+}
+
+@media (max-width: 1024px) {
+    .build-summary-box.fun-stats-expanded {
+        position: fixed !important;
+        inset: var(--space-3) !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-height: calc(100vh - (var(--space-3) * 2));
+        z-index: 10000;
+        display: block;
+        overflow-y: auto;
+    }
+
+    .build-summary-box.fun-stats-expanded .summary-expanded-top {
+        grid-template-columns: 1fr;
+    }
+
+    .build-summary-box.fun-stats-expanded .total-price-display {
+        min-height: 150px;
+    }
+
+    .build-summary-box.fun-stats-expanded .fun-stats-overlay,
+    .build-summary-box.fun-stats-expanded .fun-stats-overlay-body {
+        overflow: visible;
+    }
 }
 
 .total-price-display {
