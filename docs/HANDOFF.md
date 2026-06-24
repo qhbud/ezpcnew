@@ -23,6 +23,34 @@
 
 (none — fresh epic)
 
+## Slice 19 — DONE (direct execution; loop abandoned in this env)
+
+The background codex builders were killed by OpenClaw session teardown, ran on as
+rogue processes that leaked partial edits into the main checkout, and were
+contained (process tree killed, edits reverted). Architect executed the frozen
+spec directly instead, verifying each gate. Done + committed to LOCAL main (NOT
+pushed — code lanes await Quinn's push approval; the secret/history work WAS
+force-pushed):
+- **Secrets + history (PUSHED):** scrubbed real Atlas+Amazon creds from 13 files
+  (scripts read process.env); `git filter-repo` purged all 3 secret literals from
+  all 247 commits (verified 0); force-pushed `413c1e4→5f2a0e3`. Prod unaffected
+  (platform env). CAVEAT: GitHub keeps old SHAs until GC + pre-existing
+  clones/forks retain — rotation (declined) is the only 100% fix.
+- **Lane A (server, 6e0a22d):** helmet (CSP off) + rate-limit (300/min api,
+  30/min writes) + query/category sanitization + clear-cache token + cache TTL
+  300→60s. Gates GA1-GA9 + smoke PASS.
+- **Lane B (script.js, 3789374):** legacy-filter crash fixed (optional-chain),
+  6 coming-soon alerts removed, global-search .catch, rel=noopener on all 23
+  blank links, prod console silencer. Gates GB1-GB4/6/8 PASS. DESCOPED (doc'd):
+  broad _escapeHtml sweep (defense-in-depth; user inputs already textContent-safe)
+  + full dead-community-JS / toggleDebugMode removal (inert, guarded, unreachable).
+- **Lane C (8f20268):** fake aggregateRating removed, #debugBtn + 6 buildAround
+  buttons removed, dead community markup removed, domain→ezpc.world + canonical
+  + og/twitter image, favicon 404 fixed (0 console errors), robots.txt +
+  sitemap.xml. Gates GC1-GC7 + smoke PASS (0 overflow @360px, 0 unlabeled).
+- DEFERRED: custom HTML 404 page (raw JSON 404 remains); credential rotation;
+  the GitHub old-SHA residual.
+
 ## Current slice
 
 - **Slice 19 (Release Hardening) — SPEC FROZEN, gates at `docs/gates/slice-19.md`,
