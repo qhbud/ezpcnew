@@ -190,6 +190,9 @@ class PartsDatabase {
         this.initializeEventListeners();
         this.loadInitialData();
 
+        // Re-create the extra storage / add-on slots + "+" add buttons, then lay out.
+        this._buildExtraComponentSlots();
+
         // Initialize storage plus buttons visibility
         this.updateStoragePlusButtons();
 
@@ -1524,6 +1527,9 @@ class PartsDatabase {
     }
 
     openComponentTabFromBuilder(componentType) {
+        // Remember the exact slot (e.g. storage2, addon3) so a part picked in the
+        // browsing tab routes back to it instead of always the primary slot.
+        this._builderTargetSlot = componentType;
         const tabName = this.normalizeComponentTabName(componentType);
         this.switchTab(tabName);
         this.scrollToComponentSelection(tabName);
@@ -6298,6 +6304,141 @@ class PartsDatabase {
         this.updateBuildStatistics();
     }
 
+    // Re-create the extra storage / add-on slots (2–6) and the green "+" buttons
+    // that add another slot. Generated in JS so the repetitive markup lives in one
+    // place; the dynamic layout engine (updateComponentPositions) flows enabled
+    // slots into rows and parks disabled ones in a hidden row.
+    _buildExtraComponentSlots() {
+        if (this._extraSlotsBuilt) return;
+        const selectors = document.querySelector('#builder-tab .component-selectors')
+            || document.querySelector('.component-selectors');
+        if (!selectors) return;
+        this._extraSlotsBuilt = true;
+
+        const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+        const addPlusButton = (section, id, handler) => {
+            if (!section || document.getElementById(id)) return;
+            const btn = document.createElement('button');
+            btn.id = id;
+            btn.type = 'button';
+            btn.className = 'add-storage-section-btn';
+            btn.title = 'Add another';
+            btn.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-plus"></i>';
+            btn.addEventListener('click', handler);
+            section.appendChild(btn);
+        };
+
+        const makeSection = (sectionId, slot, icon, title, hint, onRemove) => {
+            const c = cap(slot);
+            const section = document.createElement('div');
+            section.id = sectionId;
+            section.className = 'component-section component-left disabled';
+            section.style.display = 'none';
+            section.innerHTML =
+                '<div class="component-selector">' +
+                    '<button id="builder' + c + 'SelectBtn" class="component-select-btn">' +
+                        '<i class="' + icon + '"></i>' +
+                        '<span>' + title + '</span>' +
+                        '<span class="slot-hint">' + hint + '</span>' +
+                    '</button>' +
+                    '<button id="remove' + c + 'Btn" class="remove-component-btn" style="display: none;">' +
+                        '<i class="fas fa-times"></i>' +
+                    '</button>' +
+                '</div>' +
+                '<div id="selectedBuilder' + c + '" class="selected-component" style="display: none;"></div>';
+            section.querySelector('#builder' + c + 'SelectBtn')
+                .addEventListener('click', () => this.openComponentTabFromBuilder(slot));
+            section.querySelector('#remove' + c + 'Btn')
+                .addEventListener('click', onRemove);
+            return section;
+        };
+
+        const rows = [];
+        const place = (section) => {
+            let row = rows[rows.length - 1];
+            if (!row || row.childElementCount >= 2) {
+                row = document.createElement('div');
+                row.className = 'component-row';
+                row.style.display = 'none';
+                rows.push(row);
+                selectors.appendChild(row);
+            }
+            row.appendChild(section);
+        };
+
+        for (let i = 2; i <= 6; i++) {
+            const section = makeSection('storageSection' + i, 'storage' + i, 'fas fa-hdd',
+                'Choose Storage', 'SSD or HDD', () => this.closeStorageSection(i));
+            addPlusButton(section, 'addStorageBtn' + i, () => this.addStorageSection());
+            place(section);
+        }
+        for (let i = 2; i <= 6; i++) {
+            const section = makeSection('addonSection' + i, 'addon' + i, 'fas fa-plus-circle',
+                'Choose Add-on', 'Capture card, fans, etc.', () => this.closeAddonSection(i));
+            addPlusButton(section, 'addAddonBtn' + i, () => this.addAddonSection());
+            place(section);
+        }
+
+        // "+" buttons on the primary (section 1) slots, which already exist in HTML.
+        addPlusButton(document.getElementById('storageSection1'), 'addStorageBtn1', () => this.addStorageSection());
+        addPlusButton(document.getElementById('addonSection1'), 'addAddonBtn1', () => this.addAddonSection());
+
+        this.updateComponentPositions();
+        this.updateStoragePlusButtons();
+        this.updateAddonPlusButtons();
+    }
+
+    // Collapse an extra add-on slot (mirror of closeStorageSection): shift the
+    // following add-ons up one slot and hide the now-empty trailing section.
+    closeAddonSection(addonNumber) {
+        const visibleSections = [];
+        for (let i = 1; i <= 6; i++) {
+            const section = document.getElementById(`addonSection${i}`);
+            if (section && !section.classList.contains('disabled')) visibleSections.push(i);
+        }
+        const closingIndex = visibleSections.indexOf(addonNumber);
+        if (closingIndex === -1) return;
+
+        const slotFor = n => (n === 1 ? 'addon' : `addon${n}`);
+        for (let i = closingIndex; i < visibleSections.length - 1; i++) {
+            const currentType = slotFor(visibleSections[i]);
+            const nextType = slotFor(visibleSections[i + 1]);
+            if (this.currentBuild[nextType]) {
+                this.currentBuild[currentType] = this.currentBuild[nextType];
+                this.updateBuilderComponentDisplay(currentType, this.currentBuild[currentType]);
+            } else {
+                this.currentBuild[currentType] = null;
+                const selectedDiv = document.getElementById(`selectedBuilder${this.capitalizeFirst(currentType)}`);
+                const selectBtn = document.getElementById(`builder${this.capitalizeFirst(currentType)}SelectBtn`);
+                const removeBtn = document.getElementById(`remove${this.capitalizeFirst(currentType)}Btn`);
+                if (selectedDiv) selectedDiv.style.display = 'none';
+                if (selectBtn) selectBtn.style.display = 'block';
+                if (removeBtn) removeBtn.style.display = 'none';
+            }
+        }
+
+        const lastSectionNum = visibleSections[visibleSections.length - 1];
+        const lastType = slotFor(lastSectionNum);
+        this.currentBuild[lastType] = null;
+        const selectedDiv = document.getElementById(`selectedBuilder${this.capitalizeFirst(lastType)}`);
+        const selectBtn = document.getElementById(`builder${this.capitalizeFirst(lastType)}SelectBtn`);
+        const removeBtn = document.getElementById(`remove${this.capitalizeFirst(lastType)}Btn`);
+        if (selectedDiv) selectedDiv.style.display = 'none';
+        if (selectBtn) selectBtn.style.display = 'block';
+        if (removeBtn) removeBtn.style.display = 'none';
+
+        if (lastSectionNum !== 1) {
+            const lastSection = document.getElementById(`addonSection${lastSectionNum}`);
+            if (lastSection) lastSection.classList.add('disabled');
+        }
+
+        this.updateAddonPlusButtons();
+        this.updateTotalPrice();
+        this.updateComponentPositions();
+    }
+
     addStorageSection() {
         console.log('=== addStorageSection called ===');
         // Find the next disabled storage section and enable it
@@ -6770,6 +6911,14 @@ class PartsDatabase {
         const issueCount = problems.length + warnings.length;
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
 
+        // Required components for a complete build; surface which are still missing
+        // (e.g. "Needs CPU, GPU") instead of a misleading "No issues detected".
+        const REQUIRED_PARTS = [
+            ['cpu', 'CPU'], ['gpu', 'GPU'], ['motherboard', 'Motherboard'],
+            ['ram', 'RAM'], ['storage', 'Storage'], ['psu', 'PSU'], ['cooler', 'Cooler']
+        ];
+        const missingParts = REQUIRED_PARTS.filter(([key]) => !this.currentBuild[key]).map(([, label]) => label);
+
         // Update compatibility heading text based on severity.
         const compatibilityHeading = document.getElementById('compatibilityCheckHeading');
         const formatCount = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
@@ -6783,9 +6932,13 @@ class PartsDatabase {
                 compatibilityHeading.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: ${iconColor};"></i> ${summaryParts.join(', ')}`;
             }
         } else if (compatibilityHeading) {
-            compatibilityHeading.innerHTML = hasComponents
-                ? '<i class="fas fa-check-circle"></i> All compatible'
-                : '<i class="fas fa-check-circle"></i> Compatibility Check';
+            if (hasComponents && missingParts.length) {
+                compatibilityHeading.innerHTML = `<i class="fas fa-circle-info" style="color: #2563eb;"></i> ${missingParts.length} part${missingParts.length === 1 ? '' : 's'} to add`;
+            } else {
+                compatibilityHeading.innerHTML = hasComponents
+                    ? '<i class="fas fa-check-circle"></i> All compatible'
+                    : '<i class="fas fa-check-circle"></i> Compatibility Check';
+            }
         }
 
         // Display results and update styling
@@ -6793,10 +6946,12 @@ class PartsDatabase {
             results.classList.remove('has-warnings', 'has-problems');
             results.classList.add('no-warnings');
 
-            if (hasComponents) {
-                results.innerHTML = '<p class="compatibility-message success"><span class="compat-ok-dot"></span>No issues detected</p>';
-            } else {
+            if (!hasComponents) {
                 results.innerHTML = '<p class="compatibility-message" style="color:var(--text-muted);">Select components to check</p>';
+            } else if (missingParts.length) {
+                results.innerHTML = `<p class="compatibility-message compatibility-needs"><span class="compat-needs-dot"></span>Needs ${missingParts.join(', ')}</p>`;
+            } else {
+                results.innerHTML = '<p class="compatibility-message success"><span class="compat-ok-dot"></span>No issues detected</p>';
             }
         } else {
             results.classList.remove('no-warnings');
@@ -6836,6 +6991,10 @@ class PartsDatabase {
         this.updateBuildBalanceMeter();
         this.updateBuildSummaryWattage();
         this.updateBuildDock();
+
+        // Warm the whole-build price-history series in the background so the Fun
+        // Stats chart is ready to render instantly when the user opens it.
+        this._schedulePriceHistoryPrefetch();
     }
 
     updateBuildSummaryWattage() {
@@ -8939,13 +9098,38 @@ class PartsDatabase {
 
     // Render a price-history graph for the WHOLE build (sum of every component's
     // price over time) into the Fun Stats overlay.
+    // Compute (and cache) the whole-build price series keyed by build signature.
+    // The per-component history fetches are the slow part, so we memoize them and
+    // prefetch on build changes — Fun Stats then renders the chart instantly.
+    _ensureBuildPriceSeries() {
+        const sig = this._buildSignature ? this._buildSignature() : '';
+        if (this._buildPriceCache && this._buildPriceCache.sig === sig) return this._buildPriceCache;
+        const cache = { sig, data: null };
+        cache.promise = this._buildWholeBuildPriceSeries()
+            .then(res => { cache.data = res; return res; })
+            .catch(() => ({ series: [], totalBase: 0, totalCurrent: 0 }));
+        this._buildPriceCache = cache;
+        return cache;
+    }
+
+    // Debounced background prefetch so the series is usually ready before the user
+    // ever opens Fun Stats. Cheap to call often: same signature reuses the cache.
+    _schedulePriceHistoryPrefetch() {
+        clearTimeout(this._pricePrefetchTimer);
+        this._pricePrefetchTimer = setTimeout(() => {
+            if (Object.values(this.currentBuild || {}).some(c => c)) this._ensureBuildPriceSeries();
+        }, 200);
+    }
+
     async _renderBuildPriceHistory() {
         const host = document.getElementById('buildPriceHistoryChart');
         if (!host) return;
-        host.innerHTML = '<div class="gpu-price-loading">Loading build price history…</div>';
-        const token = (this._buildSignature ? this._buildSignature() : '') + ':' + Date.now();
+        const cache = this._ensureBuildPriceSeries();
+        const token = cache.sig + ':' + Date.now();
         this._buildPriceToken = token;
-        const { series, totalBase, totalCurrent } = await this._buildWholeBuildPriceSeries();
+        // Only show the loading placeholder if the series isn't prefetched yet.
+        if (!cache.data) host.innerHTML = '<div class="gpu-price-loading">Loading build price history…</div>';
+        const { series, totalBase, totalCurrent } = cache.data || await cache.promise;
         if (this._buildPriceToken !== token) return; // superseded by a newer render
         const width = Math.max(Math.round(host.clientWidth) || 620, 320);
         host.innerHTML = this._buildPriceHistorySvg(series, totalBase, totalCurrent, width);
@@ -16312,8 +16496,17 @@ class PartsDatabase {
         // Close the modal
         this.closeComponentModal();
 
+        // Route to the exact slot the user opened (storage2, addon3, …) when it
+        // matches the picked part's category; otherwise the primary slot.
+        let targetType = componentType;
+        if (this._builderTargetSlot &&
+            this.normalizeComponentTabName(this._builderTargetSlot) === this.normalizeComponentTabName(componentType)) {
+            targetType = this._builderTargetSlot;
+        }
+        this._builderTargetSlot = null;
+
         // Select the component for the builder
-        this.selectComponent(componentType, component);
+        this.selectComponent(targetType, component);
     }
 
     // ── GPU Tab Listings ──────────────────────────────────────────
