@@ -1,3 +1,12 @@
+// Silence noisy debug logging in production (keep warn/error for real diagnostics).
+(() => {
+    const host = (typeof location !== 'undefined' && location.hostname) || '';
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        console.log = () => {};
+        console.debug = () => {};
+    }
+})();
+
 class PartsDatabase {
     constructor() {
         this.currentTab = 'builder'; // 'gpu', 'cpu', 'motherboard', 'ram', 'psu', 'cooler', or 'builder'
@@ -309,7 +318,7 @@ class PartsDatabase {
             this.showGpuSelector();
         });
 
-        document.getElementById('buildAroundGpuBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundGpuBtn')?.addEventListener('click', () => {
             this.buildAroundGPU();
         });
 
@@ -322,7 +331,7 @@ class PartsDatabase {
             this.showCpuSelector();
         });
 
-        document.getElementById('buildAroundCpuBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundCpuBtn')?.addEventListener('click', () => {
             this.buildAroundCPU();
         });
 
@@ -339,7 +348,7 @@ class PartsDatabase {
             this.showMotherboardSelector();
         });
 
-        document.getElementById('buildAroundMotherboardBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundMotherboardBtn')?.addEventListener('click', () => {
             this.buildAroundMotherboard();
         });
 
@@ -356,7 +365,7 @@ class PartsDatabase {
             this.showRamSelector();
         });
 
-        document.getElementById('buildAroundRamBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundRamBtn')?.addEventListener('click', () => {
             this.buildAroundRAM();
         });
 
@@ -373,7 +382,7 @@ class PartsDatabase {
             this.showPsuSelector();
         });
 
-        document.getElementById('buildAroundPsuBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundPsuBtn')?.addEventListener('click', () => {
             this.buildAroundPSU();
         });
 
@@ -390,7 +399,7 @@ class PartsDatabase {
             this.showCoolerSelector();
         });
 
-        document.getElementById('buildAroundCoolerBtn').addEventListener('click', () => {
+        document.getElementById('buildAroundCoolerBtn')?.addEventListener('click', () => {
             this.buildAroundCooler();
         });
 
@@ -653,6 +662,14 @@ class PartsDatabase {
                     ? parts.filter(part => this.getGlobalSearchCategoryConfig(part.category))
                     : [];
                 return this.globalSearchParts;
+            })
+            .catch(err => {
+                // Don't cache a rejected promise (search would stay dead all session)
+                // and don't surface an uncaught rejection — fail soft to an empty list.
+                console.warn('Global search parts load failed:', err);
+                this.globalSearchPartsPromise = null;
+                this.globalSearchParts = [];
+                return [];
             });
 
         return this.globalSearchPartsPromise;
@@ -1515,7 +1532,7 @@ class PartsDatabase {
             const sortControl = document.getElementById('communitySort');
             if (sortControl) sortControl.value = 'newest';
             this.showToast('Build shared to the community');
-            await this.switchTab('community');
+            await this.switchTab('builder');
             return true;
         } catch (error) {
             this.setCommunitySubmitError(error.message || 'Could not submit this build');
@@ -3528,13 +3545,13 @@ class PartsDatabase {
         let filtered = [...this.filteredGPUs];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(gpu => gpu.manufacturer === manufacturerFilter);
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(gpu => {
                 const price = parseFloat(gpu.currentPrice || gpu.salePrice || gpu.basePrice || gpu.price) || 0;
@@ -3567,7 +3584,7 @@ class PartsDatabase {
         let filtered = [...this.filteredParts];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(cpu => 
                 cpu.manufacturer && cpu.manufacturer.toUpperCase() === manufacturerFilter.toUpperCase()
@@ -3575,7 +3592,7 @@ class PartsDatabase {
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(cpu => {
                 if (!cpu.currentPrice) return false;
@@ -3597,7 +3614,7 @@ class PartsDatabase {
         let filtered = [...this.filteredParts];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(motherboard => 
                 motherboard.manufacturer && motherboard.manufacturer.toUpperCase() === manufacturerFilter.toUpperCase()
@@ -3605,7 +3622,7 @@ class PartsDatabase {
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(motherboard => {
                 if (!motherboard.currentPrice) return false;
@@ -3627,7 +3644,7 @@ class PartsDatabase {
         let filtered = [...this.filteredParts];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(ram => 
                 ram.manufacturer && ram.manufacturer.toUpperCase() === manufacturerFilter.toUpperCase()
@@ -3635,7 +3652,7 @@ class PartsDatabase {
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(ram => {
                 if (!ram.currentPrice) return false;
@@ -3657,7 +3674,7 @@ class PartsDatabase {
         let filtered = [...this.filteredParts];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(psu => 
                 (psu.manufacturer && psu.manufacturer.toUpperCase() === manufacturerFilter.toUpperCase()) ||
@@ -3666,7 +3683,7 @@ class PartsDatabase {
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(psu => {
                 if (!psu.price) return false;
@@ -3688,7 +3705,7 @@ class PartsDatabase {
         let filtered = [...this.filteredParts];
         
         // Manufacturer filter
-        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter')?.value;
         if (manufacturerFilter) {
             filtered = filtered.filter(cooler => 
                 (cooler.manufacturer && cooler.manufacturer.toUpperCase() === manufacturerFilter.toUpperCase()) ||
@@ -3697,7 +3714,7 @@ class PartsDatabase {
         }
         
         // Price filter
-        const priceFilter = document.getElementById('priceFilter').value;
+        const priceFilter = document.getElementById('priceFilter')?.value;
         if (priceFilter) {
             filtered = filtered.filter(cooler => {
                 const price = parseFloat(cooler.currentPrice || cooler.salePrice || cooler.basePrice || cooler.price) || 0;
@@ -3717,10 +3734,10 @@ class PartsDatabase {
     }
 
     clearAllFilters() {
-        document.getElementById('manufacturerFilter').value = '';
-        document.getElementById('priceFilter').value = '';
-        document.getElementById('searchInput').value = '';
-        this.filterGPUsByManufacturer();
+        const mf = document.getElementById('manufacturerFilter'); if (mf) mf.value = '';
+        const pf = document.getElementById('priceFilter'); if (pf) pf.value = '';
+        const si = document.getElementById('searchInput'); if (si) si.value = '';
+        if (typeof this.filterGPUsByManufacturer === 'function') this.filterGPUsByManufacturer();
     }
 
     async populatePrimaryManufacturerFilter() {
@@ -3916,7 +3933,7 @@ class PartsDatabase {
             </div>
             ` : ''}
             ${gpu.sourceUrl || gpu.url ? `
-            <a href="${gpu.sourceUrl || gpu.url}" target="_blank" class="part-link">
+            <a href="${gpu.sourceUrl || gpu.url}" target="_blank" rel="noopener noreferrer" class="part-link">
                 <i class="fas fa-external-link-alt"></i>
                 View on Amazon
             </a>
@@ -3969,7 +3986,7 @@ class PartsDatabase {
             </div>
             <div class="part-card-footer">
                 <span class="part-source">${cpu.source || 'Unknown'}</span>
-                ${cpu.sourceUrl ? `<a href="${cpu.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
+                ${cpu.sourceUrl ? `<a href="${cpu.sourceUrl}" target="_blank" rel="noopener noreferrer" class="part-link">View Details</a>` : ''}
             </div>
             <div class="star-rating-widget" data-part-id="${this.getPartId(cpu)}">
                 <div class="stars-row">
@@ -4079,7 +4096,7 @@ class PartsDatabase {
     createCoolerSearchLink(cooler) {
         // Use direct URLs like other components (GPUs, CPUs, etc.)
         if (cooler.sourceUrl || cooler.url) {
-            return `<a href="${cooler.sourceUrl || cooler.url}" target="_blank" class="part-link">
+            return `<a href="${cooler.sourceUrl || cooler.url}" target="_blank" rel="noopener noreferrer" class="part-link">
                 <i class="fas fa-external-link-alt"></i>
                 View on Amazon
             </a>`;
@@ -4176,7 +4193,7 @@ class PartsDatabase {
             </div>
             <div class="part-card-footer">
                 <span class="part-source">${motherboard.source || 'Unknown'}</span>
-                ${motherboard.sourceUrl ? `<a href="${motherboard.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
+                ${motherboard.sourceUrl ? `<a href="${motherboard.sourceUrl}" target="_blank" rel="noopener noreferrer" class="part-link">View Details</a>` : ''}
             </div>
             <div class="star-rating-widget" data-part-id="${this.getPartId(motherboard)}">
                 <div class="stars-row">
@@ -4245,7 +4262,7 @@ class PartsDatabase {
             </div>
             <div class="part-card-footer">
                 <span class="part-source">${ram.source || 'Unknown'}</span>
-                ${ram.sourceUrl ? `<a href="${ram.sourceUrl}" target="_blank" class="part-link">View Details</a>` : ''}
+                ${ram.sourceUrl ? `<a href="${ram.sourceUrl}" target="_blank" rel="noopener noreferrer" class="part-link">View Details</a>` : ''}
             </div>
             <div class="star-rating-widget" data-part-id="${this.getPartId(ram)}">
                 <div class="stars-row">
@@ -4350,7 +4367,7 @@ class PartsDatabase {
     createPSUSearchLink(psu) {
         // Use direct URLs like other components (GPUs, CPUs, etc.)
         if (psu.sourceUrl || psu.url) {
-            return `<a href="${psu.sourceUrl || psu.url}" target="_blank" class="part-link">
+            return `<a href="${psu.sourceUrl || psu.url}" target="_blank" rel="noopener noreferrer" class="part-link">
                 <i class="fas fa-external-link-alt"></i>
                 View on Amazon
             </a>`;
@@ -4795,7 +4812,6 @@ class PartsDatabase {
         const gpuName = this.selectedGPU.title || this.selectedGPU.name;
         const price = this.selectedGPU.price || this.selectedGPU.currentPrice || 0;
         
-        alert(`Building PC around: ${gpuName}\nPrice: $${price}\n\nPC Building functionality coming soon!`);
         
         // Future implementation could:
         // - Navigate to a PC builder page
@@ -4885,7 +4901,6 @@ class PartsDatabase {
         const cpuName = this.selectedCPU.title || this.selectedCPU.name;
         const price = this.selectedCPU.price || this.selectedCPU.currentPrice || 0;
         
-        alert(`Building PC around: ${cpuName}\nPrice: $${price}\n\nPC Building functionality coming soon!`);
         
         // Future implementation could:
         // - Navigate to a PC builder page
@@ -5021,7 +5036,6 @@ class PartsDatabase {
         const motherboardName = this.selectedMotherboard.title || this.selectedMotherboard.name;
         const price = this.selectedMotherboard.price || this.selectedMotherboard.currentPrice || 0;
         
-        alert(`Building PC around: ${motherboardName}\nPrice: $${price}\n\nPC Building functionality coming soon!`);
         
         // Future implementation could:
         // - Navigate to a PC builder page
@@ -5167,7 +5181,6 @@ class PartsDatabase {
 
     buildAroundPSU() {
         console.log('Building PC around PSU:', this.selectedPSU);
-        alert('PSU-based PC building feature coming soon!');
     }
 
     // Cooler Selector Methods
@@ -5286,7 +5299,6 @@ class PartsDatabase {
 
     buildAroundCooler() {
         console.log('Building PC around Cooler:', this.selectedCooler);
-        alert('Cooler-based PC building feature coming soon!');
     }
 
     // PC Builder Methods
@@ -5942,7 +5954,7 @@ class PartsDatabase {
         
         // Add URL if available
         if (component.sourceUrl || component.url) {
-            details.push(`<strong>Link:</strong> <a href="${component.sourceUrl || component.url}" target="_blank">View on Amazon</a>`);
+            details.push(`<strong>Link:</strong> <a href="${component.sourceUrl || component.url}" target="_blank" rel="noopener noreferrer">View on Amazon</a>`);
         }
         
         return details.length > 0 ? `<div class="component-detailed-specs">${details.join('<br>')}</div>` : '';
@@ -9520,7 +9532,6 @@ class PartsDatabase {
         const ramName = this.selectedRAM.title || this.selectedRAM.name;
         const price = this.selectedRAM.price || this.selectedRAM.currentPrice || 0;
         
-        alert(`Building PC around: ${ramName}\nPrice: $${price}\n\nPC Building functionality coming soon!`);
         
         // Future implementation could:
         // - Navigate to a PC builder page
@@ -13574,7 +13585,7 @@ class PartsDatabase {
             <div class="builder-component-card ${!isCompatible ? 'incompatible-build-card' : ''}">
                 <div class="builder-component-info">
                     <div class="builder-component-info-head">
-                        ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-title-link">` : ''}
+                        ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" rel="noopener noreferrer" class="detail-title-link">` : ''}
                             <div class="detail-title">${name}</div>
                         ${amazonUrl ? `</a>` : ''}
                         <div class="builder-card-actions-inline">
@@ -13589,7 +13600,7 @@ class PartsDatabase {
                     ${detailRowsHtml}
                 </div>
                 ${stockCoolerBtn}
-                ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" class="detail-product-link">` : ''}
+                ${amazonUrl ? `<a href="${amazonUrl}" target="_blank" rel="noopener noreferrer" class="detail-product-link">` : ''}
                     <div class="detail-image-container ${!isCompatible ? 'incompatible-build-component' : ''}" style="position: relative;">
                         ${imageUrl ?
                             `<img src="${imageUrl}" alt="${name}" class="detail-image" referrerpolicy="no-referrer" onerror="ezpcImgFallback(this, 'fa-microchip')">` :
