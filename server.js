@@ -2702,6 +2702,44 @@ app.get('/api/builds/averages', async (req, res) => {
     }
 });
 
+// Get anonymized saved build points for the price/performance dot plot.
+app.get('/api/builds/points', async (req, res) => {
+    try {
+        const db = getDatabase();
+        const documents = await db.collection('build_snapshots')
+            .find(
+                { totalPrice: { $gt: 0 } },
+                {
+                    projection: {
+                        _id: 0,
+                        totalPrice: 1,
+                        gpuScore: 1,
+                        cpuSingleScore: 1,
+                        cpuMultiScore: 1
+                    }
+                }
+            )
+            .sort({ createdAt: 1 })
+            .toArray();
+
+        const builds = documents
+            .map(document => {
+                const price = Number(document.totalPrice) || 0;
+                const gpu = Number(document.gpuScore) || 0;
+                const cpuSingle = Number(document.cpuSingleScore) || 0;
+                const cpuMulti = Number(document.cpuMultiScore) || 0;
+                const performance = Math.max(0, Math.min(1.25, (gpu * 0.55) + (cpuSingle * 0.30) + (Math.min(cpuMulti, 1.4) * 0.15)));
+                return { price: Math.round(price), performance: +performance.toFixed(4) };
+            })
+            .filter(build => build.price > 0 && build.performance > 0);
+
+        res.json({ builds, count: builds.length });
+    } catch (e) {
+        console.error('Build points error:', e);
+        res.status(500).json({ error: 'Failed to get build points' });
+    }
+});
+
 // Store a compact build reference map under a random, URL-safe id.
 app.post('/api/builds', async (req, res) => {
     const normalized = normalizeSharedBuild(req.body);

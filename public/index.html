@@ -1678,20 +1678,22 @@
                     <div id="funStatsOverlay" class="fun-stats-overlay" aria-hidden="true">
                         <div class="fun-stats-overlay-body" id="funStatsOverlayBody">
                             <div class="fun-stats-score-grid" id="funStatsScoreGrid"></div>
-                            <div class="fun-stats-main-grid">
-                                <section class="fun-stats-card fun-stats-card-compare">
-                                    <div class="fun-stats-section-head">
-                                        <h5><i class="fas fa-ranking-star"></i> Saved Build Comparison</h5>
-                                        <span id="funStatsCompareSample">EZPC saved builds</span>
-                                    </div>
-                                    <div id="funStatsComparisonPanel"></div>
-                                </section>
+                            <div class="fun-stats-main-grid fun-stats-main-grid-single">
                                 <section class="fun-stats-card fun-stats-card-fps">
                                     <div class="fun-stats-section-head">
                                         <h5><i class="fas fa-gauge-high"></i> Real Game FPS Estimates</h5>
                                         <span>High settings</span>
                                     </div>
                                     <div id="funStatsFpsPanel"></div>
+                                </section>
+                                <section class="fun-stats-card fun-stats-card-dot-plot">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-chart-line"></i> Price vs Performance</h5>
+                                        <span id="funStatsDotPlotSample">Saved builds</span>
+                                    </div>
+                                    <div class="fun-dot-plot-wrap">
+                                        <canvas id="funStatsDotPlotCanvas" aria-label="Saved build price versus performance dot plot"></canvas>
+                                    </div>
                                 </section>
                             </div>
                             <section class="fun-stats-card">

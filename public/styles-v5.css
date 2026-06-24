@@ -2193,6 +2193,9 @@ tr.incompatible td {
     grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
     gap: var(--space-5);
 }
+.fun-stats-main-grid-single {
+    grid-template-columns: minmax(0, 1fr);
+}
 .fun-stats-money-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -2261,6 +2264,47 @@ tr.incompatible td {
 }
 .fun-compare-bar.yours { top: 0; background: #2563eb; }
 .fun-compare-bar.average { bottom: 0; background: #94a3b8; }
+.fun-game-fps-numbers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+.fun-game-fps-number-card {
+    min-height: 104px;
+    padding: var(--space-4);
+    border: 1px solid #dbe3ef;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.fun-game-fps-number-card span {
+    color: #475569;
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+.fun-game-fps-number-card strong {
+    color: #0f172a;
+    font-size: clamp(2.1rem, 4vw, 3.4rem);
+    line-height: 0.95;
+}
+.fun-game-fps-number-card strong::after {
+    content: " FPS";
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 800;
+    vertical-align: baseline;
+}
+.fun-dot-plot-wrap {
+    width: 100%;
+    min-height: 300px;
+}
+.fun-dot-plot-wrap canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
 .fun-game-fps-list {
     display: grid;
     gap: var(--space-3);
@@ -2589,6 +2633,7 @@ tr.incompatible td {
 @media (max-width: 640px) {
     .fun-stats-overlay-body { padding: var(--space-3); }
     .fun-stats-score-grid { grid-template-columns: 1fr; }
+    .fun-game-fps-numbers { grid-template-columns: 1fr; }
     .fun-game-fps-title {
         flex-direction: column;
     }

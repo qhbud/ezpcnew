@@ -6990,32 +6990,14 @@ class PartsDatabase {
         const cpu = Math.max(metrics.cpuSingle || 0, 0.35);
         const games = [
             {
-                label: 'Cyberpunk 2077',
-                detail: 'Ultra, no path tracing',
-                base: { '1080p': 165, '1440p': 118, '4K': 70 },
-                cpuWeight: 0.16
-            },
-            {
-                label: 'Starfield',
-                detail: 'High preset',
-                base: { '1080p': 132, '1440p': 96, '4K': 58 },
-                cpuWeight: 0.24
-            },
-            {
+                key: 'warzone',
                 label: 'Call of Duty: Warzone',
-                detail: 'Competitive high',
                 base: { '1080p': 230, '1440p': 175, '4K': 112 },
                 cpuWeight: 0.32
             },
             {
-                label: 'Fortnite',
-                detail: 'Performance mode',
-                base: { '1080p': 420, '1440p': 330, '4K': 220 },
-                cpuWeight: 0.46
-            },
-            {
+                key: 'cs2',
                 label: 'Counter-Strike 2',
-                detail: 'Competitive settings',
                 base: { '1080p': 560, '1440p': 440, '4K': 300 },
                 cpuWeight: 0.58
             }
@@ -7030,7 +7012,7 @@ class PartsDatabase {
                 const floor = res === '4K' ? 20 : 28;
                 scores[res] = Math.max(floor, Math.round(game.base[res] * scale));
             });
-            return { ...game, scores };
+            return { ...game, scores, fps: scores['1440p'] };
         });
     }
 
@@ -7078,9 +7060,6 @@ class PartsDatabase {
         const pricedTotal = this.totalPrice || 0;
 
         notes.push(`${metrics.tier} class: this build is best described as ${metrics.target}.`);
-        if (metrics.percentile !== null) {
-            notes.push(`It lands around the ${metrics.percentile}th percentile versus saved EZPC builds by blended CPU/GPU strength.`);
-        }
         if (gpuSpend && pricedTotal) {
             const gpuShare = Math.round((gpuSpend / pricedTotal) * 100);
             notes.push(`GPU share is ${gpuShare}% of the budget, which ${gpuShare >= 35 ? 'puts money where gaming performance usually matters most' : 'keeps graphics spend conservative'}.`);
@@ -7092,12 +7071,7 @@ class PartsDatabase {
         } else {
             notes.push(`The CPU has extra headroom relative to the GPU, useful for upgrades or CPU-heavy games.`);
         }
-        if (averages.avgPrice && pricedTotal) {
-            const diff = Math.round(((pricedTotal - averages.avgPrice) / averages.avgPrice) * 100);
-            notes.push(diff >= 0
-                ? `It costs about ${diff}% more than the saved-build average.`
-                : `It costs about ${Math.abs(diff)}% less than the saved-build average.`);
-        } else if (cpuSpend) {
+        if (cpuSpend && pricedTotal) {
             notes.push(`CPU spend is ${Math.round((cpuSpend / pricedTotal) * 100)}% of the build, which is useful context for future tuning.`);
         }
         return notes.slice(0, 5);
@@ -7105,36 +7079,39 @@ class PartsDatabase {
 
     async renderFunStatsOverview() {
         let averages = { count: 0 };
+        let buildPoints = { builds: [], count: 0 };
         try {
             const res = await fetch('/api/builds/averages');
             if (res.ok) averages = await res.json();
-        } catch (e) { /* comparison falls back to local-only */ }
+        } catch (e) { /* stats fall back to local-only */ }
+        try {
+            const res = await fetch('/api/builds/points');
+            if (res.ok) buildPoints = await res.json();
+        } catch (e) { /* dot plot falls back to current build only */ }
 
         const metrics = this.getFunStatsMetrics(averages);
         const fpsRows = this.getFunStatsFps(metrics);
-        const fps1440Average = Math.round(fpsRows.reduce((sum, row) => sum + row.scores['1440p'], 0) / fpsRows.length);
-        const avgStrengthPct = Math.round((metrics.avgStrength || 0) * 100);
         const yourStrengthPct = Math.round(metrics.strength * 100);
 
         const tierLabel = document.getElementById('funStatsTierLabel');
         const tierNote = document.getElementById('funStatsTierNote');
         const scoreGrid = document.getElementById('funStatsScoreGrid');
-        const comparePanel = document.getElementById('funStatsComparisonPanel');
-        const compareSample = document.getElementById('funStatsCompareSample');
         const fpsPanel = document.getElementById('funStatsFpsPanel');
+        const dotPlotCanvas = document.getElementById('funStatsDotPlotCanvas');
+        const dotPlotSample = document.getElementById('funStatsDotPlotSample');
         const balancePanel = document.getElementById('funStatsBalancePanel');
         const budgetPanel = document.getElementById('funStatsBudgetPanel');
         const notesHost = document.getElementById('funStatsNotes');
 
         if (tierLabel) tierLabel.textContent = `${metrics.tier} ${metrics.target}`;
         if (tierNote) tierNote.textContent = metrics.percentile !== null
-            ? `Stronger than roughly ${metrics.percentile}% of saved EZPC builds.`
-            : 'Save more builds to make the comparison sharper.';
+            ? `Build strength estimate: ${Math.round(metrics.strength * 100)}%.`
+            : 'Complete the build to sharpen the estimate.';
 
         if (scoreGrid) {
             const cards = [
-                { label: 'Build strength', value: `${yourStrengthPct}%`, detail: metrics.percentile !== null ? `Top ${100 - metrics.percentile}% saved builds` : 'Local score' },
-                { label: '1440p avg FPS', value: `~${fps1440Average}`, detail: 'Across named game estimates' },
+                { label: 'Build strength', value: `${yourStrengthPct}%`, detail: 'CPU/GPU blend' },
+                { label: 'Total price', value: `$${Math.round(this.totalPrice || 0).toLocaleString()}`, detail: 'Selected parts' },
                 { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' }
             ];
             scoreGrid.innerHTML = cards.map(card => `
@@ -7146,69 +7123,24 @@ class PartsDatabase {
             `).join('');
         }
 
-        if (compareSample) {
-            compareSample.textContent = averages.count ? `${averages.count.toLocaleString()} saved builds` : 'Need saved builds';
-        }
-
-        if (comparePanel) {
-            const rows = [
-                { label: 'Blended strength', yours: yourStrengthPct, avg: avgStrengthPct, suffix: '%' },
-                { label: 'GPU strength', yours: Math.round(metrics.gpuScore * 100), avg: Math.round((averages.avgGpu || 0) * 100), suffix: '%' },
-                { label: 'CPU gaming', yours: Math.round(metrics.cpuSingle * 100), avg: Math.round((averages.avgCpuSingle || 0) * 100), suffix: '%' },
-                { label: 'Total price', yours: Math.round(this.totalPrice || 0), avg: Math.round(averages.avgPrice || 0), prefix: '$' }
-            ];
-            comparePanel.innerHTML = rows.map(row => {
-                const max = Math.max(row.yours, row.avg, row.label === 'Total price' ? 1 : 100);
-                const yourPct = this.clampNumber((row.yours / max) * 100, 2, 100);
-                const avgPct = row.avg ? this.clampNumber((row.avg / max) * 100, 2, 100) : 0;
-                const fmt = value => `${row.prefix || ''}${value.toLocaleString()}${row.suffix || ''}`;
-                return `
-                    <div class="fun-compare-row">
-                        <div class="fun-compare-label">
-                            <span>${this._escapeHtml(row.label)}</span>
-                            <strong>${this._escapeHtml(fmt(row.yours))}</strong>
-                        </div>
-                        <div class="fun-compare-bars">
-                            <span class="fun-compare-bar yours" style="width:${yourPct}%"></span>
-                            <span class="fun-compare-bar average" style="width:${avgPct}%"></span>
-                        </div>
-                        <small>Average ${this._escapeHtml(fmt(row.avg || 0))}</small>
-                    </div>
-                `;
-            }).join('');
-        }
-
         if (fpsPanel) {
+            const simpleRows = fpsRows.filter(row => row.key === 'cs2' || row.key === 'warzone');
             fpsPanel.innerHTML = `
-                <div class="fun-game-fps-list">
-                    ${fpsRows.map(row => `
-                        <article class="fun-game-fps-card">
-                            <div class="fun-game-fps-title">
-                                <div>
-                                    <strong>${this._escapeHtml(row.label)}</strong>
-                                    <span>${this._escapeHtml(row.detail)}</span>
-                                </div>
-                                <b>${row.scores['1440p']} fps</b>
-                            </div>
-                            <div class="fun-game-fps-bars">
-                                ${['1080p', '1440p', '4K'].map(res => {
-                                    const fps = row.scores[res];
-                                    const pct = this.clampNumber((fps / Math.max(row.scores['1080p'], 1)) * 100, 8, 100);
-                                    return `
-                                        <div class="fun-game-fps-bar">
-                                            <span>${res}</span>
-                                            <div><i style="width:${pct}%"></i></div>
-                                            <strong>${fps}</strong>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
+                <div class="fun-game-fps-numbers">
+                    ${simpleRows.map(row => `
+                        <article class="fun-game-fps-number-card">
+                            <span>${this._escapeHtml(row.label)}</span>
+                            <strong>${row.fps}</strong>
                         </article>
                     `).join('')}
                 </div>
-                <p class="fun-stats-muted">Named-game estimates are calculated from this build's CPU/GPU scores using high or competitive settings. Actual FPS varies by patch, map, drivers, upscaling, and thermals.</p>
             `;
         }
+
+        if (dotPlotSample) {
+            dotPlotSample.textContent = buildPoints.count ? `${buildPoints.count.toLocaleString()} saved builds` : 'No saved builds yet';
+        }
+        this.renderFunStatsDotPlot(dotPlotCanvas, buildPoints.builds || [], metrics);
 
         if (balancePanel) {
             const balanceRows = [
@@ -7261,6 +7193,123 @@ class PartsDatabase {
             notesHost.innerHTML = this.getFunStatsNotes(metrics, averages)
                 .map(note => `<p><i class="fas fa-check-circle"></i>${this._escapeHtml(note)}</p>`)
                 .join('');
+        }
+    }
+
+    renderFunStatsDotPlot(canvas, savedBuilds = [], metrics = {}) {
+        if (!canvas) return;
+
+        const currentPoint = {
+            price: Math.round(this.totalPrice || 0),
+            performance: metrics.strength || 0
+        };
+        const points = savedBuilds
+            .map(build => ({
+                price: Number(build.price) || 0,
+                performance: Number(build.performance) || 0
+            }))
+            .filter(build => build.price > 0 && build.performance > 0);
+
+        const parentWidth = canvas.parentElement?.getBoundingClientRect().width || 0;
+        const cardWidth = canvas.closest('.fun-stats-card')?.getBoundingClientRect().width || 0;
+        const overlayWidth = document.getElementById('funStatsOverlayBody')?.getBoundingClientRect().width || 0;
+        const viewportFallback = Math.max(320, (window.innerWidth || 700) - 96);
+        const width = Math.max(320, parentWidth, cardWidth - 32, overlayWidth - 40, viewportFallback);
+        const height = 300;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+
+        const allPoints = currentPoint.price > 0 && currentPoint.performance > 0
+            ? [...points, currentPoint]
+            : points;
+        const padding = { left: 54, right: 18, top: 18, bottom: 46 };
+        const plotW = width - padding.left - padding.right;
+        const plotH = height - padding.top - padding.bottom;
+
+        if (!allPoints.length) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '700 13px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Saved build points will appear here.', width / 2, height / 2);
+            return;
+        }
+
+        const prices = allPoints.map(point => point.price);
+        const performanceScores = allPoints.map(point => point.performance);
+        const minPrice = Math.max(0, Math.floor(Math.min(...prices) / 250) * 250);
+        const maxPrice = Math.max(minPrice + 250, Math.ceil(Math.max(...prices) / 250) * 250);
+        const minPerformance = Math.max(0, Math.floor(Math.min(...performanceScores) * 10) / 10);
+        const maxPerformance = Math.max(minPerformance + 0.1, Math.ceil(Math.max(...performanceScores) * 10) / 10);
+        const xFor = price => padding.left + ((price - minPrice) / (maxPrice - minPrice)) * plotW;
+        const yFor = performance => padding.top + plotH - ((performance - minPerformance) / (maxPerformance - minPerformance)) * plotH;
+
+        ctx.strokeStyle = '#dbe3ef';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '700 11px Inter, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i <= 4; i += 1) {
+            const y = padding.top + (plotH / 4) * i;
+            const value = maxPerformance - ((maxPerformance - minPerformance) / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            ctx.fillText(`${Math.round(value * 100)}%`, padding.left - 8, y);
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= 4; i += 1) {
+            const x = padding.left + (plotW / 4) * i;
+            const value = minPrice + ((maxPrice - minPrice) / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, padding.top);
+            ctx.lineTo(x, padding.top + plotH);
+            ctx.stroke();
+            ctx.fillText(`$${Math.round(value).toLocaleString()}`, x, padding.top + plotH + 10);
+        }
+
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + plotH);
+        ctx.lineTo(width - padding.right, padding.top + plotH);
+        ctx.stroke();
+
+        points.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(xFor(point.price), yFor(point.performance), 3.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.38)';
+            ctx.fill();
+        });
+
+        if (currentPoint.price > 0 && currentPoint.performance > 0) {
+            const x = xFor(currentPoint.price);
+            const y = yFor(currentPoint.performance);
+            ctx.beginPath();
+            ctx.arc(x, y, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#f97316';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '800 12px Inter, sans-serif';
+            ctx.textAlign = x > width - 110 ? 'right' : 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Selected build', x > width - 110 ? x - 12 : x + 12, y);
         }
     }
 
