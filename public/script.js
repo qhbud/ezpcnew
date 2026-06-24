@@ -7113,7 +7113,6 @@ class PartsDatabase {
         const metrics = this.getFunStatsMetrics(averages);
         const fpsRows = this.getFunStatsFps(metrics);
         const fps1440Average = Math.round(fpsRows.reduce((sum, row) => sum + row.scores['1440p'], 0) / fpsRows.length);
-        const wattage = this.calculateEstimatedWattage ? this.calculateEstimatedWattage().total || 0 : this.estimateSystemPower();
         const avgStrengthPct = Math.round((metrics.avgStrength || 0) * 100);
         const yourStrengthPct = Math.round(metrics.strength * 100);
 
@@ -7126,8 +7125,6 @@ class PartsDatabase {
         const balancePanel = document.getElementById('funStatsBalancePanel');
         const budgetPanel = document.getElementById('funStatsBudgetPanel');
         const notesHost = document.getElementById('funStatsNotes');
-        const issuesPanel = document.getElementById('funStatsIssuesPanel');
-        const issueCount = document.getElementById('funStatsIssueCount');
 
         if (tierLabel) tierLabel.textContent = `${metrics.tier} ${metrics.target}`;
         if (tierNote) tierNote.textContent = metrics.percentile !== null
@@ -7138,8 +7135,7 @@ class PartsDatabase {
             const cards = [
                 { label: 'Build strength', value: `${yourStrengthPct}%`, detail: metrics.percentile !== null ? `Top ${100 - metrics.percentile}% saved builds` : 'Local score' },
                 { label: '1440p avg FPS', value: `~${fps1440Average}`, detail: 'Across named game estimates' },
-                { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' },
-                { label: 'Power estimate', value: `${wattage}W`, detail: 'System draw estimate' }
+                { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' }
             ];
             scoreGrid.innerHTML = cards.map(card => `
                 <article class="fun-stat-kpi">
@@ -7180,39 +7176,6 @@ class PartsDatabase {
                     </div>
                 `;
             }).join('');
-        }
-
-        if (issuesPanel) {
-            const issueSummary = this.classifyCompatibilityIssues
-                ? this.classifyCompatibilityIssues(this.currentBuild, { total: wattage })
-                : { problems: [], warnings: [] };
-            const problems = issueSummary.problems || [];
-            const warnings = issueSummary.warnings || [];
-            const totalIssues = problems.length + warnings.length;
-
-            if (issueCount) {
-                issueCount.textContent = totalIssues === 0
-                    ? 'Clear'
-                    : `${problems.length ? `${problems.length} problem${problems.length === 1 ? '' : 's'}` : ''}${problems.length && warnings.length ? ', ' : ''}${warnings.length ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : ''}`;
-            }
-
-            const renderIssue = (issue, type) => `
-                <article class="fun-stats-issue fun-stats-issue-${type}">
-                    <i class="fas ${type === 'problem' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}"></i>
-                    <div>
-                        <strong>${this._escapeHtml(issue.title)}</strong>
-                        <span>${this._escapeHtml(issue.detail)}</span>
-                    </div>
-                </article>
-            `;
-
-            issuesPanel.classList.toggle('has-issues', totalIssues > 0);
-            issuesPanel.innerHTML = totalIssues === 0
-                ? '<div class="fun-stats-issue-clear"><i class="fas fa-check-circle"></i><span>No compatibility issues detected for this build.</span></div>'
-                : `
-                    ${problems.map(issue => renderIssue(issue, 'problem')).join('')}
-                    ${warnings.map(issue => renderIssue(issue, 'warning')).join('')}
-                `;
         }
 
         if (fpsPanel) {

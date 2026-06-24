@@ -2159,7 +2159,7 @@ tr.incompatible td {
 }
 .fun-stats-score-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-3);
 }
 .fun-stat-kpi {
@@ -2195,7 +2195,7 @@ tr.incompatible td {
 }
 .fun-stats-money-grid {
     display: grid;
-    grid-template-columns: minmax(360px, 1fr) minmax(280px, 0.48fr);
+    grid-template-columns: 1fr;
     gap: var(--space-5);
 }
 .fun-stats-showcase-grid {
@@ -2631,6 +2631,8 @@ tr.incompatible td {
     overflow: visible;
     box-shadow: 0 28px 80px rgba(15, 23, 42, 0.26);
     animation: funSummaryExpand 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes funSummaryExpand {
@@ -2653,9 +2655,6 @@ tr.incompatible td {
     position: static;
     top: auto;
     flex-shrink: 0;
-    width: clamp(340px, 28vw, 420px);
-    min-width: 340px;
-    margin-left: auto;
     margin-bottom: var(--space-5);
 }
 
@@ -2663,6 +2662,29 @@ tr.incompatible td {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-4);
+}
+
+.summary-price-history-panel {
+    display: none;
+    min-height: 164px;
+    padding: var(--space-4);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: var(--radius-lg);
+    background: #f8fafc;
+}
+
+.summary-price-history-panel .build-price-history-chart {
+    min-height: 122px;
+}
+
+.build-summary-box.fun-stats-expanded .summary-expanded-top {
+    grid-template-columns: minmax(420px, 1fr) minmax(340px, 420px);
+    align-items: stretch;
+}
+
+.build-summary-box.fun-stats-expanded .summary-price-history-panel {
+    display: flex;
+    flex-direction: column;
 }
 
 .build-summary-box.fun-stats-expanded .build-actions {
@@ -2674,10 +2696,19 @@ tr.incompatible td {
 .build-summary-box.fun-stats-expanded > .saved-builds-section,
 .build-summary-box.fun-stats-expanded > .compatibility-section,
 .build-summary-box.fun-stats-expanded > .build-contact-info {
-    display: none;
+    width: clamp(340px, 28vw, 420px);
+    min-width: 340px;
+    margin-left: auto;
+}
+
+.build-summary-box.fun-stats-expanded > .saved-builds-section,
+.build-summary-box.fun-stats-expanded > .compatibility-section,
+.build-summary-box.fun-stats-expanded > .build-contact-info {
+    order: 1;
 }
 
 .build-summary-box.fun-stats-expanded .fun-stats-overlay {
+    order: 2;
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
