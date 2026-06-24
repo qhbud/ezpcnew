@@ -1429,31 +1429,6 @@
                 </div>
             </section>
 
-            <section id="buildBalanceSection" class="balance-meter-section is-incomplete" style="display: none;" aria-labelledby="buildBalanceHeading" data-balance-meter data-balance-state="incomplete" data-balance-label="Add CPU/GPU" data-balance-position="" data-cpu-score="" data-cpu-multi-score="" data-gpu-score="" data-balance-ratio="">
-                <div class="balance-meter-header">
-                    <div>
-                        <h3 id="buildBalanceHeading"><i class="fas fa-balance-scale"></i> CPU/GPU Balance</h3>
-                        <p id="buildBalanceExplanation">Add a CPU and GPU to see whether the pair is balanced.</p>
-                    </div>
-                    <span id="buildBalanceStatus" class="balance-meter-status incomplete">Add CPU/GPU</span>
-                </div>
-                <div class="balance-meter-track-wrap">
-                    <div id="buildBalanceTrack" class="balance-meter-track" role="meter" aria-label="CPU and GPU balance position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
-                        <span id="buildBalanceNeedle" class="balance-meter-needle" style="left: 50%;" aria-hidden="true"></span>
-                    </div>
-                    <div class="balance-meter-scale" aria-hidden="true">
-                        <span>GPU limit</span>
-                        <span>Balanced</span>
-                        <span>CPU limit</span>
-                    </div>
-                </div>
-                <div class="balance-meter-scores" aria-label="Balance scores">
-                    <span>CPU <strong id="buildBalanceCpuScore">-</strong></span>
-                    <span>GPU <strong id="buildBalanceGpuScore">-</strong></span>
-                    <span>Ratio <strong id="buildBalanceRatio">-</strong></span>
-                </div>
-            </section>
-
             <div class="pc-build-container">
                 <div class="component-selectors">
                     <!-- Row 1: GPU and CPU -->
@@ -1630,7 +1605,12 @@
                     <!-- Total Price Section -->
                     <div class="build-summary-header">
                         <div class="build-total-section">
-                            <h3><i class="fas fa-desktop"></i> Your PC Build</h3>
+                            <h3>
+                                <button id="funStatsCloseBtn" class="fun-stats-close-btn" type="button" aria-label="Close fun stats" title="Close fun stats">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <i class="fas fa-desktop"></i> Your PC Build
+                            </h3>
                             <div class="summary-expanded-top">
                                 <div id="summaryPriceHistoryPanel" class="summary-price-history-panel" aria-hidden="true">
                                     <div class="fun-stats-section-head">
@@ -1646,13 +1626,38 @@
                                             </div>
                                             <div id="funStatsBudgetPanel"></div>
                                         </section>
+                                        <section id="buildBalanceSection" class="balance-meter-section is-incomplete" style="display: none;" aria-labelledby="buildBalanceHeading" data-balance-meter data-balance-state="incomplete" data-balance-label="Add CPU/GPU" data-balance-position="" data-cpu-score="" data-cpu-multi-score="" data-gpu-score="" data-balance-ratio="">
+                                            <div class="balance-meter-header">
+                                                <div>
+                                                    <h3 id="buildBalanceHeading"><i class="fas fa-balance-scale"></i> CPU/GPU Balance</h3>
+                                                    <p id="buildBalanceExplanation">Add a CPU and GPU to see whether the pair is balanced.</p>
+                                                </div>
+                                                <span id="buildBalanceStatus" class="balance-meter-status incomplete">Add CPU/GPU</span>
+                                            </div>
+                                            <div class="balance-meter-track-wrap">
+                                                <div id="buildBalanceTrack" class="balance-meter-track" role="meter" aria-label="CPU and GPU balance position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+                                                    <span id="buildBalanceNeedle" class="balance-meter-needle" style="left: 50%;" aria-hidden="true"></span>
+                                                </div>
+                                                <div class="balance-meter-scale" aria-hidden="true">
+                                                    <span>GPU limit</span>
+                                                    <span>Balanced</span>
+                                                    <span>CPU limit</span>
+                                                </div>
+                                            </div>
+                                            <div class="balance-meter-scores" aria-label="Balance scores">
+                                                <span>CPU <strong id="buildBalanceCpuScore">-</strong></span>
+                                                <span>GPU <strong id="buildBalanceGpuScore">-</strong></span>
+                                                <span>Ratio <strong id="buildBalanceRatio">-</strong></span>
+                                            </div>
+                                            <div id="buildBalanceExtras" class="balance-extras"></div>
+                                        </section>
                                     </div>
                                 </div>
                                 <div class="summary-price-column">
-                                    <div class="total-price-display">
+                                    <button id="addToAmazonCartBtn" class="total-price-display total-price-cart-btn" type="button" title="Add this build to your Amazon cart" aria-label="Add this build to your Amazon cart">
                                         <span class="total-label">Total Price:</span>
-                                        <span class="total-amount">$<span id="totalPrice">0.00</span></span>
-                                    </div>
+                                        <span class="total-amount">$<span id="totalPrice">0.00</span><i class="fas fa-shopping-cart total-cart-icon"></i></span>
+                                    </button>
                                     <div id="summaryExpandedActionsSlot" class="summary-expanded-actions-slot" aria-hidden="true"></div>
                                     <div id="summaryExpandedRailSlot" class="summary-expanded-rail-slot" aria-hidden="true"></div>
                                 </div>
@@ -1668,24 +1673,13 @@
                         <button id="funStatsBtn" class="action-btn secondary">
                             <i class="fas fa-chart-simple"></i> Fun Stats
                         </button>
-                        <button id="addToAmazonCartBtn" class="action-btn primary">
-                            <i class="fab fa-amazon"></i> Add to Amazon Cart
-                        </button>
                     </div>
 
                     <!-- Fun Stats: the build summary card expands over the component list,
                          then this panel opens inside the same card. -->
                     <div id="funStatsOverlay" class="fun-stats-overlay" aria-hidden="true">
                         <div class="fun-stats-overlay-body" id="funStatsOverlayBody">
-                            <div class="fun-stats-score-grid" id="funStatsScoreGrid"></div>
-                            <div class="fun-stats-main-grid fun-stats-main-grid-single">
-                                <section class="fun-stats-card fun-stats-card-fps">
-                                    <div class="fun-stats-section-head">
-                                        <h5><i class="fas fa-gauge-high"></i> Real Game FPS Estimates</h5>
-                                        <span>High settings</span>
-                                    </div>
-                                    <div id="funStatsFpsPanel"></div>
-                                </section>
+                            <div class="fun-stats-main-grid fun-stats-overlay-grid">
                                 <section class="fun-stats-card fun-stats-card-dot-plot">
                                     <div class="fun-stats-section-head">
                                         <h5><i class="fas fa-chart-line"></i> Price vs Performance</h5>
@@ -1695,14 +1689,14 @@
                                         <canvas id="funStatsDotPlotCanvas" aria-label="Saved build price versus performance dot plot"></canvas>
                                     </div>
                                 </section>
+                                <section class="fun-stats-card fun-stats-card-fps">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-gauge-high"></i> Real Game FPS Estimates</h5>
+                                        <span>High settings</span>
+                                    </div>
+                                    <div id="funStatsFpsPanel"></div>
+                                </section>
                             </div>
-                            <section class="fun-stats-card">
-                                <div class="fun-stats-section-head">
-                                    <h5><i class="fas fa-lightbulb"></i> What This Build Says</h5>
-                                    <span>Quick read</span>
-                                </div>
-                                <div id="funStatsNotes" class="fun-stats-notes"></div>
-                            </section>
                         </div>
                     </div>
 

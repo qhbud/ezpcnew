@@ -2196,6 +2196,31 @@ tr.incompatible td {
 .fun-stats-main-grid-single {
     grid-template-columns: minmax(0, 1fr);
 }
+/* Expanded Fun Stats bottom band: a large price/performance scatter on the
+   left beside the FPS estimates on the right, both stretched to equal height,
+   so the row fills its width instead of stranding the plot in empty space. */
+.fun-stats-overlay-grid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.85fr);
+    align-items: stretch;
+}
+.fun-stats-overlay-grid .fun-stats-card-dot-plot,
+.fun-stats-overlay-grid .fun-stats-card-fps {
+    display: flex;
+    flex-direction: column;
+}
+.fun-stats-overlay-grid .fun-dot-plot-wrap {
+    flex: 1 1 auto;
+}
+.fun-stats-overlay-grid .fun-stats-card-fps #funStatsFpsPanel {
+    flex: 1 1 auto;
+    display: flex;
+}
+.fun-stats-overlay-grid .fun-stats-card-fps .fun-game-fps-numbers {
+    flex: 1 1 auto;
+    width: 100%;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 1fr;
+}
 .fun-stats-money-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -2286,15 +2311,22 @@ tr.incompatible td {
 }
 .fun-game-fps-number-card strong {
     color: #0f172a;
-    font-size: clamp(2.1rem, 4vw, 3.4rem);
+    font-size: clamp(1.7rem, 3vw, 2.7rem);
     line-height: 0.95;
+    white-space: nowrap;
 }
 .fun-game-fps-number-card strong::after {
     content: " FPS";
     color: #64748b;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 800;
     vertical-align: baseline;
+}
+.fun-game-fps-sub {
+    margin-top: 4px;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 .fun-dot-plot-wrap {
     width: 100%;
@@ -2556,7 +2588,7 @@ tr.incompatible td {
     margin-top: 3px;
     color: #059669;
 }
-.build-price-history-chart { width: 100%; min-height: 190px; }
+.build-price-history-chart { width: 100%; min-height: 190px; position: relative; }
 .build-price-history-chart .gpu-price-loading { color: var(--text-muted); padding: var(--space-6); text-align: center; }
 
 /* The Performance Statistics box is relocated inside the overlay; strip its
@@ -2685,15 +2717,26 @@ tr.incompatible td {
     to { transform: translateX(0) scale(1); opacity: 1; }
 }
 
+/* When Fun Stats is NOT expanded, the entire "Your PC Build" side panel sticks
+   and stays with the user as they scroll the component list (desktop only — it
+   stacks static below the cards on mobile). The expanded state uses absolute
+   positioning instead, so this is scoped to :not(.fun-stats-expanded). */
+@media (min-width: 1025px) {
+    .build-summary-box:not(.fun-stats-expanded) {
+        position: sticky;
+        top: 170px;
+        align-self: flex-start;
+        max-height: calc(100vh - 186px);
+        overflow-y: auto;
+    }
+}
+
 .build-summary-header {
     margin: calc(var(--space-6) * -1) calc(var(--space-6) * -1) var(--space-5);
     padding: var(--space-6) var(--space-6) var(--space-5);
     border-bottom: 1px solid var(--bg-tertiary);
     background: var(--bg-primary);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    position: sticky;
-    top: 170px;
-    z-index: 5;
 }
 
 .build-summary-box.fun-stats-expanded .build-summary-header {
@@ -2754,6 +2797,56 @@ tr.incompatible td {
     align-items: stretch;
 }
 
+/* Extra detail filling the space under the CPU/GPU balance meter. */
+.balance-extras {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px dashed #dbe3ef;
+    display: grid;
+    gap: var(--space-3);
+}
+.balance-extras:empty {
+    display: none;
+}
+.balance-extras-target {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 600;
+}
+.balance-extras-target i { color: #2563eb; }
+.balance-extras-target strong { color: #0f172a; }
+.balance-extras-bars {
+    display: grid;
+    gap: 9px;
+}
+.balance-extras-bar {
+    display: grid;
+    grid-template-columns: minmax(112px, auto) 1fr 38px;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+}
+.balance-extras-bar > div {
+    height: 8px;
+    border-radius: 999px;
+    background: #eef2f7;
+    overflow: hidden;
+}
+.balance-extras-bar > div > i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+.balance-extras-bar > strong {
+    color: #0f172a;
+    text-align: right;
+}
+
 .summary-history-extras .fun-stats-card,
 .summary-history-extras .balance-meter-section {
     margin: 0;
@@ -2789,9 +2882,38 @@ tr.incompatible td {
     min-width: 0;
     margin: 0;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
 }
+
+/* Close (X) for the Fun Stats popup — sits beside the "Your PC Build" title and
+   only appears while the popup is expanded. */
+.fun-stats-close-btn {
+    display: none;
+}
+.build-summary-box.fun-stats-expanded .fun-stats-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin-right: 10px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: #eef2f7;
+    color: #475569;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.build-summary-box.fun-stats-expanded .fun-stats-close-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+.build-summary-box.fun-stats-expanded .fun-stats-close-btn i { color: inherit; }
 
 .build-summary-box.fun-stats-expanded .summary-expanded-actions-slot .action-btn {
     min-width: 0;
@@ -2848,27 +2970,60 @@ tr.incompatible td {
     }
 }
 
+/* The total-price block doubles as the "Add to Amazon cart" button:
+   Amazon-logo orange (#FF9900) with a shopping-cart icon next to the price. */
 .total-price-display {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
-    padding: 12px 16px;
+    gap: 12px;
+    width: 100%;
+    background: linear-gradient(135deg, #ff9900, #f08804);
+    padding: 14px 18px;
+    border: none;
     border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    box-shadow: 0 6px 16px rgba(255, 153, 0, 0.3);
+    transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.total-price-display:hover:not(:disabled) {
+    background: linear-gradient(135deg, #f08804, #e07b00);
+    box-shadow: 0 8px 22px rgba(255, 153, 0, 0.42);
+}
+
+.total-price-display:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.total-price-display:disabled {
+    background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+    box-shadow: none;
+    cursor: not-allowed;
 }
 
 .total-label {
     font-size: 0.875rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.85);
+    font-weight: 700;
+    color: rgba(15, 17, 17, 0.78);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
 .total-amount {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     font-size: 1.375rem;
-    font-weight: 700;
-    color: white;
+    font-weight: 800;
+    color: #0f1111;
+}
+
+.total-cart-icon {
+    font-size: 1.05em;
+    color: #0f1111;
 }
 
 .build-total-section h3 {
@@ -2976,16 +3131,6 @@ tr.incompatible td {
 .saved-build-btn.delete:hover { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
 
 /* Amazon Button Styling */
-#addToAmazonCartBtn {
-    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
-    box-shadow: var(--shadow-elevation-medium) !important;
-}
-
-#addToAmazonCartBtn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%) !important;
-    box-shadow: var(--shadow-elevation-high) !important;
-}
-
 /* Compatibility Section */
 .compatibility-section {
     padding: var(--space-3) 0 0 0;

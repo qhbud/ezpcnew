@@ -6164,6 +6164,39 @@ class PartsDatabase {
         const hasVerdict = state.state === 'balanced' || state.state === 'cpu-limited' || state.state === 'gpu-bound';
         meter.style.display = hasVerdict ? '' : 'none';
 
+        // Fill the space below the meter with the per-part performance breakdown
+        // plus a recommended resolution, instead of leaving it empty.
+        const extrasEl = document.getElementById('buildBalanceExtras');
+        if (extrasEl) {
+            if (hasVerdict) {
+                const gpuPct = Math.round((state.gpuScore || 0) * 100);
+                const cpuPct = Math.round((state.cpuScore || 0) * 100);
+                const multiPct = Math.round((state.cpuMultiScore || 0) * 100);
+                const target = state.gpuScore >= 0.78 ? '4K Ultra'
+                    : state.gpuScore >= 0.5 ? '1440p high-refresh'
+                    : state.gpuScore >= 0.3 ? '1080p / entry 1440p'
+                    : '1080p gaming';
+                const bars = [
+                    ['GPU horsepower', gpuPct, '#2563eb'],
+                    ['CPU gaming', cpuPct, '#059669'],
+                    ['CPU multitasking', multiPct, '#7c3aed']
+                ];
+                extrasEl.innerHTML = `
+                    <div class="balance-extras-target"><i class="fas fa-bullseye"></i> Best suited for <strong>${this._escapeHtml(target)}</strong></div>
+                    <div class="balance-extras-bars">
+                        ${bars.map(([label, value, color]) => `
+                            <div class="balance-extras-bar">
+                                <span>${this._escapeHtml(label)}</span>
+                                <div><i style="width:${Math.max(4, Math.min(100, value))}%; background:${color}"></i></div>
+                                <strong>${value}%</strong>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            } else {
+                extrasEl.innerHTML = '';
+            }
+        }
+
         return state;
     }
 
@@ -6567,6 +6600,19 @@ class PartsDatabase {
                 problems.push({
                     title: 'RAM type not supported',
                     detail: `${getName(ram, 'The selected RAM')} is ${ramType}, but ${getName(motherboard, 'the selected motherboard')} supports ${mbRamSupportDisplay}. The memory type must match the motherboard.`
+                });
+            }
+        }
+
+        // Cross-check: even before a motherboard is chosen, a CPU + RAM combo can
+        // have no possible motherboard in our catalog (e.g. AM5 CPU + DDR4 RAM).
+        if (cpu && ram && !motherboard) {
+            const supported = this._supportedMemoryTypesForCpu(cpu);
+            const ramGen = this._ddrGen(ram.memoryType);
+            if (supported && ramGen && !supported.has(ramGen)) {
+                problems.push({
+                    title: 'No motherboard fits this CPU + RAM',
+                    detail: `${getName(cpu, 'The selected CPU')} (${cpu.socket || cpu.socketType || 'this socket'}) only pairs with ${[...supported].join('/')} memory, but ${getName(ram, 'the selected RAM')} is ${ramGen}. Swap the RAM or pick a different CPU.`
                 });
             }
         }
@@ -7012,7 +7058,12 @@ class PartsDatabase {
                 const floor = res === '4K' ? 20 : 28;
                 scores[res] = Math.max(floor, Math.round(game.base[res] * scale));
             });
-            return { ...game, scores, fps: scores['1440p'] };
+            // Real games swing with scene complexity, so present a band around the
+            // 1440p estimate rather than a single falsely-precise number.
+            const avg = scores['1440p'];
+            const fpsLow = Math.max(20, Math.round(avg * 0.86));
+            const fpsHigh = Math.round(avg * 1.14);
+            return { ...game, scores, fps: avg, fpsLow, fpsHigh };
         });
     }
 
@@ -7051,32 +7102,6 @@ class PartsDatabase {
             .map(row => ({ ...row, pct: total ? (row.price / total) * 100 : 0 }));
     }
 
-    getFunStatsNotes(metrics, averages = {}) {
-        const notes = [];
-        const gpuPct = Math.round(metrics.gpuScore * 100);
-        const cpuPct = Math.round(metrics.cpuSingle * 100);
-        const gpuSpend = this.getPartPrice(this.currentBuild.gpu);
-        const cpuSpend = this.getPartPrice(this.currentBuild.cpu);
-        const pricedTotal = this.totalPrice || 0;
-
-        notes.push(`${metrics.tier} class: this build is best described as ${metrics.target}.`);
-        if (gpuSpend && pricedTotal) {
-            const gpuShare = Math.round((gpuSpend / pricedTotal) * 100);
-            notes.push(`GPU share is ${gpuShare}% of the budget, which ${gpuShare >= 35 ? 'puts money where gaming performance usually matters most' : 'keeps graphics spend conservative'}.`);
-        }
-        if (Math.abs(metrics.gpuScore - metrics.cpuSingle) < 0.16) {
-            notes.push(`CPU/GPU balance looks clean (${cpuPct}% CPU gaming score, ${gpuPct}% GPU score).`);
-        } else if (metrics.gpuScore > metrics.cpuSingle) {
-            notes.push(`The GPU is stronger than the CPU on paper, so very high-FPS 1080p games may lean CPU-limited.`);
-        } else {
-            notes.push(`The CPU has extra headroom relative to the GPU, useful for upgrades or CPU-heavy games.`);
-        }
-        if (cpuSpend && pricedTotal) {
-            notes.push(`CPU spend is ${Math.round((cpuSpend / pricedTotal) * 100)}% of the build, which is useful context for future tuning.`);
-        }
-        return notes.slice(0, 5);
-    }
-
     async renderFunStatsOverview() {
         let averages = { count: 0 };
         let buildPoints = { builds: [], count: 0 };
@@ -7091,37 +7116,19 @@ class PartsDatabase {
 
         const metrics = this.getFunStatsMetrics(averages);
         const fpsRows = this.getFunStatsFps(metrics);
-        const yourStrengthPct = Math.round(metrics.strength * 100);
 
         const tierLabel = document.getElementById('funStatsTierLabel');
         const tierNote = document.getElementById('funStatsTierNote');
-        const scoreGrid = document.getElementById('funStatsScoreGrid');
         const fpsPanel = document.getElementById('funStatsFpsPanel');
         const dotPlotCanvas = document.getElementById('funStatsDotPlotCanvas');
         const dotPlotSample = document.getElementById('funStatsDotPlotSample');
         const balancePanel = document.getElementById('funStatsBalancePanel');
         const budgetPanel = document.getElementById('funStatsBudgetPanel');
-        const notesHost = document.getElementById('funStatsNotes');
 
         if (tierLabel) tierLabel.textContent = `${metrics.tier} ${metrics.target}`;
         if (tierNote) tierNote.textContent = metrics.percentile !== null
             ? `Build strength estimate: ${Math.round(metrics.strength * 100)}%.`
             : 'Complete the build to sharpen the estimate.';
-
-        if (scoreGrid) {
-            const cards = [
-                { label: 'Build strength', value: `${yourStrengthPct}%`, detail: 'CPU/GPU blend' },
-                { label: 'Total price', value: `$${Math.round(this.totalPrice || 0).toLocaleString()}`, detail: 'Selected parts' },
-                { label: 'Value score', value: `${metrics.valueScore.toFixed(1)}/10`, detail: 'Performance per dollar' }
-            ];
-            scoreGrid.innerHTML = cards.map(card => `
-                <article class="fun-stat-kpi">
-                    <span>${this._escapeHtml(card.label)}</span>
-                    <strong>${this._escapeHtml(card.value)}</strong>
-                    <small>${this._escapeHtml(card.detail)}</small>
-                </article>
-            `).join('');
-        }
 
         if (fpsPanel) {
             const simpleRows = fpsRows.filter(row => row.key === 'cs2' || row.key === 'warzone');
@@ -7130,7 +7137,8 @@ class PartsDatabase {
                     ${simpleRows.map(row => `
                         <article class="fun-game-fps-number-card">
                             <span>${this._escapeHtml(row.label)}</span>
-                            <strong>${row.fps}</strong>
+                            <strong>${row.fpsLow}&ndash;${row.fpsHigh}</strong>
+                            <small class="fun-game-fps-sub">1440p &middot; high settings</small>
                         </article>
                     `).join('')}
                 </div>
@@ -7140,7 +7148,9 @@ class PartsDatabase {
         if (dotPlotSample) {
             dotPlotSample.textContent = buildPoints.count ? `${buildPoints.count.toLocaleString()} saved builds` : 'No saved builds yet';
         }
-        this.renderFunStatsDotPlot(dotPlotCanvas, buildPoints.builds || [], metrics);
+        this._dotPlotData = { savedBuilds: buildPoints.builds || [], metrics };
+        this.renderFunStatsDotPlot(dotPlotCanvas, this._dotPlotData.savedBuilds, metrics);
+        this._ensureDotPlotResizeObserver();
 
         if (balancePanel) {
             const balanceRows = [
@@ -7188,12 +7198,6 @@ class PartsDatabase {
                 `
                 : '<p class="fun-stats-muted">No priced parts yet.</p>';
         }
-
-        if (notesHost) {
-            notesHost.innerHTML = this.getFunStatsNotes(metrics, averages)
-                .map(note => `<p><i class="fas fa-check-circle"></i>${this._escapeHtml(note)}</p>`)
-                .join('');
-        }
     }
 
     renderFunStatsDotPlot(canvas, savedBuilds = [], metrics = {}) {
@@ -7210,12 +7214,14 @@ class PartsDatabase {
             }))
             .filter(build => build.price > 0 && build.performance > 0);
 
+        // Size the canvas to its actual container, not the viewport — overshooting the
+        // container makes CSS scale the displayed canvas down (max-width:100%) while the
+        // drawing keeps its larger logical width, which squishes/stretches the plot.
         const parentWidth = canvas.parentElement?.getBoundingClientRect().width || 0;
         const cardWidth = canvas.closest('.fun-stats-card')?.getBoundingClientRect().width || 0;
         const overlayWidth = document.getElementById('funStatsOverlayBody')?.getBoundingClientRect().width || 0;
-        const viewportFallback = Math.max(320, (window.innerWidth || 700) - 96);
-        const width = Math.max(320, parentWidth, cardWidth - 32, overlayWidth - 40, viewportFallback);
-        const height = 300;
+        const width = Math.max(320, parentWidth || (cardWidth - 32) || (overlayWidth - 40) || 600);
+        const height = 340;
         const dpr = window.devicePixelRatio || 1;
         canvas.width = Math.round(width * dpr);
         canvas.height = Math.round(height * dpr);
@@ -7311,6 +7317,26 @@ class PartsDatabase {
             ctx.textBaseline = 'middle';
             ctx.fillText('Selected build', x > width - 110 ? x - 12 : x + 12, y);
         }
+    }
+
+    // The dot plot canvas sizes to its container, but that container only reaches
+    // full width once the Fun Stats panel finishes expanding. Observe the wrapper
+    // and redraw whenever its width settles so the plot fills its column instead
+    // of rendering at a stale (narrow) width.
+    _ensureDotPlotResizeObserver() {
+        if (this._dotPlotResizeObserver || typeof ResizeObserver === 'undefined') return;
+        const canvas = document.getElementById('funStatsDotPlotCanvas');
+        const wrap = canvas?.closest('.fun-dot-plot-wrap') || canvas?.parentElement;
+        if (!wrap) return;
+        let lastWidth = 0;
+        this._dotPlotResizeObserver = new ResizeObserver(() => {
+            const width = Math.round(wrap.getBoundingClientRect().width);
+            if (width && Math.abs(width - lastWidth) > 2 && this._dotPlotData) {
+                lastWidth = width;
+                this.renderFunStatsDotPlot(canvas, this._dotPlotData.savedBuilds, this._dotPlotData.metrics);
+            }
+        });
+        this._dotPlotResizeObserver.observe(wrap);
     }
 
     async renderBuildStatisticsChart(componentType, canvasId, selectedComponent, useMultiThread = false) {
@@ -8821,7 +8847,6 @@ class PartsDatabase {
             }
             this._funStatsOpen = true;
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');
-            this.moveBalanceMeterForFunStats(true);
             this.moveBuildActionsForFunStats(true);
             this.moveSummaryRailForFunStats(true);
             overlay.classList.add('open');
@@ -8834,7 +8859,6 @@ class PartsDatabase {
         } else {
             this._funStatsOpen = false;
             if (summaryBox) summaryBox.classList.remove('fun-stats-expanded');
-            this.moveBalanceMeterForFunStats(false);
             this.moveBuildActionsForFunStats(false);
             this.moveSummaryRailForFunStats(false);
             overlay.classList.remove('open');
@@ -8911,33 +8935,6 @@ class PartsDatabase {
                 parent.appendChild(section);
             }
         });
-    }
-
-    moveBalanceMeterForFunStats(wantExpanded) {
-        const meter = document.getElementById('buildBalanceSection');
-        const expandedHost = document.getElementById('summaryHistoryExtras');
-        if (!meter || !expandedHost) return;
-
-        if (wantExpanded) {
-            if (!this._balanceMeterHome) {
-                this._balanceMeterHome = {
-                    parent: meter.parentElement,
-                    nextSibling: meter.nextSibling
-                };
-            }
-            if (meter.parentElement !== expandedHost) {
-                expandedHost.appendChild(meter);
-            }
-            return;
-        }
-
-        const home = this._balanceMeterHome;
-        if (!home?.parent || meter.parentElement === home.parent) return;
-        if (home.nextSibling && home.nextSibling.parentElement === home.parent) {
-            home.parent.insertBefore(meter, home.nextSibling);
-        } else {
-            home.parent.appendChild(meter);
-        }
     }
 
     // Render a price-history graph for the WHOLE build (sum of every component's
@@ -11219,6 +11216,11 @@ class PartsDatabase {
                 isCpuCompatible = normalizedCpuSocket === normalizedMotherboardSocket;
             }
         }
+        // Also block a CPU whose compatible boards can't run the already-selected RAM
+        // generation (prevents a CPU+RAM combo with no possible motherboard).
+        if (componentType === 'cpu') {
+            isCpuCompatible = isCpuCompatible && this.isCompatibleWithBuild('cpu', component);
+        }
 
         // Check RAM memory type compatibility with selected motherboard
         let isRamCompatible = true;
@@ -11239,6 +11241,11 @@ class PartsDatabase {
                     return normalizedRamType.includes(normalizedMbType) || normalizedMbType.includes(normalizedRamType);
                 });
             }
+        }
+        // Also block RAM whose generation no compatible motherboard for the selected
+        // CPU can accept (e.g. DDR4 with an AM5 CPU), even before a board is chosen.
+        if (componentType === 'ram') {
+            isRamCompatible = isRamCompatible && this.isCompatibleWithBuild('ram', component);
         }
 
         // Check cooler socket compatibility with selected CPU
@@ -12463,6 +12470,63 @@ class PartsDatabase {
     // parts already in this.currentBuild. Mirrors the rules used in
     // updateBuilderComponentDisplay. Unknown/missing spec fields default to
     // compatible so we never grey out a part just because data is incomplete.
+    // Normalize a memory-type string ("DDR5-6000", "DDR4") to its generation.
+    _ddrGen(typeStr) {
+        const n = (typeStr || '').toString().toUpperCase();
+        if (n.includes('DDR5')) return 'DDR5';
+        if (n.includes('DDR4')) return 'DDR4';
+        if (n.includes('DDR3')) return 'DDR3';
+        return null;
+    }
+
+    // DDR generations a CPU can actually pair with, derived from the motherboard
+    // catalog (boards whose socket matches the CPU). This is what prevents a
+    // CPU + RAM pairing that no motherboard in our catalog can satisfy. Falls back
+    // to a static socket→DDR table when the catalog isn't loaded yet, and returns
+    // null when it genuinely can't be determined (so callers don't over-block).
+    _supportedMemoryTypesForCpu(cpu) {
+        if (!cpu) return null;
+        const sock = (cpu.socket || cpu.socketType || '').toString().trim().toUpperCase().replace(/\s+/g, '');
+        if (!sock) return null;
+
+        const boards = (this.allMotherboards || []).filter(mb =>
+            (mb.socket || mb.socketType || '').toString().trim().toUpperCase().replace(/\s+/g, '') === sock);
+        if (boards.length) {
+            const types = new Set();
+            boards.forEach(mb => {
+                const mem = Array.isArray(mb.memoryType) ? mb.memoryType : (mb.memoryType ? [mb.memoryType] : []);
+                mem.forEach(t => { const g = this._ddrGen(t); if (g) types.add(g); });
+            });
+            if (types.size) return types;
+        }
+
+        // Fallback for well-known sockets so the rule works before the catalog loads.
+        const STATIC = {
+            AM5: ['DDR5'], AM4: ['DDR4'],
+            LGA1851: ['DDR5'], LGA1700: ['DDR4', 'DDR5'],
+            LGA1200: ['DDR4'], LGA1151: ['DDR4'],
+            STR5: ['DDR5'], STRX4: ['DDR4'], TR4: ['DDR4'], STR4: ['DDR4']
+        };
+        return STATIC[sock] ? new Set(STATIC[sock]) : null;
+    }
+
+    // Background-load the motherboard catalog (no spinner) so socket→DDR derivation
+    // is available even if the user hasn't opened the motherboard tab yet.
+    _ensureMotherboardCatalogLoaded() {
+        if ((this.allMotherboards && this.allMotherboards.length) || this._moboCatalogLoading) return;
+        this._moboCatalogLoading = true;
+        fetch('/api/parts/motherboards')
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (Array.isArray(data) && data.length) {
+                    this.allMotherboards = data;
+                    if (typeof this.checkCompatibility === 'function') this.checkCompatibility();
+                }
+            })
+            .catch(() => {})
+            .finally(() => { this._moboCatalogLoading = false; });
+    }
+
     isCompatibleWithBuild(componentType, component) {
         const build = this.currentBuild;
         if (!build || !component) return true;
@@ -12484,6 +12548,25 @@ class PartsDatabase {
         // RAM vs motherboard memory type
         if (componentType === 'ram' && build.motherboard) {
             if (!memMatch(build.motherboard.memoryType || [], component.memoryType)) return false;
+        }
+
+        // RAM vs CPU implied memory generation (when no motherboard pins it yet).
+        // If the CPU's only compatible boards use a single DDR generation, RAM of a
+        // different generation would leave no compatible motherboard — block it so
+        // the build can't dead-end. (Skipped once a motherboard is chosen, since the
+        // check above already constrains RAM directly against the board.)
+        if (componentType === 'ram' && build.cpu && !build.motherboard) {
+            const supported = this._supportedMemoryTypesForCpu(build.cpu);
+            const gen = this._ddrGen(component.memoryType);
+            if (supported && gen && !supported.has(gen)) return false;
+        }
+
+        // CPU vs RAM implied memory generation (mirror of the above): block a CPU
+        // whose compatible boards can't run the already-selected RAM generation.
+        if (componentType === 'cpu' && build.ram && !build.motherboard) {
+            const supported = this._supportedMemoryTypesForCpu(component);
+            const gen = this._ddrGen(build.ram.memoryType);
+            if (supported && gen && !supported.has(gen)) return false;
         }
 
         // Motherboard vs CPU / RAM / case
@@ -12746,6 +12829,12 @@ class PartsDatabase {
     }
 
     selectComponent(componentType, component) {
+        // A CPU or RAM choice can imply a DDR generation through the motherboard
+        // catalog; make sure that catalog is loaded so the cross-constraint applies.
+        if (componentType === 'cpu' || componentType === 'ram') {
+            this._ensureMotherboardCatalogLoaded();
+        }
+
         // If selecting a new CPU, check if we need to handle stock cooler
         if (componentType === 'cpu') {
             const coolerDiv = document.getElementById('selectedBuilderCooler');
@@ -14314,6 +14403,13 @@ class PartsDatabase {
             }
             console.log('===========================');
         }
+        // Block a CPU that can't pair with the already-selected RAM generation via any
+        // compatible motherboard (no board in the catalog would satisfy both).
+        if (componentType === 'cpu' && isCpuCompatible && !this.isCompatibleWithBuild('cpu', component)) {
+            isCpuCompatible = false;
+            const ramGen = this._ddrGen(this.currentBuild?.ram?.memoryType);
+            incompatibilityMessage = `⚠️ No compatible motherboard pairs this CPU with your ${ramGen || 'selected'} RAM`;
+        }
 
         // Check RAM compatibility with selected motherboard
         let isRamCompatible = true;
@@ -14348,6 +14444,14 @@ class PartsDatabase {
                 }
             }
             console.log('===========================');
+        }
+        // Block RAM whose generation no compatible motherboard for the selected CPU
+        // can accept (e.g. DDR4 with an AM5 CPU), even before a board is chosen.
+        if (componentType === 'ram' && isRamCompatible && !this.isCompatibleWithBuild('ram', component)) {
+            isRamCompatible = false;
+            const need = this._supportedMemoryTypesForCpu(this.currentBuild?.cpu);
+            const needStr = need ? [...need].join('/') : '';
+            incompatibilityMessage = `⚠️ Your CPU only supports ${needStr || 'a different'} memory — this RAM is ${component.memoryType || 'a different type'}`;
         }
 
         // Check motherboard compatibility with selected CPU and RAM
@@ -15568,6 +15672,13 @@ class PartsDatabase {
                 }
             }
         }
+        // Block a CPU that can't pair with the already-selected RAM generation via any
+        // compatible motherboard.
+        if (componentType === 'cpu' && isCpuCompatible && !this.isCompatibleWithBuild('cpu', component)) {
+            isCpuCompatible = false;
+            const ramGen = this._ddrGen(this.currentBuild?.ram?.memoryType);
+            incompatibilityMessage = `⚠️ No compatible motherboard pairs this CPU with your ${ramGen || 'selected'} RAM`;
+        }
 
         // Check RAM compatibility with selected motherboard
         let isRamCompatible = true;
@@ -15593,6 +15704,14 @@ class PartsDatabase {
                     incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${mbTypesStr} required, this RAM is ${ramMemoryType})`;
                 }
             }
+        }
+        // Block RAM whose generation no compatible motherboard for the selected CPU
+        // can accept (e.g. DDR4 with an AM5 CPU).
+        if (componentType === 'ram' && isRamCompatible && !this.isCompatibleWithBuild('ram', component)) {
+            isRamCompatible = false;
+            const need = this._supportedMemoryTypesForCpu(this.currentBuild?.cpu);
+            const needStr = need ? [...need].join('/') : '';
+            incompatibilityMessage = `⚠️ Your CPU only supports ${needStr || 'a different'} memory — this RAM is ${component.memoryType || 'a different type'}`;
         }
 
         // Check motherboard compatibility with selected CPU and RAM
@@ -21383,6 +21502,13 @@ class PartsDatabase {
                 }
             }
         }
+        // Block a CPU that can't pair with the already-selected RAM generation via any
+        // compatible motherboard.
+        if (isCpuCompatible && !this.isCompatibleWithBuild('cpu', cpu)) {
+            isCpuCompatible = false;
+            const ramGen = this._ddrGen(this.currentBuild?.ram?.memoryType);
+            incompatibilityMessage = `⚠️ No compatible motherboard pairs this CPU with your ${ramGen || 'selected'} RAM`;
+        }
 
         let html = this.renderScatterSelectedInfo('cpu', cpu, name, currentPrice, !isCpuCompatible ? 'incompatible-component' : '');
 
@@ -21627,6 +21753,14 @@ class PartsDatabase {
                     incompatibilityMessage = `⚠️ Incompatible with selected motherboard (${mbTypesStr} required, this RAM is ${ramMemoryType})`;
                 }
             }
+        }
+        // Block RAM whose generation no compatible motherboard for the selected CPU
+        // can accept (e.g. DDR4 with an AM5 CPU), even before a board is chosen.
+        if (isRamCompatible && !this.isCompatibleWithBuild('ram', ram)) {
+            isRamCompatible = false;
+            const need = this._supportedMemoryTypesForCpu(this.currentBuild?.cpu);
+            const needStr = need ? [...need].join('/') : '';
+            incompatibilityMessage = `⚠️ Your CPU only supports ${needStr || 'a different'} memory — this RAM is ${ram.memoryType || 'a different type'}`;
         }
 
         let html = this.renderScatterSelectedInfo('ram', ram, name, currentPrice, !isRamCompatible ? 'incompatible-component' : '');
