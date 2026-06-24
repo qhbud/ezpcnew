@@ -2157,24 +2157,6 @@ tr.incompatible td {
     color: #475569;
     font-size: 0.95rem;
 }
-.fun-stats-collapse-large {
-    min-width: 172px;
-    min-height: 58px;
-    border: 0;
-    border-radius: var(--radius-lg);
-    background: #0f172a;
-    color: #fff;
-    font-weight: 800;
-    font-size: 0.98rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    cursor: pointer;
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.24);
-    transition: transform 0.18s ease, background 0.18s ease;
-}
-.fun-stats-collapse-large:hover { background: #1e293b; transform: translateY(-1px); }
 .fun-stats-score-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2209,6 +2191,11 @@ tr.incompatible td {
 .fun-stats-main-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: var(--space-5);
+}
+.fun-stats-money-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) minmax(280px, 0.48fr);
     gap: var(--space-5);
 }
 .fun-stats-showcase-grid {
@@ -2666,7 +2653,10 @@ tr.incompatible td {
     position: static;
     top: auto;
     flex-shrink: 0;
-    margin-bottom: 0;
+    width: clamp(340px, 28vw, 420px);
+    min-width: 340px;
+    margin-left: auto;
+    margin-bottom: var(--space-5);
 }
 
 .summary-expanded-top {
@@ -2675,90 +2665,12 @@ tr.incompatible td {
     gap: var(--space-4);
 }
 
-.build-summary-box.fun-stats-expanded .summary-expanded-top {
-    grid-template-columns: minmax(300px, 0.42fr) minmax(420px, 1fr) minmax(280px, 0.46fr);
-    align-items: stretch;
+.build-summary-box.fun-stats-expanded .build-actions {
+    width: clamp(340px, 28vw, 420px);
+    min-width: 340px;
+    margin-left: auto;
 }
 
-.summary-price-history-panel,
-.summary-budget-shape-panel {
-    display: none;
-    min-height: 164px;
-    padding: var(--space-4);
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    border-radius: var(--radius-lg);
-    background: #f8fafc;
-}
-
-.build-summary-box.fun-stats-expanded .summary-price-history-panel,
-.build-summary-box.fun-stats-expanded .summary-budget-shape-panel {
-    display: flex;
-    flex-direction: column;
-}
-
-.summary-price-history-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    color: #0f172a;
-    font-size: 0.86rem;
-    font-weight: 800;
-    margin-bottom: var(--space-2);
-}
-
-.summary-price-history-head span {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.summary-price-history-head i { color: #2563eb; }
-
-.summary-price-history-head small {
-    color: #64748b;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.summary-price-history-panel .build-price-history-chart {
-    flex: 1;
-    min-height: 122px;
-}
-
-.summary-budget-shape-panel .fun-budget-stack {
-    height: 34px;
-}
-
-.summary-budget-shape-panel .fun-budget-list {
-    gap: 8px;
-    margin-top: var(--space-3);
-}
-
-.summary-budget-shape-panel .fun-budget-row {
-    padding-bottom: 8px;
-}
-
-.summary-budget-shape-panel .fun-budget-row span,
-.summary-budget-shape-panel .fun-budget-row strong {
-    font-size: 0.8rem;
-}
-
-.build-summary-box.fun-stats-expanded .total-price-display {
-    min-height: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: var(--space-3);
-    padding: var(--space-6);
-}
-
-.build-summary-box.fun-stats-expanded .total-amount {
-    font-size: clamp(2rem, 3.4vw, 3rem);
-    line-height: 1;
-}
-
-.build-summary-box.fun-stats-expanded .build-actions,
 .build-summary-box.fun-stats-expanded > .saved-builds-section,
 .build-summary-box.fun-stats-expanded > .compatibility-section,
 .build-summary-box.fun-stats-expanded > .build-contact-info {
@@ -2793,10 +2705,6 @@ tr.incompatible td {
 
     .build-summary-box.fun-stats-expanded .summary-expanded-top {
         grid-template-columns: 1fr;
-    }
-
-    .build-summary-box.fun-stats-expanded .total-price-display {
-        min-height: 150px;
     }
 
     .build-summary-box.fun-stats-expanded .fun-stats-overlay,

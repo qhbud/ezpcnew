@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=funstats-budget-header-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-stable-summary-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1636,20 +1636,6 @@
                                     <span class="total-label">Total Price:</span>
                                     <span class="total-amount">$<span id="totalPrice">0.00</span></span>
                                 </div>
-                                <div id="summaryPriceHistoryPanel" class="summary-price-history-panel" aria-hidden="true">
-                                    <div class="summary-price-history-head">
-                                        <span><i class="fas fa-chart-line"></i> Build Price History</span>
-                                        <small>Whole build</small>
-                                    </div>
-                                    <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
-                                </div>
-                                <div id="summaryBudgetShapePanel" class="summary-budget-shape-panel" aria-hidden="true">
-                                    <div class="summary-price-history-head">
-                                        <span><i class="fas fa-chart-pie"></i> Budget Shape</span>
-                                        <small>Part spend</small>
-                                    </div>
-                                    <div id="funStatsBudgetPanel"></div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -1658,9 +1644,6 @@
                     <div class="build-actions">
                         <button id="shareBuildBtn" class="action-btn primary">
                             <i class="fas fa-link"></i> Copy Link
-                        </button>
-                        <button id="submitCommunityBuildBtn" class="action-btn secondary">
-                            <i class="fas fa-users"></i> Share to Community
                         </button>
                         <button id="funStatsBtn" class="action-btn secondary">
                             <i class="fas fa-chart-simple"></i> Fun Stats
@@ -1687,11 +1670,23 @@
                                     <h4 id="funStatsTierLabel">Calculating build strength...</h4>
                                     <p id="funStatsTierNote">Comparing your parts against saved EZPC builds.</p>
                                 </div>
-                                <button id="funStatsCollapseHeroBtn" class="fun-stats-collapse-large" type="button">
-                                    <i class="fas fa-layer-group"></i>
-                                    Back to build
-                                </button>
                             </section>
+                            <div class="fun-stats-money-grid">
+                                <section class="fun-stats-card">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-chart-line"></i> Build Price History</h5>
+                                        <span>Whole build</span>
+                                    </div>
+                                    <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
+                                </section>
+                                <section class="fun-stats-card">
+                                    <div class="fun-stats-section-head">
+                                        <h5><i class="fas fa-chart-pie"></i> Budget Shape</h5>
+                                        <span>Part spend</span>
+                                    </div>
+                                    <div id="funStatsBudgetPanel"></div>
+                                </section>
+                            </div>
                             <section class="fun-stats-card fun-stats-issues-card">
                                 <div class="fun-stats-section-head">
                                     <h5><i class="fas fa-triangle-exclamation"></i> Build Issues</h5>
@@ -2435,7 +2430,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=45"></script>
+    <script src="script.js?v=46"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;
