@@ -2674,6 +2674,10 @@ tr.incompatible td {
     display: none;
 }
 
+.summary-expanded-rail-slot:empty {
+    display: none;
+}
+
 .summary-price-history-panel {
     display: none;
     min-height: 164px;
@@ -2729,6 +2733,12 @@ tr.incompatible td {
     display: block;
 }
 
+.build-summary-box.fun-stats-expanded .summary-expanded-rail-slot {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+}
+
 .build-summary-box.fun-stats-expanded .summary-expanded-actions-slot .build-actions {
     width: 100%;
     min-width: 0;
@@ -2745,22 +2755,15 @@ tr.incompatible td {
     line-height: 1.15;
 }
 
-.build-summary-box.fun-stats-expanded > .saved-builds-section,
-.build-summary-box.fun-stats-expanded > .compatibility-section,
-.build-summary-box.fun-stats-expanded > .build-contact-info {
-    width: clamp(340px, 28vw, 420px);
-    min-width: 340px;
-    margin-left: auto;
-}
-
-.build-summary-box.fun-stats-expanded > .saved-builds-section,
-.build-summary-box.fun-stats-expanded > .compatibility-section,
-.build-summary-box.fun-stats-expanded > .build-contact-info {
-    order: 1;
+.build-summary-box.fun-stats-expanded .summary-expanded-rail-slot > .saved-builds-section,
+.build-summary-box.fun-stats-expanded .summary-expanded-rail-slot > .compatibility-section,
+.build-summary-box.fun-stats-expanded .summary-expanded-rail-slot > .build-contact-info {
+    margin: 0;
+    min-width: 0;
+    width: 100%;
 }
 
 .build-summary-box.fun-stats-expanded .fun-stats-overlay {
-    order: 2;
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;

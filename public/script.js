@@ -8774,6 +8774,7 @@ class PartsDatabase {
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');
             this.moveBalanceMeterForFunStats(true);
             this.moveBuildActionsForFunStats(true);
+            this.moveSummaryRailForFunStats(true);
             overlay.classList.add('open');
             overlay.setAttribute('aria-hidden', 'false');
             if (btn) {
@@ -8786,6 +8787,7 @@ class PartsDatabase {
             if (summaryBox) summaryBox.classList.remove('fun-stats-expanded');
             this.moveBalanceMeterForFunStats(false);
             this.moveBuildActionsForFunStats(false);
+            this.moveSummaryRailForFunStats(false);
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
             if (btn) {
@@ -8822,6 +8824,44 @@ class PartsDatabase {
         } else {
             home.parent.appendChild(actions);
         }
+    }
+
+    moveSummaryRailForFunStats(wantExpanded) {
+        const expandedHost = document.getElementById('summaryExpandedRailSlot');
+        const sections = [
+            document.querySelector('#buildSummaryBox > .saved-builds-section, #summaryExpandedRailSlot > .saved-builds-section'),
+            document.querySelector('#buildSummaryBox > .compatibility-section, #summaryExpandedRailSlot > .compatibility-section'),
+            document.querySelector('#buildSummaryBox > .build-contact-info, #summaryExpandedRailSlot > .build-contact-info')
+        ].filter(Boolean);
+        if (!expandedHost || sections.length === 0) return;
+
+        if (wantExpanded) {
+            if (!this._summaryRailHomes) {
+                this._summaryRailHomes = sections.map(section => ({
+                    section,
+                    parent: section.parentElement,
+                    nextSibling: section.nextSibling
+                }));
+            }
+            expandedHost.setAttribute('aria-hidden', 'false');
+            sections.forEach(section => {
+                if (section.parentElement !== expandedHost) {
+                    expandedHost.appendChild(section);
+                }
+            });
+            return;
+        }
+
+        expandedHost.setAttribute('aria-hidden', 'true');
+        const homes = this._summaryRailHomes || [];
+        homes.forEach(({ section, parent, nextSibling }) => {
+            if (!section || !parent || section.parentElement === parent) return;
+            if (nextSibling && nextSibling.parentElement === parent) {
+                parent.insertBefore(section, nextSibling);
+            } else {
+                parent.appendChild(section);
+            }
+        });
     }
 
     moveBalanceMeterForFunStats(wantExpanded) {
