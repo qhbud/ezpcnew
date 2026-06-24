@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 
-// Your MongoDB Atlas connection string with database name added
-const ATLAS_URI = 'mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0';
+// MongoDB Atlas connection string — read from the environment, never hardcoded.
+require('dotenv').config({ path: require('path').join(__dirname, '.env.atlas') });
+const ATLAS_URI = process.env.MONGODB_URI;
+if (!ATLAS_URI) { console.error('MONGODB_URI is not set (put it in .env.atlas or the environment).'); process.exit(1); }
 
 async function testAtlasConnection() {
     console.log('🔌 Testing MongoDB Atlas connection...\n');

@@ -8,14 +8,14 @@ Your MongoDB Atlas cloud database is now set up and tested successfully!
 
 **Connection String:**
 ```
-mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
+mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
 ```
 
 **Database Name:** `pcbuilder`
 
 **Username:** `easypcworlddev_db_user`
 
-**Password:** `***REMOVED***`
+**Password:** `<PASSWORD>`
 
 **Status:** ✅ Tested and working!
 
@@ -61,7 +61,7 @@ mv .env.local.backup .env
 You can also set which database to use via command line:
 ```bash
 # Use Atlas
-MONGODB_URI=mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder npm start
+MONGODB_URI=mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder npm start
 ```
 
 ---
@@ -85,14 +85,14 @@ mongoexport --db=pcbuilder --collection=coolers --out=coolers.json
 mongoexport --db=pcbuilder --collection=cases --out=cases.json
 
 # Import to Atlas
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=gpus --file=gpus.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=cpus --file=cpus.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=motherboards --file=motherboards.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=ram --file=ram.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=storage --file=storage.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=psus --file=psus.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=coolers --file=coolers.json
-mongoimport --uri="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=cases --file=cases.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=gpus --file=gpus.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=cpus --file=cpus.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=motherboards --file=motherboards.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=ram --file=ram.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=storage --file=storage.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=psus --file=psus.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=coolers --file=coolers.json
+mongoimport --uri="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder" --collection=cases --file=cases.json
 ```
 
 **Option B: Re-run import scripts** (if you want fresh data)
@@ -130,11 +130,11 @@ You're ready to deploy!
 When deploying to Railway/Render, add these variables:
 
 ```
-MONGODB_URI=mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
+MONGODB_URI=mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
 DB_NAME=pcbuilder
 NODE_ENV=production
-AMAZON_ACCESS_KEY_ID=***REMOVED***
-AMAZON_SECRET_ACCESS_KEY=***REMOVED***
+AMAZON_ACCESS_KEY_ID=<AMAZON_ACCESS_KEY>
+AMAZON_SECRET_ACCESS_KEY=<AMAZON_SECRET_KEY>
 AMAZON_ASSOCIATE_TAG=qhezpc-20
 AMAZON_REGION=us-east-1
 AMAZON_HOST=webservices.amazon.com

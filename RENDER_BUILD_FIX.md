@@ -91,11 +91,11 @@ Render's free tier has limited build time. Consider:
 
 4. **Add 8 environment variables**
    ```
-   MONGODB_URI=mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
+   MONGODB_URI=mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
    DB_NAME=pcbuilder
    NODE_ENV=production
-   AMAZON_ACCESS_KEY_ID=***REMOVED***
-   AMAZON_SECRET_ACCESS_KEY=***REMOVED***
+   AMAZON_ACCESS_KEY_ID=<AMAZON_ACCESS_KEY>
+   AMAZON_SECRET_ACCESS_KEY=<AMAZON_SECRET_KEY>
    AMAZON_ASSOCIATE_TAG=qhezpc-20
    AMAZON_REGION=us-east-1
    AMAZON_HOST=webservices.amazon.com
@@ -135,11 +135,11 @@ If Render continues to have issues, Fly.io is excellent for Docker:
 
 4. **Set environment variables:**
    ```bash
-   fly secrets set MONGODB_URI="mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0"
+   fly secrets set MONGODB_URI="mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0"
    fly secrets set DB_NAME="pcbuilder"
    fly secrets set NODE_ENV="production"
-   fly secrets set AMAZON_ACCESS_KEY_ID="***REMOVED***"
-   fly secrets set AMAZON_SECRET_ACCESS_KEY="***REMOVED***"
+   fly secrets set AMAZON_ACCESS_KEY_ID="<AMAZON_ACCESS_KEY>"
+   fly secrets set AMAZON_SECRET_ACCESS_KEY="<AMAZON_SECRET_KEY>"
    fly secrets set AMAZON_ASSOCIATE_TAG="qhezpc-20"
    fly secrets set AMAZON_REGION="us-east-1"
    fly secrets set AMAZON_HOST="webservices.amazon.com"

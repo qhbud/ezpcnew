@@ -92,7 +92,7 @@ Click **"Add Environment Variable"** for each one:
 
 1. **MONGODB_URI**
    ```
-   mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
+   mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
    ```
 
 2. **DB_NAME**
@@ -107,12 +107,12 @@ Click **"Add Environment Variable"** for each one:
 
 4. **AMAZON_ACCESS_KEY_ID**
    ```
-   ***REMOVED***
+   <AMAZON_ACCESS_KEY>
    ```
 
 5. **AMAZON_SECRET_ACCESS_KEY**
    ```
-   ***REMOVED***
+   <AMAZON_SECRET_KEY>
    ```
 
 6. **AMAZON_ASSOCIATE_TAG**

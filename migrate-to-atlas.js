@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
 
-// Connection strings
-const LOCAL_URI = 'mongodb://localhost:27017/pcbuilder';
-const ATLAS_URI = 'mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0';
+// Connection strings — Atlas URI read from the environment, never hardcoded.
+require('dotenv').config({ path: require('path').join(__dirname, '.env.atlas') });
+const LOCAL_URI = process.env.LOCAL_MONGODB_URI || 'mongodb://localhost:27017/pcbuilder';
+const ATLAS_URI = process.env.MONGODB_URI;
+if (!ATLAS_URI) { console.error('MONGODB_URI is not set (put it in .env.atlas or the environment).'); process.exit(1); }
 
 async function migrateData() {
     console.log('🚀 Starting data migration from Local MongoDB to Atlas...\n');

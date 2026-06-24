@@ -48,11 +48,11 @@ If Solution 1 doesn't work:
 
 3. **Add environment variables:**
    ```
-   MONGODB_URI=mongodb+srv://easypcworlddev_db_user:***REMOVED***@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
+   MONGODB_URI=mongodb+srv://<USER>:<PASSWORD>@cluster0.agetgnb.mongodb.net/pcbuilder?appName=Cluster0
    DB_NAME=pcbuilder
    NODE_ENV=production
-   AMAZON_ACCESS_KEY_ID=***REMOVED***
-   AMAZON_SECRET_ACCESS_KEY=***REMOVED***
+   AMAZON_ACCESS_KEY_ID=<AMAZON_ACCESS_KEY>
+   AMAZON_SECRET_ACCESS_KEY=<AMAZON_SECRET_KEY>
    AMAZON_ASSOCIATE_TAG=qhezpc-20
    AMAZON_REGION=us-east-1
    AMAZON_HOST=webservices.amazon.com
