@@ -3550,6 +3550,45 @@ tr.incompatible td {
     overflow-x: hidden;
 }
 
+/* Wizard step progress bar */
+.wizard-progress {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+.wizard-progress-seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    transition: background 0.25s ease;
+}
+.wizard-progress-seg.active {
+    background: #3b82f6;
+}
+.wizard-progress-seg.done {
+    background: #93c5fd;
+}
+
+/* Budget-aware context hint (e.g. storage cap) */
+.wizard-budget-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    color: #1e40af;
+    font-size: 14px;
+    line-height: 1.4;
+}
+.wizard-budget-hint i {
+    margin-top: 2px;
+    color: #3b82f6;
+}
+
 .export-list-modal {
     max-width: 680px;
 }
@@ -6117,14 +6156,34 @@ tr.incompatible td {
 
 /* ─── Component Guide Pages (GPU, CPU, etc.) ─────────────── */
 .component-guide {
-    max-width: 860px;
-    margin: 0 auto;
+    max-width: 1280px;
+    margin: var(--space-8) auto 0;
+    padding: var(--space-6);
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    columns: 1;
+    column-gap: var(--space-8);
 }
-
-.cg-intro {
+/* Magazine-style 2-column flow on wide screens; sections stay intact. */
+@media (min-width: 1100px) {
+    .component-guide {
+        columns: 2;
+    }
+    .component-guide .cg-section {
+        break-inside: avoid;
+    }
+}
+/* Intro + wide elements always span the full width. */
+.component-guide .cg-intro,
+.component-guide .cg-specs-grid,
+.component-guide .cg-brand-table {
+    column-span: all;
+}
+.component-guide .cg-intro {
     text-align: center;
-    margin-bottom: var(--space-8);
-    padding-bottom: var(--space-6);
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-5);
     border-bottom: 1px solid var(--bg-tertiary);
 }
 

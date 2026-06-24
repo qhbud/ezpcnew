@@ -6731,6 +6731,37 @@ class PartsDatabase {
         this.updateBuildDock();
     }
 
+    // True when the PSU clearly ships a native 12VHPWR / 12V-2x6 GPU connector.
+    // PSUs have no structured connector field, so we read the signals that appear
+    // in the product name/description/features: an ATX 3.0/3.1 or PCIe 5.x rating
+    // (both mandate the 16-pin cable) or an explicit 12VHPWR / 12V-2x6 / 16-pin
+    // mention. When this returns true we suppress the "verify connector" warning.
+    _psuHasHighPowerConnector(psu) {
+        if (!psu) return false;
+        const hay = [
+            psu.name, psu.title, psu.description,
+            Array.isArray(psu.features) ? psu.features.join(' ') : psu.features
+        ].filter(Boolean).join(' ');
+        return /12VHPWR|12V-?2x6|12V-?2×6|16[- ]?pin|ATX\s?3\.[01]\b|ATX3\.[01]\b|PCI-?E\s?5(\.[01])?\b/i.test(hay);
+    }
+
+    // A drive counts as an SSD when its type says so ("M.2 SSD" / "SATA SSD").
+    // "SSHD" (spinning hybrid) and "HDD" do not — they boot slowly.
+    _storagePartIsSsd(part) {
+        const t = String(part?.type || part?.storageType || '').toLowerCase();
+        return t.includes('ssd') && !t.includes('sshd');
+    }
+
+    // Gather every storage drive in a build, across the wizard shape (storage may
+    // be an array) and the manual builder slots (storage2…storage6).
+    _collectStorageDrives(build) {
+        const drives = [];
+        const push = v => { if (v) (Array.isArray(v) ? v : [v]).forEach(d => d && drives.push(d)); };
+        push(build?.storage);
+        ['storage2', 'storage3', 'storage4', 'storage5', 'storage6'].forEach(k => push(build?.[k]));
+        return drives;
+    }
+
     classifyCompatibilityIssues(build, wattageInfo = { total: 0 }) {
         const problems = [];
         const warnings = [];
@@ -6847,14 +6878,27 @@ class PartsDatabase {
             }
         }
 
-        // Advise on high-power GPU connector requirements when connector data is unavailable.
+        // Advise on high-power GPU connector requirements — but only when we can't
+        // already confirm the selected PSU ships the 12VHPWR / 12V-2x6 connector.
+        // ATX 3.0/3.1 and PCIe 5.x PSUs include it natively, so if the PSU's name
+        // (or description/features) says so, there's nothing for the user to verify.
         const gpuTdp = gpu?.tdp === null || gpu?.tdp === undefined || gpu?.tdp === ''
             ? null
             : Number(gpu.tdp);
-        if (Number.isFinite(gpuTdp) && gpuTdp >= 300) {
+        if (Number.isFinite(gpuTdp) && gpuTdp >= 300 && !this._psuHasHighPowerConnector(psu)) {
             warnings.push({
                 title: 'Verify high-power GPU connector',
                 detail: `${getName(gpu, 'The selected GPU')} is rated at ${gpuTdp}W. High-power cards may require a 12VHPWR / 12V-2x6 power connector from an ATX 3.0/3.1 PSU or the card's bundled adapter. Confirm the selected PSU supplies the required connection before buying.`
+            });
+        }
+
+        // Warn when the build has storage but no SSD — an HDD/SSHD-only system
+        // boots slowly and feels sluggish. Every build should have an SSD.
+        const storageDrives = this._collectStorageDrives(build);
+        if (storageDrives.length > 0 && !storageDrives.some(d => this._storagePartIsSsd(d))) {
+            warnings.push({
+                title: 'No SSD selected',
+                detail: 'This build only has a hard drive (HDD). Add an SSD as the boot drive — it makes Windows and apps start in seconds instead of minutes and is the single biggest quality-of-life upgrade for a PC.'
             });
         }
 
@@ -17100,6 +17144,14 @@ class PartsDatabase {
                     c.color || c.specifications?.color
                 ]
             },
+            storage: {
+                itemKey: 'storage', selProp: '_storageTabSelectedStorage', card: '_renderStorageProductCard',
+                noChart: true, icon: 'fa-hdd',
+                metricLabel: 'Capacity',
+                metric: s => parseFloat(s.capacity || s.capacityGB) || 0,
+                badge: s => { const c = parseFloat(s.capacity || s.capacityGB) || 0; return c ? (c >= 1000 ? (c / 1000 % 1 === 0 ? c / 1000 : (c / 1000).toFixed(1)) + 'TB' : c + 'GB') : null; },
+                tags: s => [s.manufacturer || s.brand, this._storageTypeBucket(s), s.readSpeed ? `${s.readSpeed} MB/s` : null]
+            },
             addon: {
                 itemKey: 'addon', selProp: '_addonCardCurrent', card: '_renderAddonProductCard',
                 noChart: true, noMetric: true, icon: 'fa-plus-circle',
@@ -17306,7 +17358,7 @@ class PartsDatabase {
         const priceLabel = isPrice ? `Price ${sort === 'price-asc' ? '&uarr;' : '&darr;'}` : 'Price';
         const metricLabel = isMetric ? `${cfg.metricLabel} ${sort === 'metric-asc' ? '&uarr;' : '&darr;'}` : cfg.metricLabel;
         const metricChip = cfg.noMetric ? '' : `<button type="button" class="gc-chip gpu-sort-btn${isMetric ? ' active' : ''}" data-sort-key="metric">${metricLabel}</button>`;
-        const countLabel = kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind + 's';
+        const countLabel = kind === 'psu' ? 'PSUs' : kind === 'cpu' ? 'CPUs' : kind === 'storage' ? 'drives' : kind + 's';
         const header = `<div class="mobo-results-head">
             <span><strong>${rows.length}</strong> ${countLabel}</span>
             <div class="gpu-sort-controls">
@@ -20407,8 +20459,13 @@ class PartsDatabase {
             if (!this.allStorage || this.allStorage.length === 0) await this.loadAllStorage();
             const items = this.allStorage || [];
             const best = this._pickBestValueGeneric(items);
-            if (best) this._renderStorageProductCard(best);
+            if (best) {
+                this._storageTabSelectedStorage = best;
+                this._renderStorageProductCard(best);
+            }
             this._renderStorageTabScatterPlot(items);
+            this._renderTabList('storage', items);
+            if (best) this._renderTabPriceHistory('storage', best);
             this._storageListingsRendered = true;
         } catch (e) {
             console.error('Storage listings error:', e);
@@ -20601,7 +20658,7 @@ class PartsDatabase {
                 });
                 if (closest && closestDist <= 10) {
                     this._storageSelected = closest.storage;
-                    this._renderStorageProductCard(closest.storage);
+                    this._tabSelect('storage', closest.storage);
                     this._drawStorageChart();
                 }
             });

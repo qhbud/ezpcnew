@@ -1958,16 +1958,42 @@
             <div class="component-guide">
                 <div class="cg-intro">
                     <h2><i class="fas fa-box"></i> Case Guide</h2>
-                    <p>Pick the right case and your whole build comes together — wrong case and you're fighting clearance, airflow, and cable routing all night.</p>
+                    <p>The case is the chassis everything bolts into — get it right and the build comes together; get it wrong and you're fighting clearance, airflow, and cable routing all night.</p>
                 </div>
                 <section class="cg-section">
-                    <h3>What to Look For</h3>
+                    <h3>Form Factors</h3>
                     <ul>
-                        <li><strong>Form factor</strong> — must match your motherboard (ATX, mATX, ITX). An ATX case fits smaller boards; an ITX case will not fit larger ones.</li>
-                        <li><strong>GPU clearance</strong> — modern flagship GPUs are 320–360mm long. Always check the case's max GPU length spec.</li>
-                        <li><strong>CPU cooler clearance</strong> — tower air coolers need 160mm+ vertical clearance; AIO radiators need front or top mounting points.</li>
-                        <li><strong>Airflow</strong> — mesh fronts beat tempered-glass fronts for cooling. Look for cases with at least 3 fan mounts.</li>
-                        <li><strong>Cable management</strong> — depth behind the motherboard tray (20mm+) makes tucking cables easy and keeps the build clean.</li>
+                        <li><strong>Full Tower</strong> — fits E-ATX/ATX boards, 360mm+ radiators, large GPUs. Best for high-end builds with custom loops.</li>
+                        <li><strong>Mid Tower</strong> — the standard. Fits ATX/mATX/ITX, most coolers, full-length GPUs. Picks 90% of builds win.</li>
+                        <li><strong>Micro-ATX (mATX)</strong> — smaller footprint for mATX boards. Compromises GPU/cooler clearance.</li>
+                        <li><strong>Mini-ITX</strong> — under 20L, fits ITX boards only. Premium price, hardest to build in, but small and quiet.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Clearance Specs to Check</h3>
+                    <ul>
+                        <li><strong>Max GPU length</strong> — flagship cards (RTX 4090/5090) are 330–360mm. Always check before buying.</li>
+                        <li><strong>Max CPU cooler height</strong> — tower air coolers need 160–170mm; low-profile coolers fit under 70mm.</li>
+                        <li><strong>Radiator support</strong> — 240/280/360mm are common. Front-mount fits more cases than top-mount.</li>
+                        <li><strong>PSU shroud length</strong> — a long PSU can collide with HDD cages; check max PSU depth.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Airflow & Build Quality</h3>
+                    <ul>
+                        <li><strong>Mesh front panel</strong> — beats tempered glass for thermals by 5–10°C under load.</li>
+                        <li><strong>Fan mounts</strong> — look for at least 3 (2 front intake, 1 rear exhaust). 6+ for high-end builds.</li>
+                        <li><strong>Cable-management depth</strong> — 20mm+ behind the motherboard tray makes tucking cables possible.</li>
+                        <li><strong>Dust filters</strong> — magnetic, removable filters on intakes save you cleanings.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Aesthetics & Features</h3>
+                    <ul>
+                        <li><strong>Tempered glass side panel</strong> — shows off the build; pairs with RGB. Costs you 2–4°C in thermals.</li>
+                        <li><strong>USB-C front panel</strong> — increasingly standard; needs a motherboard with a USB-C front header.</li>
+                        <li><strong>Vertical GPU mount</strong> — looks great but typically blocks airflow and needs a riser cable (sold separately).</li>
+                        <li><strong>Removable drive cages</strong> — extra airflow if you don't need 3.5" drives.</li>
                     </ul>
                 </section>
             </div>
@@ -1998,6 +2024,8 @@
                         <div class="storage-chart-legend" id="storageChartLegend"></div>
                     </div>
                 </div>
+                <div id="storageFilterResults" class="mobo-filter-results"></div>
+                <div id="storagePriceHistorySection" class="gpu-price-history-section"></div>
                 <div class="component-guide">
                     <div class="cg-intro">
                         <h2><i class="fas fa-hdd"></i> Storage Guide</h2>
@@ -2006,7 +2034,8 @@
                     <section class="cg-section">
                         <h3>Storage Types</h3>
                         <ul>
-                            <li><strong>NVMe Gen4 SSD</strong> — the standard. Sequential reads up to 7,000 MB/s. Use for OS, games, and active projects.</li>
+                            <li><strong>NVMe Gen5 SSD</strong> — newest tier, up to 14,000 MB/s sequential. Marginal real-world gain over Gen4 for most users; runs hot and needs a heatsink.</li>
+                            <li><strong>NVMe Gen4 SSD</strong> — the standard in 2026. Sequential reads up to 7,000 MB/s. Use for OS, games, and active projects.</li>
                             <li><strong>NVMe Gen3 SSD</strong> — still fast (3,500 MB/s) and often cheaper. Fine if your motherboard doesn't have Gen4 slots.</li>
                             <li><strong>SATA SSD</strong> — slower than NVMe (~550 MB/s) but cheap. Good for a secondary game library on a budget.</li>
                             <li><strong>HDD</strong> — slow but cheap per terabyte. Use only for bulk media/archive storage you don't access often.</li>
@@ -2018,6 +2047,25 @@
                             <li><strong>500 GB</strong> — minimum; tight for modern games. OS + a few titles.</li>
                             <li><strong>1 TB</strong> — sweet spot for most gaming builds.</li>
                             <li><strong>2 TB+</strong> — if you keep many games installed, edit video, or work with large datasets.</li>
+                            <li><strong>4 TB+</strong> — content creators, large game libraries (Call of Duty alone is ~250 GB), 4K video editing.</li>
+                        </ul>
+                    </section>
+                    <section class="cg-section">
+                        <h3>What to Look For</h3>
+                        <ul>
+                            <li><strong>DRAM cache</strong> — DRAM-equipped drives are faster and more consistent over time than DRAM-less drives.</li>
+                            <li><strong>TBW rating</strong> — total bytes written endurance. 600 TBW per TB is healthy; matters mainly for heavy write workloads.</li>
+                            <li><strong>Form factor</strong> — M.2 2280 is the standard slot length; double-check before buying short-form drives.</li>
+                            <li><strong>Heatsink</strong> — Gen4 and especially Gen5 drives benefit from one. Many motherboards now include them.</li>
+                        </ul>
+                    </section>
+                    <section class="cg-section">
+                        <h3>Recommended Pairings</h3>
+                        <ul>
+                            <li><strong>Budget gaming</strong> — single 1 TB NVMe Gen3 or Gen4.</li>
+                            <li><strong>Mid-range</strong> — 1 TB NVMe Gen4 + 2 TB SATA SSD for game library.</li>
+                            <li><strong>High-end</strong> — 2 TB NVMe Gen4 boot + 4 TB Gen4 game drive.</li>
+                            <li><strong>Content creator</strong> — 2 TB NVMe boot + 4–8 TB NVMe scratch + HDD for archive.</li>
                         </ul>
                     </section>
                 </div>
@@ -2057,16 +2105,42 @@
             <div class="component-guide">
                 <div class="cg-intro">
                     <h2><i class="fas fa-plus-circle"></i> Add-on Guide</h2>
-                    <p>Add-ons are the optional extras that round out a build — fans, capture cards, Wi-Fi adapters, RGB controllers, sound cards.</p>
+                    <p>Add-ons are the optional extras that round out a build — fans, capture cards, Wi-Fi adapters, RGB controllers, and more.</p>
                 </div>
                 <section class="cg-section">
-                    <h3>Common Add-ons</h3>
+                    <h3>Cooling Add-ons</h3>
                     <ul>
                         <li><strong>Extra case fans</strong> — most cases ship with 1–2 fans. Add intakes (front) and exhausts (rear/top) for better thermals.</li>
-                        <li><strong>Wi-Fi / Bluetooth card</strong> — many cheaper motherboards skip wireless. A PCIe Wi-Fi 6/6E card is a $25 fix.</li>
-                        <li><strong>Capture card</strong> — for streamers using a two-PC setup or recording from a console.</li>
+                        <li><strong>120mm vs 140mm fans</strong> — 140mm move more air at lower RPM (quieter). Check what your case supports.</li>
+                        <li><strong>Fan splitters / hubs</strong> — if your motherboard runs out of fan headers, a SATA-powered hub adds 6–8 more.</li>
+                        <li><strong>Thermal paste</strong> — most coolers ship with paste pre-applied or in a syringe. Replace every 2–3 years.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Connectivity Add-ons</h3>
+                    <ul>
+                        <li><strong>Wi-Fi / Bluetooth card</strong> — many cheaper motherboards skip wireless. A PCIe Wi-Fi 6/6E card is a ~$25 fix.</li>
+                        <li><strong>USB expansion card</strong> — adds extra USB-A or USB-C ports via PCIe.</li>
+                        <li><strong>10 GbE network card</strong> — for NAS access or high-speed local transfers.</li>
+                        <li><strong>Bluetooth-only dongle</strong> — USB-A Bluetooth 5.0 adapters under $15 if you just need wireless peripherals.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Creator & Streaming</h3>
+                    <ul>
+                        <li><strong>Capture card</strong> — for streamers with a two-PC setup or recording from a console.</li>
                         <li><strong>Sound card / DAC</strong> — only worth it if you have high-impedance headphones or notice onboard audio noise.</li>
-                        <li><strong>RGB controller / hub</strong> — useful when you have more fans than the motherboard has headers, or you want unified RGB sync.</li>
+                        <li><strong>Microphone arm</strong> — desk-clamp arms keep mics off the desk and out of keyboard noise.</li>
+                        <li><strong>Stream Deck</strong> — programmable hot-key panel for OBS, video calls, or shortcuts.</li>
+                    </ul>
+                </section>
+                <section class="cg-section">
+                    <h3>Build Aesthetics</h3>
+                    <ul>
+                        <li><strong>RGB controller / hub</strong> — useful when you have more RGB devices than the motherboard has headers.</li>
+                        <li><strong>Cable extensions</strong> — sleeved extensions look better than the stock PSU cables in a window-paneled build.</li>
+                        <li><strong>GPU support bracket</strong> — modern GPUs sag under their own weight; a $10 bracket prevents long-term slot damage.</li>
+                        <li><strong>LED strips</strong> — addressable RGB strips connect to motherboard ARGB headers.</li>
                     </ul>
                 </section>
             </div>
@@ -2084,6 +2158,7 @@
                 </button>
             </div>
             <div class="budget-modal-body">
+                <div class="wizard-progress" id="wizardProgress" aria-hidden="true"></div>
                 <!-- Question 1: Budget -->
                 <div class="question-container" id="question1" style="display: block;">
                     <label for="budgetInput" class="question-label">What is your budget?</label>
@@ -2094,7 +2169,7 @@
                             id="budgetInput"
                             class="budget-input"
                             placeholder="Enter your budget"
-                            min="500"
+                            min="750"
                             max="5000"
                             step="100"
                             value="1500"
@@ -2103,14 +2178,14 @@
                     </div>
                     <div class="budget-slider-container">
                         <div class="slider-labels">
-                            <span class="slider-label-min">$500</span>
+                            <span class="slider-label-min">$750</span>
                             <span class="slider-label-max">Unlimited</span>
                         </div>
                         <input
                             type="range"
                             id="budgetSlider"
                             class="budget-slider"
-                            min="500"
+                            min="750"
                             max="5100"
                             step="100"
                             value="1500"
@@ -2171,6 +2246,7 @@
                         >
                         <div class="slider-value-display" id="storageValueDisplay">1 TB</div>
                     </div>
+                    <div class="wizard-budget-hint" id="storageBudgetHint" style="display: none;"></div>
                 </div>
 
                 <!-- Question 4: Resolution -->
@@ -2400,7 +2476,8 @@
                     document.getElementById('buildErrorState').style.display = 'block';
                     document.getElementById('acceptBuildBtn').style.display = 'none';
                     document.getElementById('buildErrorMessage').textContent =
-                        data?.error || 'No compatible build fits the selected target.';
+                        (data?.error || 'No compatible build fits the selected target.') +
+                        ' Try increasing your budget or adjusting your preferences.';
                     return;
                 }
                 lastGeneratedBuild = data;
@@ -2602,8 +2679,53 @@
             return ['1080p'];
         }
 
+        // Storage shouldn't eat the whole budget: cap the max selectable capacity
+        // so a $500 build can't ask for 10 TB. Returns a max in GB.
+        function getStorageMaxGbForBudget(budget) {
+            if (!isFinite(budget)) return 10000;
+            if (budget >= 3000) return 10000;
+            if (budget >= 2000) return 8000;
+            if (budget >= 1500) return 6000;
+            if (budget >= 1000) return 4000;
+            if (budget >= 700) return 2000;
+            return 1000;
+        }
+
+        // Re-bound the storage slider/input to the budget, clamp the current
+        // value, refresh the max label, and show a context hint when capped.
+        function applyStorageBudgetCap() {
+            const budget = getWizardBudgetNumber();
+            const maxGb = getStorageMaxGbForBudget(budget);
+            const slider = document.getElementById('storageSlider');
+            const input = document.getElementById('storageInput');
+            const maxLabel = document.querySelector('#question3 .slider-label-max');
+            const hint = document.getElementById('storageBudgetHint');
+
+            slider.max = String(maxGb);
+            input.max = String(maxGb / 1000);
+            if (maxLabel) maxLabel.textContent = formatStorage(maxGb);
+
+            let cur = parseInt(slider.value, 10) || 1000;
+            if (cur > maxGb) {
+                cur = maxGb;
+                slider.value = String(maxGb);
+                updateStorageDisplay(maxGb);
+                if (wizardData.storage != null) wizardData.storage = maxGb;
+            }
+
+            if (hint) {
+                if (maxGb < 10000 && isFinite(budget)) {
+                    hint.style.display = 'flex';
+                    hint.innerHTML = `<i class="fas fa-info-circle"></i> <span>A $${budget.toLocaleString()} budget tops out at ${formatStorage(maxGb)} so the rest of the build stays balanced.</span>`;
+                } else {
+                    hint.style.display = 'none';
+                }
+            }
+        }
+
         function configureAdaptiveWizardQuestions() {
             const budget = getWizardBudgetNumber();
+            applyStorageBudgetCap();
             const resolutionOptions = getResolutionOptionsForBudget(budget);
             const resolutionButtons = {
                 '1080p': document.getElementById('resolution1080pBtn'),
@@ -2655,6 +2777,14 @@
                 counterElement.textContent = `${sequenceIndex + 1}/${sequence.length}`;
             }
 
+            const progress = document.getElementById('wizardProgress');
+            if (progress) {
+                progress.innerHTML = sequence.map((_, i) => {
+                    const cls = i < sequenceIndex ? 'done' : i === sequenceIndex ? 'active' : '';
+                    return `<span class="wizard-progress-seg ${cls}"></span>`;
+                }).join('');
+            }
+
             const backBtn = document.getElementById('backBtn');
             backBtn.style.display = sequenceIndex > 0 ? 'inline-flex' : 'none';
 
@@ -2681,8 +2811,8 @@
                 const budgetInput = document.getElementById('budgetInput');
                 const budget = isUnlimited ? 'Unlimited' : budgetInput.value;
 
-                if (!isUnlimited && (!budget || Number(budget) < 500)) {
-                    showValidationError('question1', 'Please enter a valid budget amount (minimum $500)');
+                if (!isUnlimited && (!budget || Number(budget) < 750)) {
+                    showValidationError('question1', 'Please enter a valid budget amount (minimum $750)');
                     return;
                 }
 
@@ -2704,7 +2834,15 @@
                     return;
                 }
 
-                wizardData.storage = tbToGb(storageInTB);
+                // Final guard: never let storage exceed the budget-derived cap.
+                const maxGb = getStorageMaxGbForBudget(getWizardBudgetNumber());
+                let storageGb = tbToGb(storageInTB);
+                if (storageGb > maxGb) {
+                    storageGb = maxGb;
+                    document.getElementById('storageSlider').value = String(maxGb);
+                    updateStorageDisplay(maxGb);
+                }
+                wizardData.storage = storageGb;
                 advanceWizardOrSubmit();
             } else if (currentQuestion === 4) {
                 if (!wizardData.resolution) {
@@ -3439,7 +3577,7 @@
             // Budget: Sync input with slider
             budgetInput.addEventListener('input', function(e) {
                 let value = parseInt(e.target.value);
-                if (value && value >= 500) {
+                if (value && value >= 750) {
                     if (value > 5000) {
                         value = 5001;
                     }
@@ -3465,9 +3603,10 @@
                 let valueInTB = parseFloat(e.target.value);
                 if (valueInTB && valueInTB >= 0.5) {
                     let valueInGB = tbToGb(valueInTB);
-                    if (valueInGB > 10000) {
-                        valueInGB = 10000;
-                    } 
+                    const maxGb = parseInt(storageSlider.max, 10) || 10000;
+                    if (valueInGB > maxGb) {
+                        valueInGB = maxGb;
+                    }
                     storageSlider.value = valueInGB;
                     updateStorageDisplay(valueInGB);
                 }

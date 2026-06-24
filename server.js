@@ -27,8 +27,11 @@ function isDesktopOrLaptop(title) {
 // Components.js) for being delisted / no longer sold.
 function hasValidPrice(item) {
     if (item.hidden === true) return false;
-    const price = parseFloat(item.price || item.currentPrice || item.basePrice);
-    return !isNaN(price) && price > 0;
+    // Require a LIVE price (from the daily scraper), not a stale ingest basePrice.
+    // basePrice is set once at ingest and never refreshed, so trusting it would
+    // keep delisted items "for sale" at their MSRP indefinitely.
+    const live = parseFloat(item.salePrice || item.currentPrice || item.price);
+    return !isNaN(live) && live > 0;
 }
 
 // GPU benchmark data for performance scoring
@@ -2032,14 +2035,59 @@ function selectRam(rams, motherboard, target, performance, context = {}) {
         : ranked[0] || null;
 }
 
+function aiBuildIsSsd(part) {
+    // "M.2 SSD" / "SATA SSD" → SSD; "HDD" / "SSHD" (hybrid, spinning) → not an SSD.
+    const t = String(part?.type || part?.storageType || '').toLowerCase();
+    return t.includes('ssd') && !t.includes('sshd');
+}
+
+function aiBuildStorageCapacity(part) {
+    return Number(part?.capacity || part?.capacityGB) || 0;
+}
+
+// Always boots from an SSD (fast startup / QoL). When the requested capacity is
+// larger than any single SSD, keep an SSD as the boot drive and add an HDD for
+// the remaining bulk capacity — returning an array [ssd, hdd] the front-end
+// already knows how to spread across storage slots.
 function selectStorage(storages, requiredCapacity, target, context = {}) {
-    const compatible = storages.filter(storage =>
-        Number(storage.capacity || storage.capacityGB) >= requiredCapacity
-    );
-    const ranked = aiBuildStrategicCandidates(compatible, target, 'storage', context, 8);
-    return context.minimum
-        ? [...compatible].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0] || null
-        : ranked[0] || null;
+    const want = Number(requiredCapacity) || 0;
+    const ssds = storages.filter(aiBuildIsSsd);
+    const nonSsds = storages.filter(s => !aiBuildIsSsd(s));
+    const byPrice = arr => [...arr].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b));
+    const pickBest = (pool, t) => context.minimum
+        ? byPrice(pool)[0] || null
+        : aiBuildStrategicCandidates(pool, t, 'storage', context, 8)[0] || byPrice(pool)[0] || null;
+
+    // Case 1: a single SSD covers the full requested capacity — ideal, one drive.
+    const ssdsFit = ssds.filter(s => aiBuildStorageCapacity(s) >= want);
+    if (ssdsFit.length) return pickBest(ssdsFit, target);
+
+    // Case 2: no SSD is big enough. Use a modest, good-value SSD (~1–2TB) as the
+    // boot drive — kept cheap so the budget is left for a bulk HDD — then cover
+    // the remaining capacity with an HDD.
+    if (ssds.length) {
+        const bootMin = Math.min(want, 1000); // aim for ≥1TB boot SSD when possible
+        // Prefer a cheap boot SSD between bootMin and 2TB; widen if none qualify.
+        let bootPool = ssds.filter(s => {
+            const cap = aiBuildStorageCapacity(s);
+            return cap >= bootMin && cap <= 2000;
+        });
+        if (!bootPool.length) bootPool = ssds.filter(s => aiBuildStorageCapacity(s) >= bootMin);
+        const boot = bootPool.length
+            ? [...bootPool].sort((a, b) => aiBuildPrice(a) - aiBuildPrice(b))[0]
+            : [...ssds].sort((a, b) => aiBuildStorageCapacity(b) - aiBuildStorageCapacity(a))[0];
+        const remaining = want - aiBuildStorageCapacity(boot);
+        if (remaining > 0 && nonSsds.length) {
+            const hddFit = nonSsds.filter(s => aiBuildStorageCapacity(s) >= remaining);
+            const hdd = hddFit.length ? pickBest(hddFit, Math.max(target * 0.4, 1)) : null;
+            if (hdd) return [boot, hdd];
+        }
+        return boot; // SSD-only fallback if no suitable HDD exists
+    }
+
+    // Case 3: catalog has no SSDs at all — fall back so the build still completes.
+    const fit = nonSsds.filter(s => aiBuildStorageCapacity(s) >= want);
+    return pickBest(fit, target);
 }
 
 function selectPsu(psus, gpu, cpu, target, context = {}) {
@@ -2093,8 +2141,12 @@ function assembleAndValidate(build, context = {}) {
 
     for (const [component, part] of Object.entries(build)) {
         if (!part || component === 'monitor') continue;
-        if (!aiBuildName(part)) errors.push(`${component}_missing_name`);
-        if (!aiBuildPrice(part)) errors.push(`${component}_invalid_price`);
+        // storage may be an array (SSD + HDD) — validate each drive.
+        const parts = Array.isArray(part) ? part : [part];
+        for (const p of parts) {
+            if (!aiBuildName(p)) errors.push(`${component}_missing_name`);
+            if (!aiBuildPrice(p)) errors.push(`${component}_invalid_price`);
+        }
     }
 
     if (build.cpu && build.motherboard &&
@@ -2126,6 +2178,7 @@ function assembleAndValidate(build, context = {}) {
 
     const totalCost = Object.values(build)
         .filter(Boolean)
+        .flatMap(part => Array.isArray(part) ? part : [part])
         .reduce((sum, part) => sum + (aiBuildPrice(part) || 0), 0);
     if (!context.unlimited && Number.isFinite(context.budget) && totalCost > context.budget + 0.001) {
         errors.push('over_budget');
@@ -2144,7 +2197,10 @@ function aiBuildScore(build, validation, allocation, context) {
     const cpuPerformance = aiBuildCpuPerformance(build.cpu, context.performance) / cpuMax;
     const utilization = context.unlimited ? 1 : Math.min(validation.totalCost / context.budget, 1);
     const ramScore = Math.min(aiBuildRamCapacity(build.ram) / 64, 1);
-    const storageCapacity = Number(build.storage?.capacity || build.storage?.capacityGB) || 0;
+    const storageParts = Array.isArray(build.storage)
+        ? build.storage
+        : (build.storage ? [build.storage] : []);
+    const storageCapacity = storageParts.reduce((sum, p) => sum + aiBuildStorageCapacity(p), 0);
     const storageScore = Math.min(storageCapacity / Math.max(context.storage, 1000), 2) / 2;
     const psuRequired = deriveRecommendedPsuWattage(build.gpu, build.cpu) || 1;
     const psuScore = Math.min(Number.parseInt(build.psu?.wattage, 10) / psuRequired, 1.5) / 1.5;
@@ -2294,15 +2350,19 @@ function createAiBuildDebug(request, allocation, candidate, monitor, catalogs) {
     };
     const selections = Object.entries(selectionLabels).map(([key, label]) => {
         const part = build[key];
+        // storage may be an array (SSD + HDD): summarize both as one line.
+        const partsArr = Array.isArray(part) ? part : (part ? [part] : []);
+        const partPrice = partsArr.reduce((sum, p) => sum + (aiBuildPrice(p) || 0), 0);
+        const partName = partsArr.map(p => aiBuildName(p)).filter(Boolean).join(' + ');
         return {
             component: label,
             budget: `$${allocation.amounts[key].toFixed(2)}`,
             searchCriteria: 'Real, available, compatible parts ranked by target fit and value',
             candidatesFound: catalogs[`${key}s`]?.length || catalogs[key === 'storage' ? 'storages' : key]?.length || 0,
-            topCandidates: part ? [{ name: aiBuildName(part), price: `$${aiBuildPrice(part).toFixed(2)}` }] : [],
-            selected: part ? {
-                name: aiBuildName(part),
-                price: `$${aiBuildPrice(part).toFixed(2)}`,
+            topCandidates: partsArr.length ? [{ name: partName, price: `$${partPrice.toFixed(2)}` }] : [],
+            selected: partsArr.length ? {
+                name: partName,
+                price: `$${partPrice.toFixed(2)}`,
                 reason: 'Best compatible whole-build candidate within the adaptive allocation'
             } : {
                 name: 'CPU stock cooler',
