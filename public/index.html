@@ -28,7 +28,7 @@
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
 
-    <link rel="stylesheet" href="styles-v5.css?v=funstats-summary-rail-1">
+    <link rel="stylesheet" href="styles-v5.css?v=funstats-history-extras-1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
@@ -1638,6 +1638,15 @@
                                         <span>Whole build</span>
                                     </div>
                                     <div id="buildPriceHistoryChart" class="build-price-history-chart"></div>
+                                    <div id="summaryHistoryExtras" class="summary-history-extras">
+                                        <section class="fun-stats-card summary-budget-card">
+                                            <div class="fun-stats-section-head">
+                                                <h5><i class="fas fa-chart-pie"></i> Budget Shape</h5>
+                                                <span>Part spend</span>
+                                            </div>
+                                            <div id="funStatsBudgetPanel"></div>
+                                        </section>
+                                    </div>
                                 </div>
                                 <div class="total-price-display">
                                     <span class="total-label">Total Price:</span>
@@ -1664,15 +1673,6 @@
                          then this panel opens inside the same card. -->
                     <div id="funStatsOverlay" class="fun-stats-overlay" aria-hidden="true">
                         <div class="fun-stats-overlay-body" id="funStatsOverlayBody">
-                            <div class="fun-stats-money-grid">
-                                <section class="fun-stats-card">
-                                    <div class="fun-stats-section-head">
-                                        <h5><i class="fas fa-chart-pie"></i> Budget Shape</h5>
-                                        <span>Part spend</span>
-                                    </div>
-                                    <div id="funStatsBudgetPanel"></div>
-                                </section>
-                            </div>
                             <div class="fun-stats-score-grid" id="funStatsScoreGrid"></div>
                             <div class="fun-stats-main-grid">
                                 <section class="fun-stats-card fun-stats-card-compare">
@@ -1688,15 +1688,6 @@
                                         <span>High settings</span>
                                     </div>
                                     <div id="funStatsFpsPanel"></div>
-                                </section>
-                            </div>
-                            <div class="fun-stats-showcase-grid">
-                                <section class="fun-stats-card">
-                                    <div class="fun-stats-section-head">
-                                        <h5><i class="fas fa-sliders"></i> Performance Balance</h5>
-                                        <span>CPU + GPU</span>
-                                    </div>
-                                    <div id="funStatsBalancePanel"></div>
                                 </section>
                             </div>
                             <section class="fun-stats-card">
@@ -2409,7 +2400,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=47"></script>
+    <script src="script.js?v=48"></script>
     <script>
         const BuildRequestManager = (() => {
             let currentController = null;

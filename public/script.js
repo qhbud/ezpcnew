@@ -8772,6 +8772,7 @@ class PartsDatabase {
             }
             this._funStatsOpen = true;
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');
+            this.moveBalanceMeterForFunStats(true);
             overlay.classList.add('open');
             overlay.setAttribute('aria-hidden', 'false');
             if (btn) {
@@ -8782,12 +8783,40 @@ class PartsDatabase {
         } else {
             this._funStatsOpen = false;
             if (summaryBox) summaryBox.classList.remove('fun-stats-expanded');
+            this.moveBalanceMeterForFunStats(false);
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
             if (btn) {
                 btn.classList.remove('active');
                 btn.innerHTML = '<i class="fas fa-chart-simple"></i> Fun Stats';
             }
+        }
+    }
+
+    moveBalanceMeterForFunStats(wantExpanded) {
+        const meter = document.getElementById('buildBalanceSection');
+        const expandedHost = document.getElementById('summaryHistoryExtras');
+        if (!meter || !expandedHost) return;
+
+        if (wantExpanded) {
+            if (!this._balanceMeterHome) {
+                this._balanceMeterHome = {
+                    parent: meter.parentElement,
+                    nextSibling: meter.nextSibling
+                };
+            }
+            if (meter.parentElement !== expandedHost) {
+                expandedHost.appendChild(meter);
+            }
+            return;
+        }
+
+        const home = this._balanceMeterHome;
+        if (!home?.parent || meter.parentElement === home.parent) return;
+        if (home.nextSibling && home.nextSibling.parentElement === home.parent) {
+            home.parent.insertBefore(meter, home.nextSibling);
+        } else {
+            home.parent.appendChild(meter);
         }
     }
 

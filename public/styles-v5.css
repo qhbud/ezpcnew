@@ -2678,13 +2678,41 @@ tr.incompatible td {
 }
 
 .build-summary-box.fun-stats-expanded .summary-expanded-top {
-    grid-template-columns: minmax(420px, 1fr) minmax(340px, 420px);
-    align-items: stretch;
+    grid-template-columns: minmax(420px, 1fr) minmax(340px, 353px);
+    align-items: start;
 }
 
 .build-summary-box.fun-stats-expanded .summary-price-history-panel {
     display: flex;
     flex-direction: column;
+}
+
+.summary-history-extras {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+    align-items: stretch;
+}
+
+.summary-history-extras .fun-stats-card,
+.summary-history-extras .balance-meter-section {
+    margin: 0;
+    min-width: 0;
+}
+
+.summary-history-extras .balance-meter-section {
+    display: block !important;
+    border-color: #dbe3ef;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+
+.summary-history-extras .balance-meter-header {
+    gap: var(--space-3);
+}
+
+.summary-history-extras .balance-meter-header p {
+    font-size: 0.82rem;
 }
 
 .build-summary-box.fun-stats-expanded .build-actions {
@@ -2735,6 +2763,10 @@ tr.incompatible td {
     }
 
     .build-summary-box.fun-stats-expanded .summary-expanded-top {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-history-extras {
         grid-template-columns: 1fr;
     }
 
