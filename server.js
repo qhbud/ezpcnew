@@ -1,4 +1,6 @@
 const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 // Optional gzip middleware — load defensively so a missing/broken dependency can
 // never crash the whole server on boot (it once did: compression wasn't in
 // package.json, so production npm install lacked it and require() threw -> 502).
@@ -57,6 +59,24 @@ function getGpuPerformance(gpu) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Behind Railway/Render's proxy, so client IPs (used for rate limiting) come via
+// X-Forwarded-For. Trust the first hop.
+app.set('trust proxy', 1);
+
+// Security headers. CSP is intentionally OFF for now — the frontend relies on
+// inline event handlers, inline styles, and external CDNs (FontAwesome, Plausible,
+// Amazon image hosts); a default CSP would break the app. Other helmet headers
+// (X-Content-Type-Options, X-Frame-Options, etc.) are kept.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Rate limiting: a generous limiter on all of /api (a normal page load fires
+// ~15 GETs, well under this), plus a tight limiter on the public write/abuse
+// endpoints (ratings, snapshots, community submit/like).
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false });
+const writeLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
+app.use('/api', apiLimiter);
+app.use(['/api/ratings', '/api/builds/snapshot', '/api/community'], writeLimiter);
 const LIST_PARTS_PROJECTION = { priceHistory: 0 };
 const SHARED_BUILD_BODY_LIMIT_BYTES = 16 * 1024;
 const COMMUNITY_BUILD_BODY_LIMIT_BYTES = SHARED_BUILD_BODY_LIMIT_BYTES + 1024;
@@ -288,7 +308,19 @@ async function initializeDatabase() {
 }
 
 // API Routes
-app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
+
+// Coerce scalar query params to strings across ALL /api/parts* routes (including
+// the gpus/cpus/etc special handlers) so a query like ?manufacturer[$ne]=x can't
+// inject a Mongo operator object (which also crashed the special handlers).
+app.use('/api/parts', (req, res, next) => {
+    for (const k of ['manufacturer', 'search', 'priceRange', 'category', 'sort', 'order']) {
+        const v = req.query[k];
+        if (v != null && typeof v !== 'string') req.query[k] = String(v);
+    }
+    next();
+});
+
+app.get('/api/parts', cacheMiddleware(60000), async (req, res) => {
     try {
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
@@ -297,19 +329,20 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
         const { category, manufacturer, priceRange, search } = req.query;
         let filter = {};
 
-        // Category filter
+        // Category filter (coerce to string so query operators like ?category[$ne]
+        // can't be injected into the Mongo filter)
         if (category && category !== 'all') {
-            filter.category = category;
+            filter.category = String(category);
         }
 
         // Manufacturer filter
         if (manufacturer) {
-            filter.manufacturer = manufacturer;
+            filter.manufacturer = String(manufacturer);
         }
 
         // Price range filter
         if (priceRange) {
-            const [min, max] = priceRange.split('-').map(Number);
+            const [min, max] = String(priceRange).split('-').map(Number);
             if (max) {
                 filter.price = { $gte: min, $lte: max };
             } else {
@@ -319,7 +352,7 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
 
         // Search filter
         if (search) {
-            filter.$text = { $search: search };
+            filter.$text = { $search: String(search) };
         }
 
         // Get parts from all collections in PARALLEL
@@ -352,14 +385,21 @@ app.get('/api/parts', cacheMiddleware(300000), async (req, res) => {
     }
 });
 
-app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
+app.get('/api/parts/:category', cacheMiddleware(60000), async (req, res) => {
     try {
         if (!db) {
             return res.status(500).json({ error: 'Database not connected' });
         }
 
         const { category } = req.params;
-        
+
+        // Whitelist the category — it is used directly as a Mongo collection name,
+        // so an arbitrary value must never reach db.collection().
+        const VALID_CATEGORIES = new Set(['cpus', 'motherboards', 'gpus', 'rams', 'storages', 'psus', 'cases', 'coolers', 'addons']);
+        if (!VALID_CATEGORIES.has(category)) {
+            return res.status(400).json({ error: 'Unknown category' });
+        }
+
         if (category === 'gpus') {
             // Handle GPU collections specially
             return await handleGPURequest(req, res);
@@ -388,14 +428,14 @@ app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
         const { manufacturer, priceRange, search } = req.query;
         let filter = {};
 
-        // Manufacturer filter
+        // Manufacturer filter (string-coerced to block operator injection)
         if (manufacturer) {
-            filter.manufacturer = manufacturer;
+            filter.manufacturer = String(manufacturer);
         }
 
         // Price range filter
         if (priceRange) {
-            const [min, max] = priceRange.split('-').map(Number);
+            const [min, max] = String(priceRange).split('-').map(Number);
             if (max) {
                 filter.price = { $gte: min, $lte: max };
             } else {
@@ -405,7 +445,7 @@ app.get('/api/parts/:category', cacheMiddleware(300000), async (req, res) => {
 
         // Search filter
         if (search) {
-            filter.$text = { $search: search };
+            filter.$text = { $search: String(search) };
         }
 
         const collection = db.collection(category);
@@ -2932,6 +2972,13 @@ app.get('/api/community/builds/:id', async (req, res) => {
 
 // Cache management endpoint
 app.post('/api/clear-cache', (req, res) => {
+    // Require a secret token so the cache can't be flushed by anyone (cache
+    // stampede / DoS). Set CACHE_CLEAR_TOKEN in the environment to enable.
+    const token = process.env.CACHE_CLEAR_TOKEN;
+    const provided = req.get('x-cache-token') || req.query.token;
+    if (!token || provided !== token) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
     try {
         apiCache.clear();
         statsCache.clear();
