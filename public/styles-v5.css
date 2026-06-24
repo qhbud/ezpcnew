@@ -3121,6 +3121,18 @@ tr.incompatible td {
     border-color: var(--brand);
 }
 
+/* Fun Stats button lit up (blue) once every required part is in the build. */
+.action-btn.secondary.ready {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 4px 14px rgba(37, 99, 235, 0.28);
+}
+.action-btn.secondary.ready:hover:not(:disabled) {
+    background: var(--brand-hover);
+    border-color: var(--brand-hover);
+}
+
 /* My Builds: the whole row loads the build on click; delete sits at the right. */
 .saved-build-item {
     display: flex;

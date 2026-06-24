@@ -6909,6 +6909,32 @@ class PartsDatabase {
         return { problems, warnings };
     }
 
+    // Parts a build needs to be considered complete (slot key + display label).
+    _requiredParts() {
+        return [
+            ['cpu', 'CPU'], ['gpu', 'GPU'], ['motherboard', 'Motherboard'],
+            ['ram', 'RAM'], ['storage', 'Storage'], ['psu', 'PSU'],
+            ['cooler', 'Cooler'], ['case', 'Case']
+        ];
+    }
+
+    // A slot counts as filled if a part is selected — except the cooler, which is
+    // also satisfied by a CPU that ships with a stock cooler.
+    _isSlotFilled(key) {
+        if (key === 'cooler') {
+            return !!this.currentBuild.cooler || this.currentBuild.cpu?.coolerIncluded === true;
+        }
+        return !!this.currentBuild[key];
+    }
+
+    _missingRequiredParts() {
+        return this._requiredParts().filter(([key]) => !this._isSlotFilled(key)).map(([, label]) => label);
+    }
+
+    _isBuildComplete() {
+        return this._missingRequiredParts().length === 0;
+    }
+
     checkCompatibility() {
         const results = document.getElementById('compatibilityResults');
         const wattageInfo = this.calculateEstimatedWattage();
@@ -6916,13 +6942,9 @@ class PartsDatabase {
         const issueCount = problems.length + warnings.length;
         const hasComponents = Object.values(this.currentBuild).some(component => component !== null);
 
-        // Required components for a complete build; surface which are still missing
-        // (e.g. "Needs CPU, GPU") instead of a misleading "No issues detected".
-        const REQUIRED_PARTS = [
-            ['cpu', 'CPU'], ['gpu', 'GPU'], ['motherboard', 'Motherboard'],
-            ['ram', 'RAM'], ['storage', 'Storage'], ['psu', 'PSU'], ['cooler', 'Cooler']
-        ];
-        const missingParts = REQUIRED_PARTS.filter(([key]) => !this.currentBuild[key]).map(([, label]) => label);
+        // Surface which required parts are still missing (e.g. "Needs CPU, GPU")
+        // instead of a misleading "No issues detected".
+        const missingParts = this._missingRequiredParts();
 
         // Update compatibility heading text based on severity.
         const compatibilityHeading = document.getElementById('compatibilityCheckHeading');
@@ -7089,6 +7111,8 @@ class PartsDatabase {
 
         if (funStatsBtn) {
             funStatsBtn.disabled = !hasComponents;
+            // Light the button up (blue) once every required part is in the build.
+            funStatsBtn.classList.toggle('ready', this._isBuildComplete());
         }
 
         if (exportBtn) {
@@ -9004,9 +9028,9 @@ class PartsDatabase {
         const wantOpen = forceClose ? false : !this._funStatsOpen;
 
         if (wantOpen) {
-            const required = ['gpu', 'cpu', 'ram', 'psu', 'motherboard', 'case', 'storage'];
-            if (required.some(t => !this.currentBuild[t])) {
-                this.showToast('Add a CPU, GPU, RAM, motherboard, PSU, case & storage to unlock fun stats.');
+            const missing = this._missingRequiredParts();
+            if (missing.length) {
+                this.showToast(`Add ${missing.join(', ')} to unlock fun stats.`);
                 return;
             }
             this._funStatsOpen = true;
