@@ -1167,6 +1167,10 @@ class PartsDatabase {
 
     // Tab switching functionality
     switchTab(tabName) {
+        // Clear any pending builder slot target; openComponentTabFromBuilder re-sets
+        // it after this call, so navigating via the nav bar won't reuse a stale slot.
+        this._builderTargetSlot = null;
+
         // Update active tab
         document.querySelectorAll('.main-tab').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
@@ -1527,11 +1531,12 @@ class PartsDatabase {
     }
 
     openComponentTabFromBuilder(componentType) {
-        // Remember the exact slot (e.g. storage2, addon3) so a part picked in the
-        // browsing tab routes back to it instead of always the primary slot.
-        this._builderTargetSlot = componentType;
         const tabName = this.normalizeComponentTabName(componentType);
         this.switchTab(tabName);
+        // Remember the exact slot (e.g. storage2, addon3) so a part picked in the
+        // browsing tab routes back to it instead of always the primary slot. Set
+        // AFTER switchTab, which clears it.
+        this._builderTargetSlot = componentType;
         this.scrollToComponentSelection(tabName);
     }
 
@@ -12646,7 +12651,14 @@ class PartsDatabase {
             console.warn('selectComponentFromTab: no featured component for tab', type);
             return;
         }
-        this.selectComponent(type, current);
+        // Route to the exact slot the user opened (storage2, addon3, …) when it
+        // belongs to this tab; otherwise the primary slot.
+        let targetType = type;
+        if (this._builderTargetSlot && this.normalizeComponentTabName(this._builderTargetSlot) === type) {
+            targetType = this._builderTargetSlot;
+        }
+        this._builderTargetSlot = null;
+        this.selectComponent(targetType, current);
         this.switchTab('builder');
     }
 
