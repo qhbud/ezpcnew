@@ -2664,6 +2664,16 @@ tr.incompatible td {
     gap: var(--space-4);
 }
 
+.summary-price-column {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+}
+
+.summary-expanded-actions-slot:empty {
+    display: none;
+}
+
 .summary-price-history-panel {
     display: none;
     min-height: 164px;
@@ -2715,10 +2725,24 @@ tr.incompatible td {
     font-size: 0.82rem;
 }
 
-.build-summary-box.fun-stats-expanded .build-actions {
-    width: clamp(340px, 28vw, 420px);
-    min-width: 340px;
-    margin-left: auto;
+.build-summary-box.fun-stats-expanded .summary-expanded-actions-slot {
+    display: block;
+}
+
+.build-summary-box.fun-stats-expanded .summary-expanded-actions-slot .build-actions {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.build-summary-box.fun-stats-expanded .summary-expanded-actions-slot .action-btn {
+    min-width: 0;
+    padding: 12px 8px;
+    font-size: 0.82rem;
+    line-height: 1.15;
 }
 
 .build-summary-box.fun-stats-expanded > .saved-builds-section,

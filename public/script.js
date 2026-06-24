@@ -8773,6 +8773,7 @@ class PartsDatabase {
             this._funStatsOpen = true;
             if (summaryBox) summaryBox.classList.add('fun-stats-expanded');
             this.moveBalanceMeterForFunStats(true);
+            this.moveBuildActionsForFunStats(true);
             overlay.classList.add('open');
             overlay.setAttribute('aria-hidden', 'false');
             if (btn) {
@@ -8784,12 +8785,42 @@ class PartsDatabase {
             this._funStatsOpen = false;
             if (summaryBox) summaryBox.classList.remove('fun-stats-expanded');
             this.moveBalanceMeterForFunStats(false);
+            this.moveBuildActionsForFunStats(false);
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
             if (btn) {
                 btn.classList.remove('active');
                 btn.innerHTML = '<i class="fas fa-chart-simple"></i> Fun Stats';
             }
+        }
+    }
+
+    moveBuildActionsForFunStats(wantExpanded) {
+        const actions = document.querySelector('#buildSummaryBox > .build-actions, #summaryExpandedActionsSlot > .build-actions');
+        const expandedHost = document.getElementById('summaryExpandedActionsSlot');
+        if (!actions || !expandedHost) return;
+
+        if (wantExpanded) {
+            if (!this._buildActionsHome) {
+                this._buildActionsHome = {
+                    parent: actions.parentElement,
+                    nextSibling: actions.nextSibling
+                };
+            }
+            expandedHost.setAttribute('aria-hidden', 'false');
+            if (actions.parentElement !== expandedHost) {
+                expandedHost.appendChild(actions);
+            }
+            return;
+        }
+
+        expandedHost.setAttribute('aria-hidden', 'true');
+        const home = this._buildActionsHome;
+        if (!home?.parent || actions.parentElement === home.parent) return;
+        if (home.nextSibling && home.nextSibling.parentElement === home.parent) {
+            home.parent.insertBefore(actions, home.nextSibling);
+        } else {
+            home.parent.appendChild(actions);
         }
     }
 
