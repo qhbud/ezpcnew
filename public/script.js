@@ -6738,11 +6738,15 @@ class PartsDatabase {
     // mention. When this returns true we suppress the "verify connector" warning.
     _psuHasHighPowerConnector(psu) {
         if (!psu) return false;
+        // Prefer the structured field backfilled by scripts/markPsuConnectors.js.
+        if (typeof psu.hasHighPowerConnector === 'boolean') return psu.hasHighPowerConnector;
+        // Fallback for any doc not yet marked: detect from listing text. Matches
+        // 12VHPWR / 12V-2x6 / 16-pin, ATX 3.x / ATX3 / ATX v3.1, and PCIe 5.x.
         const hay = [
             psu.name, psu.title, psu.description,
             Array.isArray(psu.features) ? psu.features.join(' ') : psu.features
         ].filter(Boolean).join(' ');
-        return /12VHPWR|12V-?2x6|12V-?2×6|16[- ]?pin|ATX\s?3\.[01]\b|ATX3\.[01]\b|PCI-?E\s?5(\.[01])?\b/i.test(hay);
+        return /12VHPWR|12V-?2x6|12V-?2×6|16[- ]?pin|ATX\s?v?3(\.[01])?\b|PCI-?E\s?5(\.[01])?\b/i.test(hay);
     }
 
     // A drive counts as an SSD when its type says so ("M.2 SSD" / "SATA SSD").
@@ -6885,10 +6889,10 @@ class PartsDatabase {
         const gpuTdp = gpu?.tdp === null || gpu?.tdp === undefined || gpu?.tdp === ''
             ? null
             : Number(gpu.tdp);
-        if (Number.isFinite(gpuTdp) && gpuTdp >= 300 && !this._psuHasHighPowerConnector(psu)) {
+        if (psu && Number.isFinite(gpuTdp) && gpuTdp >= 300 && !this._psuHasHighPowerConnector(psu)) {
             warnings.push({
-                title: 'Verify high-power GPU connector',
-                detail: `${getName(gpu, 'The selected GPU')} is rated at ${gpuTdp}W. High-power cards may require a 12VHPWR / 12V-2x6 power connector from an ATX 3.0/3.1 PSU or the card's bundled adapter. Confirm the selected PSU supplies the required connection before buying.`
+                title: 'PSU is missing the required 12V-2x6 connector',
+                detail: `${getName(gpu, 'This GPU')} draws ${gpuTdp}W and demands a native 12VHPWR / 12V-2x6 (16-pin) power connector. ${getName(psu, 'The selected PSU')} does NOT have one. Do not run this card off a daisy-chained multi-8-pin adapter at this power level — those adapters are notorious for melting and failing. Swap to an ATX 3.0/3.1 PSU with a native 12V-2x6 cable before you buy.`
             });
         }
 
