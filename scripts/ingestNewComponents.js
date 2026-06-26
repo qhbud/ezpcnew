@@ -1938,7 +1938,7 @@ async function blockHeavyResources(page) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const type = req.resourceType();
-      if (type === 'image' || type === 'media' || type === 'font') {
+      if (type === 'image' || type === 'media' || type === 'font' || type === 'stylesheet') {
         req.abort().catch(() => {});
       } else {
         req.continue().catch(() => {});

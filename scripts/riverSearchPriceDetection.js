@@ -107,6 +107,24 @@ class RiverSearchPriceDetector {
     // Set viewport
     await this.page.setViewport({ width: 1920, height: 1080 });
 
+    // Bandwidth guard: price/title detection only reads DOM text, so abort the
+    // heavy resource types (images, media, fonts, stylesheets) before they
+    // transfer. On a residential proxy billed by GB this is the single biggest
+    // saving — a full Amazon product page is several MB, almost all of it here.
+    try {
+      await this.page.setRequestInterception(true);
+      this.page.on('request', (req) => {
+        const type = req.resourceType();
+        if (type === 'image' || type === 'media' || type === 'font' || type === 'stylesheet') {
+          req.abort().catch(() => {});
+        } else {
+          req.continue().catch(() => {});
+        }
+      });
+    } catch (err) {
+      // Interception unsupported / already set — proceed without it.
+    }
+
     console.log('✅ Browser initialized');
   }
 
